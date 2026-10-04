@@ -30,39 +30,104 @@
     }
     .discount-btn {
         font-size: 0.75rem;
-        padding: 2px 6px;
+        padding: 2px 8px;
         border-radius: 6px;
     }
+
     /* Header Card Dark Background Fix */
     .pantry-header-card {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
         color: #ffffff !important;
     }
-    /* Floating Action Bar for Bulk Updates */
+
+    /* Modern Glassmorphism Floating Action Bar */
     .bulk-floating-bar {
         position: fixed;
         bottom: 24px;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translateX(-50%) translateY(20px);
         z-index: 1050;
-        background: #1e293b;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         color: #fff;
-        padding: 12px 24px;
-        border-radius: 50px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        padding: 10px 16px;
+        border-radius: 100px;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
         display: none;
         align-items: center;
-        gap: 12px;
-        width: 90%;
-        max-width: 750px;
+        justify-content: space-between;
+        gap: 16px;
+        width: calc(100% - 32px);
+        max-width: 820px;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
+    .bulk-floating-bar.active {
+        display: flex;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    /* Custom Style for Selected Counter Badge */
+    .selected-badge {
+        background: rgba(13, 110, 253, 0.2);
+        color: #6ea8fe;
+        border: 1px solid rgba(13, 110, 253, 0.35);
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+
+    /* Responsive Scroll Group for Mobile Action Buttons */
+    .bulk-actions-scroll {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+        padding-vertical: 2px;
+    }
+    .bulk-actions-scroll::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    .bulk-btn {
+        border-radius: 50px !important;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 7px 14px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .bulk-btn:active {
+        transform: scale(0.96);
+    }
+
     @media (max-width: 767.98px) {
         .bulk-floating-bar {
-            flex-direction: column;
+            bottom: 16px;
+            padding: 8px 12px;
             border-radius: 20px;
-            bottom: 12px;
-            padding: 12px;
-            width: 95%;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        .bulk-floating-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .bulk-actions-scroll {
+            width: 100%;
+            justify-content: flex-start;
         }
     }
 </style>
@@ -285,24 +350,27 @@
     </div>
 </div>
 
-<!-- Bulk Action Floating Bar -->
+<!-- Bulk Action Floating Bar (ปรับปรุงสไตล์ใหม่) -->
 <div class="bulk-floating-bar" id="bulkFloatingBar">
-    <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-primary rounded-pill fs-6 px-3" id="selectedCountBadge">เลือก 0 รายการ</span>
+    <div class="bulk-floating-header">
+        <span class="badge selected-badge rounded-pill fs-7 px-3 py-2" id="selectedCountBadge">
+            <i class="fas fa-check-circle me-1"></i> เลือกแล้ว 0 รายการ
+        </span>
+        <button type="button" class="btn-close btn-close-white d-md-none" onclick="toggleSelectAll(false)" aria-label="Close"></button>
     </div>
     
-    <div class="d-flex flex-wrap align-items-center gap-2 ms-md-auto">
-        <button type="button" class="btn btn-success btn-sm rounded-pill px-3" onclick="bulkSetStatus('available')">
-            <i class="fas fa-check-circle me-1"></i> เปิดขายทั้งหมด
+    <div class="bulk-actions-scroll">
+        <button type="button" class="btn btn-success bulk-btn" onclick="bulkSetStatus('available')">
+            <i class="fas fa-eye me-1"></i> เปิดขายทั้งหมด
         </button>
-        <button type="button" class="btn btn-danger btn-sm rounded-pill px-3" onclick="bulkSetStatus('out_of_stock')">
-            <i class="fas fa-times-circle me-1"></i> ปิดขาย (หมด)
+        <button type="button" class="btn btn-danger bulk-btn" onclick="bulkSetStatus('out_of_stock')">
+            <i class="fas fa-eye-slash me-1"></i> ปิดขาย (หมด)
         </button>
-        <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 text-dark fw-bold" onclick="bulkApplyDiscountModal()">
-            <i class="fas fa-tags me-1"></i> ปรับส่วนลด %
+        <button type="button" class="btn btn-warning bulk-btn text-dark" onclick="bulkApplyDiscountModal()">
+            <i class="fas fa-percent me-1"></i> ปรับส่วนลด %
         </button>
-        <button type="button" class="btn btn-light btn-sm rounded-pill px-3 text-dark fw-bold" onclick="saveBulkUpdates()">
-            <i class="fas fa-save me-1"></i> บันทึกทั้งหมด
+        <button type="button" class="btn btn-light bulk-btn text-dark ms-md-auto" onclick="saveBulkUpdates()">
+            <i class="fas fa-save me-1 text-primary"></i> บันทึกทั้งหมด
         </button>
     </div>
 </div>
@@ -439,13 +507,12 @@ function toggleSelectAll(forceState) {
     updateBulkBar();
 }
 
-// อัปเดตแถบ Floating Bar และซิงค์สถานะ Checkbox หัวตาราง
+// อัปเดตแถบ Floating Bar พร้อม Animation
 function updateBulkBar() {
     const selectedIds = getSelectedMenuIds();
     const count = selectedIds.length;
     const totalItems = getTotalMenuCount();
 
-    // ซิงค์ช่อง "สินค้าในคลัง" หัวตาราง: ติ๊กถูกเฉพาะตอนเลือกครบทุกรายการเท่านั้น (ถ้าเลือก 0 หรือไม่ครบ จะเอาติ๊กออก)
     const masterCheckbox = document.getElementById('selectAllDesktop');
     if (masterCheckbox) {
         masterCheckbox.checked = (totalItems > 0 && count === totalItems);
@@ -455,10 +522,10 @@ function updateBulkBar() {
     const countBadge = document.getElementById('selectedCountBadge');
 
     if (count > 0) {
-        bulkBar.style.display = 'flex';
-        countBadge.textContent = `เลือกแล้ว ${count} รายการ`;
+        bulkBar.classList.add('active');
+        countBadge.innerHTML = `<i class="fas fa-check-circle me-1"></i> เลือกแล้ว ${count} รายการ`;
     } else {
-        bulkBar.style.display = 'none';
+        bulkBar.classList.remove('active');
     }
 }
 
@@ -588,14 +655,13 @@ function saveBulkUpdates() {
     });
 }
 
-// คำนวณราคาสุทธิตั้งแต่เริ่มต้น และตรวจสอบสถานะติ๊กเลือกทั้งหมด
+// คำนวณราคาสุทธิตั้งแต่เริ่มต้น
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.menu-item-row, .menu-item-card').forEach(item => {
         const menuId = item.dataset.id;
         if (menuId) calculateNetPrice(menuId);
     });
 
-    // เช็คและซิงค์ Checkbox หัวตารางตั้งแต่ตอนเปิดหน้า
     updateBulkBar();
 });
 </script>

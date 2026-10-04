@@ -1,7 +1,7 @@
 {
   "menus": {
     "-P3-znEpB71xT6mhxX2y": {
-      "category": "อาหารจารหลัก",
+      "category": "อาหารจานหลัก",
       "image_file": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/menus%2Fmenus_20261003160124_a9b2d369.webp?alt=media",
       "is_available": true,
       "name": "ยำทะเล",
@@ -41,6 +41,21 @@
       "status": "pending",
       "table_no": "1",
       "total_amount": 760
+    },
+    "-P33jGZkBJfAjvow5QHO": {
+      "created_at": "2026-10-04 09:27:44",
+      "customer_count": -1,
+      "items": [
+        {
+          "id": "-P3-znEpB71xT6mhxX2y",
+          "name": "ยำทะเล",
+          "price": 50,
+          "qty": 1
+        }
+      ],
+      "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
+      "status": "pending",
+      "total_amount": 50
     }
   },
   "payment_channels": {
@@ -52,38 +67,35 @@
       "qr_image": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/payments%2Fpayments_20261003174551_5c5019ef.png?alt=media"
     }
   },
-  "tables": {
-    "1": {
+  "tables": [
+    null,
+    {
       "capacity": 4,
       "current_order_id": "-P31_tNOe3AVcgq5n-ga",
       "name": "โต๊ะ 1",
       "status": "occupied"
     },
-    "2": {
+    {
       "capacity": 4,
-      "current_order_id": null,
       "name": "โต๊ะ 2",
       "status": "available"
     },
-    "3": {
+    {
       "capacity": 2,
-      "current_order_id": null,
       "name": "โต๊ะ 3",
       "status": "available"
     },
-    "4": {
+    {
       "capacity": 4,
-      "current_order_id": null,
       "name": "โต๊ะ 4",
       "status": "available"
     },
-    "5": {
+    {
       "capacity": 6,
-      "current_order_id": null,
       "name": "โต๊ะ 5",
       "status": "available"
     }
-  },
+  ],
   "users": {
     "-P2shSPjGCQhFWTr-R8G": {
       "is_active": true,

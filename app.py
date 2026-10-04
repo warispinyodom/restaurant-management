@@ -16,74 +16,74 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import firebase_admin
 from firebase_admin import credentials, storage
 
-# ตั้งค่า Bucket โดยไม่ต้องมี gs:// หรือโฟลเดอร์ต่อท้าย
 FIREBASE_BUCKET = "webapplication-e7922.firebasestorage.app"
 
-# เริ่มต้น Firebase Admin SDK (รองรับทั้ง Vercel Environment Variable และ Local File)
 if not firebase_admin._apps:
     cred = None
-    
-    # 1. ตรวจสอบ Environment Variable สำหรับ Vercel/Production
     service_account_env = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
     if service_account_env:
         try:
             cred_dict = json.loads(service_account_env)
-            # แก้ไขปัญหา Newline (\n) ใน Private Key บน Vercel
             if 'private_key' in cred_dict:
                 cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
             cred = credentials.Certificate(cred_dict)
         except Exception as e:
             print(f"Error parsing FIREBASE_SERVICE_ACCOUNT: {e}")
 
-    # 2. หากไม่มี Env Variable ให้ดึงจากไฟล์ serviceAccountKey.json สำหรับ Local
     if not cred:
         cred_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
         if os.path.exists(cred_path):
             cred = credentials.Certificate(cred_path)
 
-    # 3. Initialize Firebase App
     if cred:
-        firebase_admin.initialize_app(cred, {
-            'storageBucket': FIREBASE_BUCKET
-        })
+        firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_BUCKET})
     else:
-        firebase_admin.initialize_app(options={
-            'storageBucket': FIREBASE_BUCKET
-        })
+        firebase_admin.initialize_app(options={'storageBucket': FIREBASE_BUCKET})
 
-# 1. นำเข้าฟังก์ชันจาก auth_utils (Firebase Auth)
+# 1. นำเข้าฟังก์ชันจาก auth_utils
 from auth_utils import (
     get_all_users, 
     create_user, 
     validate_registration, 
     check_credentials
 )
-# 2. นำเข้าฟังก์ชันสำหรับระบบ Staff (Firebase RTDB)
+# 2. นำเข้าฟังก์ชันจาก staff_utils
 from staff_utils import (
     get_all_orders, 
     update_order_status_db, 
     get_all_menus, 
-    update_menu_item_db
+    update_menu_item_db,
+    bulk_update_menu_items_db
 )
 
 app = Flask(__name__)
 app.secret_key = 'restaurant_super_secret'
 
-# URL Firebase Realtime Database
 FIREBASE_URL = "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app"
 
-# SSL Context สำหรับการเชื่อมต่อ REST API
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
+# ==========================================
+# CONSTANTS: หมวดหมู่อาหารมาตรฐานของร้าน
+# ==========================================
+DEFAULT_CATEGORIES = [
+    "อาหารจานหลัก",
+    "ยำ / ของว่างทานเล่น",
+    "ชาบู / สุกี้ / ปิ้งย่าง",
+    "เครื่องดื่ม",
+    "ของหวาน",
+    "เมนูแนะนำ / โปรโมชั่น",
+    "อื่น ๆ"
+]
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def upload_to_firebase_storage(file, folder="uploads"):
-    """ฟังก์ชันอัปโหลดไฟล์รูปภาพไปยัง Firebase Storage ผ่าน Firebase Admin SDK"""
     try:
         if not file or not file.filename:
             return None
@@ -92,41 +92,31 @@ def upload_to_firebase_storage(file, folder="uploads"):
         unique_filename = f"{folder}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.{extension}"
         storage_path = f"{folder}/{unique_filename}"
         
-        # เชื่อมต่อ Storage Bucket
         bucket = storage.bucket()
         blob = bucket.blob(storage_path)
         
         content_type = file.content_type or 'image/jpeg'
         blob.upload_from_string(file.read(), content_type=content_type)
         
-        # สร้าง URL ของ Firebase Storage โดยตรงด้วย urllib.parse ที่นำเข้ามาไว้แล้ว
         encoded_path = urllib.parse.quote(storage_path, safe='')
-        firebase_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
-        
-        return firebase_url
+        return f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
     except Exception as e:
         print(f"Firebase Storage Upload Error: {e}")
         return None
 
 def delete_from_firebase_storage(image_url):
-    """ฟังก์ชันลบไฟล์รูปภาพออกจาก Firebase Storage โดยสกัดหา Storage Path จาก URL"""
     try:
         if not image_url or not isinstance(image_url, str):
             return False
             
-        # ตรวจสอบว่าเป็น URL ของ Firebase Storage หรือไม่
         if "/o/" in image_url:
-            # แยก Path ของไฟล์ออกจาก URL (อยู่ระหว่าง /o/ และ ?)
             path_part = image_url.split("/o/")[1].split("?")[0]
-            # แปลง %2F หรือ URL Encoding กลับเป็น String ปกติ (เช่น menus/filename.jpg)
             storage_path = urllib.parse.unquote(path_part)
             
             bucket = storage.bucket()
             blob = bucket.blob(storage_path)
-            
             if blob.exists():
                 blob.delete()
-                print(f"Successfully deleted {storage_path} from Firebase Storage")
                 return True
     except Exception as e:
         print(f"Firebase Storage Delete Error: {e}")
@@ -179,7 +169,6 @@ def delete_firebase_data(path, item_id):
         return False
 
 def parse_firebase_data(data):
-    """แปลงข้อมูลจาก Firebase ให้เป็น List อย่างปลอดภัย (รองรับกรณี Firebase ส่งมาเป็น List หรือ Dict)"""
     if isinstance(data, dict):
         return [{'id': str(k), **v} for k, v in data.items() if isinstance(v, dict)]
     elif isinstance(data, list):
@@ -230,10 +219,7 @@ def signup():
             password = request.form.get('password', '').strip()
             role = 'customer' 
 
-            users = get_all_users()
-            if not isinstance(users, dict):
-                users = {}
-
+            users = get_all_users() or {}
             is_duplicate = any(info.get('username') == username for uid, info in users.items() if isinstance(info, dict))
             if is_duplicate:
                 flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
@@ -245,7 +231,6 @@ def signup():
                 return redirect(url_for('signup'))
 
             hashed_password = generate_password_hash(password)
-            
             if create_user(username, hashed_password, role):
                 flash("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ", "success")
                 return redirect(url_for('signin'))
@@ -266,7 +251,6 @@ def signin():
         password = request.form.get('password', '').strip()
 
         is_valid, user_info = check_credentials(username, password)
-        
         if is_valid:
             if not user_info.get('is_active', True):
                 flash("บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ", "error")
@@ -306,9 +290,7 @@ def admin_dashboard():
 def staff_orders():
     try:
         staff_status = session.get('staff_status', 'ready')
-        orders = get_all_orders()
-        if orders is None:
-            orders = {}
+        orders = get_all_orders() or {}
         return render_template('staff/orders.html', orders=orders, staff_status=staff_status)
     except Exception as e:
         flash(f"เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล: {str(e)}", "error")
@@ -327,7 +309,6 @@ def update_staff_status():
 def admin_staff_toggle_status(user_id):
     try:
         target_user = get_firebase_data(f"users/{user_id}")
-        
         if isinstance(target_user, dict) and target_user.get('role') == 'admin':
             return jsonify({'status': 'error', 'message': 'ไม่สามารถเปลี่ยนสถานะผู้ดูแลระบบได้!'}), 400
 
@@ -349,8 +330,7 @@ def admin_staff_toggle_status(user_id):
 @staff_required
 def staff_menu_manage():
     try:
-        raw_menus = get_firebase_data('menus')
-        menus = parse_firebase_data(raw_menus)
+        menus = get_all_menus()
     except Exception as e:
         print(f"Error loading staff menus: {e}")
         menus = []
@@ -369,18 +349,39 @@ def quick_update_menu(menu_id):
             update_fields['price'] = abs(float(data['price']))
         except ValueError:
             pass
+
+    if 'discount' in data and data['discount'] is not None:
+        try:
+            update_fields['discount'] = abs(float(data['discount']))
+        except ValueError:
+            pass
+
     if 'stock' in data:
         stock_val = data['stock']
         try:
             update_fields['stock'] = abs(int(stock_val)) if (stock_val is not None and stock_val != "") else None
         except ValueError:
             pass
+
     if 'status' in data:
         update_fields['status'] = data['status']
         
-    if patch_firebase_data('menus', menu_id, update_fields):
+    if update_menu_item_db(menu_id, update_fields):
         return jsonify({'status': 'success', 'message': 'ปรับปรุงข้อมูลเมนูสำเร็จ'})
     return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
+
+@app.route('/staff/menu/bulk-update', methods=['POST'])
+@staff_required
+def bulk_update_menu():
+    data = request.get_json() or {}
+    items_data = data.get('items', {})
+    
+    if not items_data or not isinstance(items_data, dict):
+        return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการบันทึก'}), 400
+
+    if bulk_update_menu_items_db(items_data):
+        return jsonify({'status': 'success', 'message': 'อัปเดตรายการสินค้าทั้งหมดเรียบร้อยแล้ว'})
+    return jsonify({'status': 'error', 'message': 'ไม่สามารถบันทึกข้อมูลแบบกลุ่มได้'}), 500
 
 # ==========================================
 # REAL-TIME API FOR ADMIN DASHBOARD
@@ -390,11 +391,8 @@ def quick_update_menu(menu_id):
 def dashboard_stats():
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
-    
-    # หาวันจันทร์ของสัปดาห์ปัจจุบัน (Monday = 0)
     start_of_week = today - timedelta(days=today.weekday())
     
-    # เตรียม Array ยอดขาย 7 วัน [จ, อ, พ, พฤ, ศ, ส, อา]
     weekly_sales = [0.0] * 7
     sales_today = 0.0
     customers_today = 0
@@ -404,17 +402,15 @@ def dashboard_stats():
     
     for order in orders_list:
         if isinstance(order, dict):
-            created_at = order.get('created_at', '') # เช่น "2026-10-02 14:30:00"
+            created_at = order.get('created_at', '')
             status = order.get('status', '')
             
-            # นับเฉพาะออเดอร์ที่ชำระเงินหรือเสร็จสิ้นแล้ว
             if status in ['completed', 'paid']:
                 try:
                     amount = float(order.get('total_amount', 0))
                 except (ValueError, TypeError):
                     amount = 0.0
                 
-                # 1. รวมยอดขายของวันนี้
                 if created_at.startswith(today_str):
                     sales_today += amount
                     try:
@@ -422,7 +418,6 @@ def dashboard_stats():
                     except (ValueError, TypeError):
                         pass
                 
-                # 2. คำนวณลงในสัปดาห์นี้
                 if created_at:
                     try:
                         order_date = datetime.strptime(created_at.split(' ')[0], "%Y-%m-%d")
@@ -461,7 +456,7 @@ def admin_menu_list():
         menus = []
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลเมนู", "error")
         
-    return render_template('admin/menu.html', menus=menus)
+    return render_template('admin/menu.html', menus=menus, categories=DEFAULT_CATEGORIES)
 
 @app.route('/admin/menu/add', methods=['POST'])
 @admin_required
@@ -505,13 +500,10 @@ def admin_menu_edit(id):
 
         file = request.files.get('image')
         if file and allowed_file(file.filename):
-            # 1. ดึงข้อมูลเมนูเดิมเพื่อเช็ค URL รูปเก่า
             old_menu = get_firebase_data(f'menus/{id}')
             if old_menu and isinstance(old_menu, dict) and old_menu.get('image_file'):
-                # 2. ลบรูปภาพเก่าออกจาก Firebase Storage
                 delete_from_firebase_storage(old_menu['image_file'])
 
-            # 3. อัปโหลดรูปภาพใหม่
             payload['image_file'] = upload_to_firebase_storage(file, folder="menus")
 
         if patch_firebase_data('menus', id, payload):
@@ -527,12 +519,10 @@ def admin_menu_edit(id):
 @admin_required
 def admin_menu_delete(id):
     try:
-        # 1. ดึงข้อมูลเมนูเพื่อนำ URL รูปภาพไปลบออกก่อน
         menu = get_firebase_data(f'menus/{id}')
         if menu and isinstance(menu, dict) and menu.get('image_file'):
             delete_from_firebase_storage(menu['image_file'])
 
-        # 2. ลบข้อมูลเมนูออกจาก Database
         if delete_firebase_data('menus', id):
             return jsonify({'status': 'success', 'message': 'ลบเมนูเรียบร้อยแล้ว'})
         return jsonify({'status': 'error', 'message': 'เกิดข้อผิดพลาดในการลบ'}), 500
@@ -567,10 +557,7 @@ def admin_staff_add():
             flash("ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร และรหัสผ่าน 4 ตัวอักษร", "error")
             return redirect(url_for('admin_staff_list'))
 
-        users = get_all_users()
-        if not isinstance(users, dict):
-            users = {}
-
+        users = get_all_users() or {}
         is_duplicate = any(info.get('username') == username for uid, info in users.items() if isinstance(info, dict))
         if is_duplicate:
             flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
@@ -596,7 +583,6 @@ def admin_staff_edit(user_id):
         status_input = request.form.get('is_active', 'true')
         password = request.form.get('password', '').strip()
 
-        # ตรวจสอบชื่อผู้ใช้ซ้ำเมื่อแก้ไขชื่อ
         if username:
             users = get_all_users()
             if isinstance(users, dict):
@@ -609,10 +595,7 @@ def admin_staff_edit(user_id):
                     flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
                     return redirect(url_for('admin_staff_list'))
 
-        if role == 'admin':
-            is_active = True
-        else:
-            is_active = True if str(status_input).lower() in ['true', 'on', '1'] else False
+        is_active = True if role == 'admin' else (str(status_input).lower() in ['true', 'on', '1'])
 
         update_data = {
             "role": role,
@@ -639,7 +622,6 @@ def admin_staff_edit(user_id):
 @admin_required
 def admin_staff_delete(id):
     try:
-        # ป้องกันไม่ให้ลบบัญชีตัวเองโดยไม่ตั้งใจ
         if id == session.get('user_id'):
             return jsonify({'status': 'error', 'message': 'ไม่สามารถลบบัญชีของตัวเองที่กำลังใช้งานอยู่ได้'}), 400
 
@@ -700,7 +682,6 @@ def admin_payments_edit(id):
 
         file = request.files.get('qr_image')
         if file and allowed_file(file.filename):
-            # ลบรูป QR Code เก่าออกก่อน
             old_payment = get_firebase_data(f'payment_channels/{id}')
             if old_payment and isinstance(old_payment, dict) and old_payment.get('qr_image'):
                 delete_from_firebase_storage(old_payment['qr_image'])
@@ -720,7 +701,6 @@ def admin_payments_edit(id):
 @admin_required
 def admin_payments_delete(id):
     try:
-        # ลบรูป QR Code ออกจาก Storage ก่อนลบจาก DB
         payment = get_firebase_data(f'payment_channels/{id}')
         if payment and isinstance(payment, dict) and payment.get('qr_image'):
             delete_from_firebase_storage(payment['qr_image'])
@@ -763,9 +743,15 @@ def customer_dashboard():
     
     try:
         raw_menus = get_firebase_data('menus')
-        # กรองเฉพาะเมนูที่พร้อมขาย
         menus = [m for m in parse_firebase_data(raw_menus) if m.get('status') == 'available']
         
+        # จัดระเบียบหมวดหมู่: ดึงหมวดหมู่ที่มีใน DB แล้วจัดเรียงตามหมวดหมู่มาตรฐานกลาง
+        existing_cats = set(m.get('category') for m in menus if m.get('category'))
+        categories = [c for c in DEFAULT_CATEGORIES if c in existing_cats]
+        for cat in existing_cats:
+            if cat not in categories:
+                categories.append(cat)
+
         raw_payments = get_firebase_data('payment_channels')
         payments = [
             p for p in parse_firebase_data(raw_payments) 
@@ -773,10 +759,10 @@ def customer_dashboard():
         ]
     except Exception as e:
         print(f"Error loading customer data: {e}")
-        menus, payments = [], []
+        menus, payments, categories = [], [], []
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", "error")
     
-    return render_template('customer/customer.html', menus=menus, payments=payments)
+    return render_template('customer/customer.html', menus=menus, payments=payments, categories=categories)
 
 @app.route('/customer/checkout', methods=['POST'])
 def customer_checkout():
@@ -794,6 +780,8 @@ def customer_checkout():
     raw_count = data.get('customer_count')
     try:
         customer_count = int(raw_count) if raw_count is not None else 1
+        if customer_count < 1:
+            customer_count = 1
     except (ValueError, TypeError):
         customer_count = 1
 
