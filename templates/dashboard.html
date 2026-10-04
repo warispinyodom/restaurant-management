@@ -161,25 +161,25 @@
     <h6 class="fw-bold text-secondary mb-2 small text-uppercase">เมนูลัดสำหรับผู้ดูแลระบบ</h6>
     <div class="row g-2">
         <div class="col-6 col-md-3">
-            <a href="{{ url_for('admin_menu_list') }}" class="quick-action-btn shadow-sm">
+            <a href="{{ url_for('admin.admin_menu_list') }}" class="quick-action-btn shadow-sm">
                 <i class="fas fa-utensils text-primary fs-5"></i>
                 <span class="fw-semibold">จัดการเมนูอาหาร</span>
             </a>
         </div>
         <div class="col-6 col-md-3">
-            <a href="{{ url_for('admin_staff_list') }}" class="quick-action-btn shadow-sm">
+            <a href="{{ url_for('admin.admin_staff_list') }}" class="quick-action-btn shadow-sm">
                 <i class="fas fa-users-cog text-success fs-5"></i>
                 <span class="fw-semibold">จัดการพนักงาน</span>
             </a>
         </div>
         <div class="col-6 col-md-3">
-            <a href="{{ url_for('admin_payments_list') }}" class="quick-action-btn shadow-sm">
+            <a href="{{ url_for('admin.admin_payments_list') }}" class="quick-action-btn shadow-sm">
                 <i class="fas fa-qrcode text-warning fs-5"></i>
                 <span class="fw-semibold">ช่องทางชำระเงิน</span>
             </a>
         </div>
         <div class="col-6 col-md-3">
-            <a href="{{ url_for('admin_sales_history') }}" class="quick-action-btn shadow-sm">
+            <a href="{{ url_for('admin.admin_sales_history') }}" class="quick-action-btn shadow-sm">
                 <i class="fas fa-receipt text-danger fs-5"></i>
                 <span class="fw-semibold">ประวัติการขาย</span>
             </a>

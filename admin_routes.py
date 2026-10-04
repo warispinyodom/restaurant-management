@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash
@@ -26,7 +25,11 @@ admin_bp = Blueprint('admin', __name__)
 @admin_bp.route('/admin')
 @admin_required
 def admin_dashboard():
-    return render_template('dashboard.html', username=session.get('username'), role=session.get('role'))
+    try:
+        return render_template('admin/dashboard.html', username=session.get('username'), role=session.get('role'))
+    except Exception:
+        # Fallback กรณีเก็บไฟล์ไว้ที่ templates/dashboard.html
+        return render_template('dashboard.html', username=session.get('username'), role=session.get('role'))
 
 @admin_bp.route('/api/admin/dashboard_stats')
 @admin_required
