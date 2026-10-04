@@ -378,6 +378,13 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    
+                    <tr id="noSearchDataRow" class="d-none">
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-search fs-2 mb-2 d-block opacity-50"></i>
+                            ไม่พบข้อมูลพนักงานตามเงื่อนไขที่ค้นหา
+                        </td>
+                    </tr>
                 {% else %}
                     <tr id="noDataRow">
                         <td colspan="5" class="text-center py-5 text-muted">
@@ -490,7 +497,7 @@
 {% for staff in staff_members %}
 <div class="modal fade" id="editStaffModal{{ staff.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{{ url_for('admin_staff_edit', user_id=staff.id) }}" method="POST" class="modal-content border-0 shadow-lg">
+        <form action="{{ url_for('admin.admin_staff_edit', user_id=staff.id) }}" method="POST" class="modal-content border-0 shadow-lg">
             <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
                 <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
                     <i class="fas fa-user-edit text-warning"></i> แก้ไขข้อมูล: {{ staff.username }}
@@ -563,6 +570,15 @@
                 row.style.display = 'none';
             }
         });
+
+        const noSearchRow = document.getElementById('noSearchDataRow');
+        if (noSearchRow) {
+            if (visibleCount === 0 && rows.length > 0) {
+                noSearchRow.classList.remove('d-none');
+            } else {
+                noSearchRow.classList.add('d-none');
+            }
+        }
     }
 
     function resetFilters() {
@@ -577,7 +593,7 @@
         const checkboxes = document.querySelectorAll('.staff-checkbox');
         checkboxes.forEach(cb => {
             const row = cb.closest('tr');
-            if (row.style.display !== 'none') {
+            if (row && row.style.display !== 'none') {
                 cb.checked = master.checked;
             }
         });

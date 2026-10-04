@@ -172,7 +172,7 @@
 
             <!-- Header โลโก้ -->
             <div class="d-flex align-items-center justify-content-between mb-3 px-1 pt-1">
-                <a href="{{ url_for('home') }}" class="d-flex align-items-center gap-2 text-white text-decoration-none">
+                <a href="/" class="d-flex align-items-center gap-2 text-white text-decoration-none">
                     <div class="bg-warning text-dark rounded-3 px-2 py-1 fs-5 fw-bold">
                         <i class="fas fa-utensils"></i>
                     </div>
@@ -270,12 +270,17 @@
                     <i class="fas fa-edit text-info"></i> <span>ปรับสถานะ/สต็อกเมนู</span>
                 </a>
 
+                <a href="{{ url_for('admin.admin_tables_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_table') }}">
+                    <i class="fas fa-chair text-warning"></i> <span>ผังและสถานะโต๊ะอาหาร</span>
+                </a>
+
                 <!-- 3. CUSTOMER MENU -->
                 {% elif session.get('role') == 'customer' %}
                 <div class="menu-section-label">ส่วนของลูกค้า (Customer)</div>
 
                 <a href="{{ url_for('customer.customer_choose_table') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer.customer_choose_tables' }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('customer.customer_choose') }}">
                     <i class="fas fa-chair text-warning"></i> <span>เลือกโต๊ะอาหาร</span>
                 </a>
 
@@ -289,12 +294,12 @@
                 <div class="menu-section-label">เข้าสู่ระบบ</div>
 
                 <a href="{{ url_for('signin') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'signin' }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint in ['signin', 'auth.signin'] }}">
                     <i class="fas fa-right-to-bracket text-primary"></i> <span>เข้าสู่ระบบ</span>
                 </a>
 
                 <a href="{{ url_for('signup') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'signup' }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint in ['signup', 'auth.signup'] }}">
                     <i class="fas fa-user-plus text-success"></i> <span>สมัครสมาชิก</span>
                 </a>
                 {% endif %}

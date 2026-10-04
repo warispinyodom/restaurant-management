@@ -53,7 +53,7 @@
         display: flex;
     }
 
-    /* Custom Checkbox Overlay on Cards */
+    /* Custom Checkbox Overlay */
     .card-select-checkbox {
         position: absolute;
         top: 12px;
@@ -178,10 +178,8 @@
          data-status="{% if payment.is_active %}active{% else %}inactive{% endif %}">
         
         <div class="card h-100 payment-card shadow-sm position-relative overflow-hidden">
-            <!-- Checkbox Selection -->
             <input class="form-check-input card-select-checkbox payment-checkbox" type="checkbox" value="{{ payment.id }}" onchange="updateBatchBar()">
 
-            <!-- QR Code Section -->
             <div class="qr-container d-flex align-items-center justify-content-center p-3">
                 {% if payment.qr_image %}
                     {% set img_url = payment.qr_image if payment.qr_image.startswith('http') else url_for('static', filename='uploads/' + payment.qr_image) %}
@@ -194,10 +192,8 @@
                 {% endif %}
             </div>
 
-            <!-- Content Section -->
             <div class="card-body d-flex flex-column justify-content-between p-3">
                 <div>
-                    <!-- Bank Badge & Status -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span class="badge {{ bank_class }} bank-badge shadow-sm">
                             <i class="fas fa-university me-1"></i> {{ payment.bank_name }}
@@ -213,7 +209,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Account Details -->
                     <div class="bg-light p-2 rounded-3 mb-3 border border-light-subtle">
                         <p class="text-muted small mb-1">
                             <i class="fas fa-user-circle me-1 text-secondary"></i> <strong>ชื่อบัญชี:</strong> 
@@ -226,14 +221,13 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
                 <div class="d-flex gap-2 action-btns pt-2 border-top">
                     <button type="button" class="btn btn-outline-warning btn-sm fw-bold rounded-2 px-3 flex-fill"
                             data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ payment.id }}">
                         <i class="fas fa-pen me-1"></i> แก้ไข
                     </button>
                     <button type="button" class="btn btn-outline-danger btn-sm fw-bold rounded-2 px-3 flex-fill"
-                            onclick="deleteItem('/admin/payments/delete/{{ payment.id }}')">
+                            onclick="deleteItem('{{ url_for(\'admin_payments_delete\', id=payment.id) }}')">
                         <i class="fas fa-trash-can me-1"></i> ลบ
                     </button>
                 </div>
@@ -244,7 +238,7 @@
     <!-- Modal: Edit Single Payment -->
     <div class="modal fade" id="editPaymentModal{{ payment.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="{{ url_for('admin_payments_edit', payment_id=payment.id) if 'admin_payments_edit' in url_for.__globals__ else '/admin/payments/edit/' ~ payment.id }}" 
+            <form action="{{ url_for('admin_payments_edit', payment_id=payment.id) }}" 
                   method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-3">
                 <div class="modal-header border-bottom-0 pb-0">
                     <h5 class="modal-title fw-bold"><i class="fas fa-pen-to-square text-warning me-2"></i>แก้ไขช่องทางชำระเงิน</h5>
@@ -254,7 +248,7 @@
                     <div class="mb-3">
                         <label class="form-label small fw-bold">เลือกธนาคาร / บริการ</label>
                         <select name="bank_name" class="form-select" required>
-                            <option value="พร้อมเพย์ (PromptPay)" {% if payment.bank_name == 'พร้อมเพย์ (PromptPay)' or payment.bank_name == 'พร้อมเพย์' %}selected{% endif %}>พร้อมเพย์ (PromptPay)</option>
+                            <option value="พร้อมเพย์ (PromptPay)" {% if 'พร้อมเพย์' in payment.bank_name %}selected{% endif %}>พร้อมเพย์ (PromptPay)</option>
                             <option value="ธนาคารกสิกรไทย (KBANK)" {% if 'กสิกร' in payment.bank_name %}selected{% endif %}>ธนาคารกสิกรไทย (KBANK)</option>
                             <option value="ธนาคารไทยพาณิชย์ (SCB)" {% if 'ไทยพาณิชย์' in payment.bank_name %}selected{% endif %}>ธนาคารไทยพาณิชย์ (SCB)</option>
                             <option value="ธนาคารกรุงไทย (KTB)" {% if 'กรุงไทย' in payment.bank_name %}selected{% endif %}>ธนาคารกรุงไทย (KTB)</option>
@@ -319,7 +313,6 @@
             <div class="modal-body p-4">
                 <form id="batchAddForm" enctype="multipart/form-data">
                     <div id="paymentRowsContainer" class="d-flex flex-column gap-3">
-                        <!-- Default Row 1 -->
                         <div class="dynamic-payment-row">
                             <div class="row g-3 align-items-end">
                                 <div class="col-12 col-md-3">
@@ -405,14 +398,12 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // 1. ระบบค้นหาและกรองข้อมูล Real-time
     function filterPayments() {
         const search = document.getElementById('searchInput').value.toLowerCase().trim();
         const bank = document.getElementById('bankFilter').value;
         const status = document.getElementById('statusFilter').value;
         
         const cards = document.querySelectorAll('.payment-card-wrapper');
-        let visibleCount = 0;
 
         cards.forEach(card => {
             const cardBank = card.getAttribute('data-bank') || '';
@@ -426,7 +417,6 @@
 
             if (matchSearch && matchBank && matchStatus) {
                 card.style.display = '';
-                visibleCount++;
             } else {
                 card.style.display = 'none';
             }
@@ -440,7 +430,6 @@
         filterPayments();
     }
 
-    // 2. ระบบเลือกหลายรายการ (Batch Select)
     function toggleSelectAllCards(master) {
         const checkboxes = document.querySelectorAll('.payment-checkbox');
         checkboxes.forEach(cb => {
@@ -475,7 +464,6 @@
         }
     }
 
-    // 3. เพิ่มช่องทางชำระเงินหลายรายการแบบ Dynamic (Batch Add)
     function addPaymentRow() {
         const container = document.getElementById('paymentRowsContainer');
         const div = document.createElement('div');
@@ -559,7 +547,7 @@
 
         if (!isValid) return;
 
-        fetch('/admin/payments/batch-add', {
+        fetch("{{ url_for('admin_payments_batch_add') }}", {
             method: 'POST',
             body: formData
         })
@@ -583,7 +571,6 @@
         });
     }
 
-    // 4. บันทึกการแก้ไขแบบกลุ่ม (Batch Edit Submit)
     function submitBatchEdit() {
         const ids = getSelectedIds();
         const is_active = document.getElementById('batchStatusInput').value;
@@ -593,7 +580,7 @@
             return;
         }
 
-        fetch('/admin/payments/batch-edit', {
+        fetch("{{ url_for('admin_payments_batch_edit') }}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids, is_active: is_active === 'true' })
@@ -614,7 +601,6 @@
         });
     }
 
-    // 5. ลบช่องทางชำระเงินแบบกลุ่ม (Batch Delete Confirmation)
     function confirmBatchDelete() {
         const ids = getSelectedIds();
         if (ids.length === 0) return;
@@ -631,7 +617,7 @@
             reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch('/admin/payments/batch-delete', {
+                fetch("{{ url_for('admin_payments_batch_delete') }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ids })
@@ -654,7 +640,6 @@
         });
     }
 
-    // 6. ลบช่องทางชำระเงินรายรายการ
     function deleteItem(url) {
         Swal.fire({
             title: 'ยืนยันการลบ?',

@@ -47,7 +47,18 @@ def customer_dashboard():
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", "error")
     
     selected_table_no = session.get('selected_table_no', None)
-    return render_template('customer/customer.html', menus=menus, payments=payments, categories=categories, selected_table_no=selected_table_no)
+    customer_count = session.get('customer_count', 1)
+    if not isinstance(customer_count, int) or customer_count < 1:
+        customer_count = 1
+
+    return render_template(
+        'customer/customer.html', 
+        menus=menus, 
+        payments=payments, 
+        categories=categories, 
+        selected_table_no=selected_table_no,
+        customer_count=customer_count
+    )
 
 @customer_bp.route('/customer/choose_table', methods=['GET', 'POST'])
 @customer_bp.route('/customer/choose-table', methods=['GET', 'POST'])
@@ -57,36 +68,128 @@ def customer_choose_table():
         return redirect(url_for('home'))
 
     if request.method == 'POST':
-        table_id = request.form.get('table_id')
-        table_no = request.form.get('table_no')
+        action = request.form.get('action', 'select')
 
-        if not table_id:
-            flash("กรุณาเลือกโต๊ะก่อนดำเนินการต่อ", "error")
+        # ----------------------------------------------------
+        # กรณีที่ 1: ยกเลิกการเลือกโต๊ะอาหาร
+        # ----------------------------------------------------
+        if action == 'cancel':
+            selected_ids = session.get('selected_table_ids', [])
+            
+            # หากมี ID เดียวเดิมที่เก็บเป็น string ให้แปลงเป็น list
+            if not selected_ids and session.get('selected_table_id'):
+                selected_ids = [session.get('selected_table_id')]
+
+            # คืนสถานะโต๊ะใน Firebase เป็น available
+            for tid in selected_ids:
+                if tid:
+                    patch_firebase_data('tables', tid, {'status': 'available'})
+
+            # ล้างค่า Session เกี่ยวกับโต๊ะทั้งหมด
+            session.pop('selected_table_id', None)
+            session.pop('selected_table_ids', None)
+            session.pop('selected_table_no', None)
+            session.pop('selected_table_nos', None)
+            session.pop('customer_count', None)
+
+            flash("ยกเลิกการเลือกโต๊ะอาหารเรียบร้อยแล้ว", "success")
             return redirect(url_for('customer.customer_choose_table'))
 
-        current_table = get_firebase_data(f'tables/{table_id}')
-        if not current_table or current_table.get('status') != 'available':
-            flash(f"ขออภัย โต๊ะ {table_no} ถูกใช้งานหรือถูกจองแล้ว กรุณาเลือกโต๊ะอื่น", "error")
+        # ----------------------------------------------------
+        # กรณีที่ 2: ยืนยันเลือกโต๊ะอาหาร (รองรับหลายโต๊ะ)
+        # ----------------------------------------------------
+        table_ids = request.form.getlist('table_ids')
+        try:
+            customer_count = int(request.form.get('customer_count', 1))
+            if customer_count < 1:
+                customer_count = 1
+        except (ValueError, TypeError):
+            customer_count = 1
+
+        if not table_ids:
+            flash("กรุณาเลือกโต๊ะอาหารอย่างน้อย 1 โต๊ะ", "error")
             return redirect(url_for('customer.customer_choose_table'))
 
-        session['selected_table_id'] = table_id
-        session['selected_table_no'] = table_no
+        # โหลดข้อมูลโต๊ะทั้งหมดเพื่อตรวจสอบความถูกต้อง
+        raw_tables = get_firebase_data('tables')
+        all_tables = parse_firebase_data(raw_tables)
+        tables_map = {str(t.get('id')): t for t in all_tables}
 
-        patch_firebase_data('tables', table_id, {'status': 'occupied'})
+        # หากมีโต๊ะเดิมที่เคยเลือกไว้ ให้คืนสถานะก่อน
+        old_ids = session.get('selected_table_ids', [])
+        if not old_ids and session.get('selected_table_id'):
+            old_ids = [session.get('selected_table_id')]
+        for old_id in old_ids:
+            if old_id and old_id not in table_ids:
+                patch_firebase_data('tables', old_id, {'status': 'available'})
 
-        flash(f"เลือกโต๊ะ {table_no} เรียบร้อยแล้ว สามารถสั่งอาหารได้เลยครับ", "success")
+        selected_nos = []
+        for tid in table_ids:
+            table_info = tables_map.get(str(tid))
+            if not table_info:
+                flash("พบข้อมูลโต๊ะไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง", "error")
+                return redirect(url_for('customer.customer_choose_table'))
+            
+            # ตรวจสอบสถานะ (หากถูกผู้อื่นเลือกไปแล้ว และไม่ใช่โต๊ะที่เราเลือกอยู่เดิม)
+            if table_info.get('status') != 'available' and tid not in old_ids:
+                flash(f"ขออภัย โต๊ะ {table_info.get('table_no')} ถูกใช้งานหรือถูกจองแล้ว", "error")
+                return redirect(url_for('customer.customer_choose_table'))
+            
+            selected_nos.append(str(table_info.get('table_no', '')))
+
+        # อัปเดตสถานะโต๊ะใหม่ใน Firebase เป็น occupied
+        for tid in table_ids:
+            patch_firebase_data('tables', tid, {'status': 'occupied'})
+
+        # บันทึกลงใน Session
+        session['selected_table_ids'] = table_ids
+        session['selected_table_id'] = table_ids[0] if table_ids else ''
+        session['selected_table_nos'] = selected_nos
+        session['selected_table_no'] = ", ".join(selected_nos)
+        session['customer_count'] = customer_count
+
+        flash(f"เลือกโต๊ะ {session['selected_table_no']} (จำนวน {customer_count} ท่าน) เรียบร้อยแล้ว", "success")
         return redirect(url_for('customer.customer_dashboard'))
 
+    # GET Request: แสดงรายการโต๊ะ
     try:
         raw_tables = get_firebase_data('tables')
         tables = parse_firebase_data(raw_tables)
-        tables.sort(key=lambda x: str(x.get('table_no', '')))
+        
+        # เรียงลำดับหมายเลขโต๊ะแบบเป็นระเบียบ
+        def sort_key(t):
+            no = str(t.get('table_no', ''))
+            digits = ''.join(filter(str.isdigit, no))
+            return int(digits) if digits else no
+            
+        tables.sort(key=sort_key)
     except Exception as e:
         print(f"Error loading tables for customer: {e}")
         tables = []
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลโต๊ะอาหาร", "error")
 
-    return render_template('customer/choose_tables.html', tables=tables)
+    # ข้อมูลสถานะเดิมของ Session เพื่อแสดงผลใน UI
+    current_selected_ids = session.get('selected_table_ids', [])
+    if not current_selected_ids and session.get('selected_table_id'):
+        current_selected_ids = [session.get('selected_table_id')]
+
+    current_selected_no = session.get('selected_table_no', '')
+    
+    raw_customer_count = session.get('customer_count', 1)
+    try:
+        current_customer_count = int(raw_customer_count)
+        if current_customer_count < 1:
+            current_customer_count = 1
+    except (ValueError, TypeError):
+        current_customer_count = 1
+
+    return render_template(
+        'customer/choose_tables.html', 
+        tables=tables,
+        current_selected_ids=current_selected_ids,
+        current_selected_no=current_selected_no,
+        current_customer_count=current_customer_count
+    )
 
 @customer_bp.route('/customer/checkout', methods=['POST'])
 def customer_checkout():
@@ -101,7 +204,7 @@ def customer_checkout():
     except (ValueError, TypeError):
         total_amount = 0.0
 
-    raw_count = data.get('customer_count')
+    raw_count = data.get('customer_count') or session.get('customer_count', 1)
     try:
         customer_count = int(raw_count) if raw_count is not None else 1
         if customer_count < 1:
@@ -120,6 +223,7 @@ def customer_checkout():
         payload = {
             "table_no": table_no,
             "table_id": session.get('selected_table_id', ''),
+            "table_ids": session.get('selected_table_ids', []),
             "customer_count": customer_count,
             "total_amount": total_amount,
             "total_price": total_amount,

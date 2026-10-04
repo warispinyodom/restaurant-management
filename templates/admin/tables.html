@@ -187,7 +187,7 @@
     </div>
 </div>
 
-<!-- Modern Glassmorphic Bulk Action Bar (สไตล์สปอร์ต ปรับปรุงใหม่ responsive 100%) -->
+<!-- Modern Glassmorphic Bulk Action Bar -->
 <div id="bulkActionBar" class="bulk-floating-bar d-none">
     <div class="d-flex align-items-center justify-content-between w-100 gap-2">
         <!-- Left Side: Badge & Cancel -->
@@ -231,7 +231,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
-            <form action="{{ url_for('admin_table_add') }}" method="POST">
+            <form action="{{ url_for('admin.admin_table_add') }}" method="POST">
                 <div class="modal-body pt-3">
                     <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3 mb-3" id="addModeTab" role="tablist">
                         <li class="nav-item">
@@ -253,7 +253,7 @@
                         <div class="tab-pane fade show active" id="single-pane">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">หมายเลข/ชื่อโต๊ะ <span class="text-danger">*</span></label>
-                                <input type="text" name="table_no" class="form-control rounded-3" placeholder="เช่น T-01 หรือ 1">
+                                <input type="text" id="single_table_no" name="table_no" class="form-control rounded-3" placeholder="เช่น T-01 หรือ 1" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">จำนวนที่นั่ง (คน)</label>
@@ -270,13 +270,13 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-semibold">เลขเริ่มต้น <span class="text-danger">*</span></label>
-                                    <input type="number" name="start_no" class="form-control rounded-3" value="1" min="1">
+                                    <input type="number" id="bulk_start_no" name="start_no" class="form-control rounded-3" value="1" min="1">
                                 </div>
                             </div>
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label fw-semibold">จำนวนโต๊ะที่สร้าง <span class="text-danger">*</span></label>
-                                    <input type="number" name="quantity" class="form-control rounded-3" value="5" min="1" max="50">
+                                    <input type="number" id="bulk_quantity" name="quantity" class="form-control rounded-3" value="5" min="1" max="50">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-semibold">ที่นั่งต่อโต๊ะ</label>
@@ -372,7 +372,7 @@
     border-color: #0d6efd;
 }
 
-/* Floating Bulk Action Bar (Glassmorphism & Responsive Fix) */
+/* Floating Bulk Action Bar */
 .bulk-floating-bar {
     position: fixed;
     bottom: 24px;
@@ -414,9 +414,27 @@
 let currentStatusFilter = 'all';
 let pendingDeleteAction = null;
 
+// สลับ required ของ input ตามโหมด เพื่อไม่ให้ HTML5 Validation ทำงานค้างใน Tab ที่ถูกซ่อน
 function setAddType(type) {
     document.getElementById('add_type').value = type;
+    const singleTableNo = document.getElementById('single_table_no');
+    const bulkStartNo = document.getElementById('bulk_start_no');
+    const bulkQuantity = document.getElementById('bulk_quantity');
+
+    if (type === 'single') {
+        if (singleTableNo) singleTableNo.required = true;
+        if (bulkStartNo) bulkStartNo.required = false;
+        if (bulkQuantity) bulkQuantity.required = false;
+    } else {
+        if (singleTableNo) singleTableNo.required = false;
+        if (bulkStartNo) bulkStartNo.required = true;
+        if (bulkQuantity) bulkQuantity.required = true;
+    }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    setAddType('single');
+});
 
 // -------------------------------------------------------------
 // Filter & Search Functions
@@ -513,9 +531,10 @@ function deselectAllCheckboxes() {
 }
 
 function toggleSelectAllModal() {
-    const checkboxes = document.querySelectorAll('.custom-table-checkbox');
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    checkboxes.forEach(cb => {
+    const visibleCheckboxes = document.querySelectorAll('.table-item-col:not(.d-none) .custom-table-checkbox');
+    const allChecked = Array.from(visibleCheckboxes).length > 0 && Array.from(visibleCheckboxes).every(cb => cb.checked);
+    
+    visibleCheckboxes.forEach(cb => {
         cb.checked = !allChecked;
         const card = document.getElementById(`table-card-${cb.value}`);
         if (card) {

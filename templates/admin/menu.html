@@ -38,7 +38,7 @@
     .menu-img-wrapper {
         position: relative;
         width: 100%;
-        padding-top: 72%; /* อัตราส่วนสมดุล */
+        padding-top: 72%;
         overflow: hidden;
         background-color: #f8f9fa;
         flex-shrink: 0;
@@ -175,7 +175,7 @@
         }
     }
 
-    /* แถบจัดการแบบกลุ่ม Floating Capsule Bar (ปรับปรุงให้ Responsive ไม่ล้นจอ) */
+    /* แถบจัดการแบบกลุ่ม Floating Capsule Bar */
     .bulk-toolbar {
         position: fixed;
         bottom: 16px;
@@ -188,7 +188,7 @@
         border-radius: 50px;
         padding: 6px 12px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-        width: calc(100% - 24px); /* กำหนดความกว้างไม่ให้ล้นขอบจอมือถือ */
+        width: calc(100% - 24px);
         max-width: 600px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         animation: fadeInUp 0.25s ease-out;
@@ -218,10 +218,9 @@
         </button>
     </div>
 
-    <!-- ================= Bulk Action Toolbar (แถบควบคุมเมื่อเลือกหลายรายการ สไตล์ Capsule ลอยด้านล่าง) ================= -->
+    <!-- Bulk Action Toolbar -->
     <div class="bulk-toolbar d-none" id="bulkActionToolbar">
         <div class="d-flex align-items-center justify-content-between gap-1 gap-sm-2">
-            <!-- ด้านซ้าย: Checkbox เลือกทั้งหมด + จำนวนที่เลือก -->
             <div class="d-flex align-items-center gap-1 gap-sm-2 flex-shrink-1 overflow-hidden">
                 <div class="form-check m-0 d-flex align-items-center">
                     <input class="form-check-input menu-select-checkbox" type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)">
@@ -232,7 +231,6 @@
                 <span class="badge bg-primary rounded-pill px-2 py-1 fs-8 fs-sm-7 fw-semibold text-nowrap" id="selectedCountBadge">เลือกอยู่ 0 รายการ</span>
             </div>
 
-            <!-- ด้านขวา: ปุ่มจัดการแก้ไข / ลบ / ปิด -->
             <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
                 <button type="button" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark text-nowrap px-2 px-sm-3 fs-8 fs-sm-7" data-bs-toggle="modal" data-bs-target="#batchEditModal">
                     <i class="fas fa-pen-to-square me-1"></i><span class="d-inline">แก้ไข</span>
@@ -247,10 +245,9 @@
         </div>
     </div>
 
-    <!-- ================= Filter & Search Bar Section ================= -->
+    <!-- Filter & Search Bar Section -->
     <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2 p-sm-3">
         <div class="row g-2 mb-2 mb-sm-3 align-items-center">
-            <!-- ช่องค้นหาชื่อเมนู -->
             <div class="col-12 col-md-5">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-3 text-secondary">
@@ -260,7 +257,6 @@
                 </div>
             </div>
 
-            <!-- ตัวกรองสถานะ -->
             <div class="col-6 col-md-3">
                 <select id="filterStatusSelect" class="form-select form-select-sm rounded-pill py-2 px-2 px-sm-3 shadow-none border-light bg-light text-truncate fs-7">
                     <option value="all">สถานะ: ทั้งหมด</option>
@@ -269,7 +265,6 @@
                 </select>
             </div>
 
-            <!-- ตัวเรียงลำดับราคา -->
             <div class="col-6 col-md-4">
                 <select id="sortSelect" class="form-select form-select-sm rounded-pill py-2 px-2 px-sm-3 shadow-none border-light bg-light text-truncate fs-7">
                     <option value="default">การจัดเรียง: ดั้งเดิม</option>
@@ -280,7 +275,6 @@
             </div>
         </div>
 
-        <!-- แถบเลือกหมวดหมู่ Quick Category Filter -->
         <div class="d-flex align-items-center gap-2 pt-1">
             <span class="small fw-bold text-muted text-nowrap flex-shrink-0 fs-7">
                 <i class="fas fa-filter text-primary me-1"></i> หมวดหมู่:
@@ -315,7 +309,7 @@
         </div>
     </div>
 
-    <!-- ================= แสดงรายการเมนูแบบ Grid Card ================= -->
+    <!-- Grid Cards แสดงเมนู -->
     <div class="row g-2 g-sm-3 g-md-4 align-items-stretch" id="menuCardsContainer">
         {% for menu in menus %}
         <div class="col-6 col-sm-6 col-md-4 col-lg-3 menu-item-col" 
@@ -326,14 +320,12 @@
              data-price="{{ menu.price|abs }}">
             <div class="card menu-card shadow-sm position-relative" id="menuCard_{{ menu.id }}">
                 
-                <!-- Checkbox เลือกเมนูสำหรับ Batch Operations -->
                 <div class="card-checkbox-wrapper">
                     <div class="form-check m-0 p-0 d-flex align-items-center justify-content-center">
                         <input class="form-check-input menu-select-checkbox item-checkbox" type="checkbox" value="{{ menu.id }}" onchange="updateBulkActionToolbar()">
                     </div>
                 </div>
 
-                <!-- ส่วนรูปภาพอาหาร -->
                 <div class="menu-img-wrapper">
                     <div class="status-badge-overlay">
                         {% if menu.status == 'available' %}
@@ -362,7 +354,6 @@
                     {% endif %}
                 </div>
 
-                <!-- รายละเอียดเมนู -->
                 <div class="card-body p-2 p-sm-3 d-flex flex-column justify-content-between flex-grow-1">
                     <div>
                         <div class="mb-1">
@@ -371,7 +362,6 @@
                         <div class="menu-title-text" title="{{ menu.name }}">{{ menu.name }}</div>
                     </div>
 
-                    <!-- ปุ่มจัดการ แก้ไข / ลบ -->
                     <div class="pt-2 border-top mt-auto d-flex gap-1">
                         <button type="button"
                             class="btn btn-card-action btn-outline-warning text-dark fw-semibold flex-fill rounded-pill d-inline-flex align-items-center justify-content-center text-nowrap"
@@ -380,7 +370,7 @@
                         </button>
                         <button type="button"
                             class="btn btn-card-action btn-outline-danger fw-semibold flex-fill rounded-pill d-inline-flex align-items-center justify-content-center text-nowrap"
-                            onclick="deleteItem('/admin/menu/delete/{{ menu.id }}')">
+                            onclick="deleteItem('{{ url_for(\'admin_menu_delete\', id=menu.id) }}')">
                             <i class="fas fa-trash-can me-1"></i> ลบ
                         </button>
                     </div>
@@ -389,7 +379,6 @@
         </div>
         {% endfor %}
 
-        <!-- กล่องแสดงผลเมื่อค้นหาไม่พบรายการ -->
         <div class="col-12 d-none" id="noSearchResults">
             <div class="card border-0 shadow-sm rounded-4 text-center py-5 bg-white">
                 <div class="card-body text-muted p-3">
@@ -420,7 +409,7 @@
     </div>
 </div>
 
-<!-- ================= Modal: แก้ไขรายการแบบกลุ่ม (Batch Edit Modal) ================= -->
+<!-- Modal: Batch Edit Modal -->
 <div class="modal fade" id="batchEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -473,7 +462,7 @@
     </div>
 </div>
 
-<!-- Edit Menu Modals (แต่ละรายการ) -->
+<!-- Edit Single Menu Modals -->
 {% for menu in menus %}
 <div class="modal fade" id="editMenuModal{{ menu.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -495,11 +484,11 @@
                     <label class="form-label small fw-bold">เลือกหมวดหมู่</label>
                     <select name="category" class="form-select rounded-3 fw-semibold text-dark">
                         <option value="อาหารจานหลัก" {% if menu.category == 'อาหารจานหลัก' %}selected{% endif %}>🍲 อาหารจานหลัก</option>
-                        <option value="ยำ / ของว่างทานเล่น" {% if menu.category == 'ยำ / ของว่างทานเล่น' or menu.category == 'ยำ / ทานเล่น' %}selected{% endif %}>🥗 ยำ / ของว่างทานเล่น</option>
-                        <option value="ชาบู / สุกี้ / ปิ้งย่าง" {% if menu.category == 'ชาบู / สุกี้ / ปิ้งย่าง' %}selected{% endif %}>🥩 ชาบู / สุกี้ / ปิ้งย่าง</option>
+                        <option value="ยำ / ของว่างทานเล่น" {% if 'ยำ' in menu.category %}selected{% endif %}>🥗 ยำ / ของว่างทานเล่น</option>
+                        <option value="ชาบู / สุกี้ / ปิ้งย่าง" {% if 'ชาบู' in menu.category %}selected{% endif %}>🥩 ชาบู / สุกี้ / ปิ้งย่าง</option>
                         <option value="เครื่องดื่ม" {% if menu.category == 'เครื่องดื่ม' %}selected{% endif %}>🥤 เครื่องดื่ม</option>
                         <option value="ของหวาน" {% if menu.category == 'ของหวาน' %}selected{% endif %}>🍨 ของหวาน</option>
-                        <option value="เมนูแนะนำ / โปรโมชั่น" {% if menu.category == 'เมนูแนะนำ / โปรโมชั่น' %}selected{% endif %}>🌟 เมนูแนะนำ / โปรโมชั่น</option>
+                        <option value="เมนูแนะนำ / โปรโมชั่น" {% if 'แนะนำ' in menu.category %}selected{% endif %}>🌟 เมนูแนะนำ / โปรโมชั่น</option>
                         <option value="อื่น ๆ" {% if menu.category == 'อื่น ๆ' %}selected{% endif %}>📦 อื่น ๆ</option>
                     </select>
                 </div>
@@ -531,11 +520,10 @@
 </div>
 {% endfor %}
 
-<!-- Add Menu Modal (Multi-item Support) -->
+<!-- Add Menu Modal -->
 <div class="modal fade" id="addMenuModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            
             <div class="modal-header bg-dark text-white p-3 p-md-4 border-0">
                 <div class="d-flex align-items-center gap-2">
                     <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
@@ -551,7 +539,7 @@
 
             <form id="multiMenuForm" onsubmit="submitMultiMenu(event)">
                 <div class="modal-body p-3 p-md-4 bg-light" id="multiMenuContainer">
-                    <!-- Dynamic Menu Input Rows Will Be Rendered Here -->
+                    <!-- Dynamic Rows Rendered Here -->
                 </div>
 
                 <div class="p-3 bg-light border-top text-center">
@@ -575,7 +563,6 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // ================= ระบบกรองข้อมูลเมนูแบบเรียลไทม์ =================
     document.addEventListener("DOMContentLoaded", function () {
         const searchInput = document.getElementById('searchMenuInput');
         const statusSelect = document.getElementById('filterStatusSelect');
@@ -591,7 +578,6 @@
             addMenuRow();
         }
 
-        // คลิกที่ตัวการ์ดเพื่อติ๊กเลือก/ยกเลิก Checkbox
         document.querySelectorAll('.menu-card').forEach(card => {
             card.addEventListener('click', function (e) {
                 if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.item-checkbox') || e.target.closest('select') || e.target.closest('input')) {
@@ -667,7 +653,6 @@
         applyFilters();
     }
 
-    // ================= ระบบเลือกรายการกลุ่ม (Bulk / Batch Actions UX) =================
     function getSelectedIds() {
         const checkboxes = document.querySelectorAll('.item-checkbox:checked');
         return Array.from(checkboxes).map(cb => cb.value);
@@ -727,14 +712,13 @@
         updateBulkActionToolbar();
     }
 
-    // ส่งคำขอลบหลายรายการพร้อมกัน (Batch Delete)
     function submitBatchDelete() {
         const ids = getSelectedIds();
         if (ids.length === 0) return;
 
         Swal.fire({
             title: `ยืนยันการลบ ${ids.length} รายการ?`,
-            text: 'คุณต้องการลบรายการเมนูที่เลือกทั้งหมดใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้',
+            text: 'คุณต้องการลบรายการเมนูที่เลือกทั้งหมดใช่หรือไม่?',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
@@ -750,7 +734,7 @@
                     didOpen: () => Swal.showLoading()
                 });
 
-                fetch("{{ url_for('admin_menu_batch_delete') if 'admin_menu_batch_delete' in config.get('ENDPOINTS', {}) else '/admin/menu/batch-delete' }}", {
+                fetch("{{ url_for('admin_menu_batch_delete') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -779,7 +763,6 @@
         });
     }
 
-    // ส่งคำขอแก้ไขหลายรายการพร้อมกัน (Batch Edit)
     function submitBatchEdit(event) {
         event.preventDefault();
         const ids = getSelectedIds();
@@ -801,7 +784,7 @@
             didOpen: () => Swal.showLoading()
         });
 
-        fetch("{{ url_for('admin_menu_batch_edit') if 'admin_menu_batch_edit' in config.get('ENDPOINTS', {}) else '/admin/menu/batch-edit' }}", {
+        fetch("{{ url_for('admin_menu_batch_edit') }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -833,7 +816,6 @@
         });
     }
 
-    // ================= ระบบเพิ่มเมนูหลายรายการ (Multi-Add JS) =================
     let menuRowCounter = 0;
 
     function addMenuRow() {
@@ -927,9 +909,7 @@
             title: 'กำลังบันทึกข้อมูล...',
             text: `กำลังประมวลผล 1 จาก ${rows.length} รายการ`,
             allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
+            didOpen: () => Swal.showLoading()
         });
 
         let successCount = 0;
@@ -957,9 +937,7 @@
             try {
                 const response = await fetch("{{ url_for('admin_menu_add') }}", {
                     method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: formData
                 });
 
@@ -985,22 +963,17 @@
                 icon: 'success',
                 timer: 1800,
                 showConfirmButton: false
-            }).then(() => {
-                location.reload();
-            });
+            }).then(() => location.reload());
         } else {
             Swal.fire({
                 title: 'เสร็จสิ้น',
                 text: `สำเร็จ ${successCount} รายการ, ไม่สำเร็จ ${failCount} รายการ`,
                 icon: failCount > 0 && successCount > 0 ? 'warning' : 'error',
                 confirmButtonText: 'ตกลง'
-            }).then(() => {
-                location.reload();
-            });
+            }).then(() => location.reload());
         }
     }
 
-    // ================= ระบบลบรายการเมนูทีละรายการ =================
     function deleteItem(url) {
         Swal.fire({
             title: 'ยืนยันการลบ?',
@@ -1024,25 +997,13 @@
                                 icon: 'success',
                                 timer: 1500,
                                 showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
-                            });
+                            }).then(() => location.reload());
                         } else {
-                            Swal.fire({
-                                title: 'เกิดข้อผิดพลาด!',
-                                text: data.message || 'ไม่สามารถลบรายการได้',
-                                icon: 'error',
-                                confirmButtonText: 'ตกลง'
-                            });
+                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบรายการได้', 'error');
                         }
                     })
                     .catch(err => {
-                        Swal.fire({
-                            title: 'เกิดข้อผิดพลาด!',
-                            text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
-                            icon: 'error',
-                            confirmButtonText: 'ตกลง'
-                        });
+                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
                     });
             }
         });

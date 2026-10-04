@@ -1,628 +1,679 @@
-{% extends "base.html" %}
-
+{% extends 'base.html' %}
 {% block content %}
 <style>
-    /* ===================================================
-       1. ธีมเล่มรายงานสมุดบัญชี (Sales Ledger Theme)
-       =================================================== */
-    .ledger-container {
-        background-color: #f8f9fa;
-        border-radius: 12px;
-    }
-
-    .ledger-paper {
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-top: 4px solid #2b3a4a;
-        /* สันปกเล่มรายงาน */
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        position: relative;
-    }
-
-    .ledger-header {
-        background: linear-gradient(180deg, #fcfcfc 0%, #f4f6f8 100%);
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    /* ตารางสไตล์เล่มรายงาน */
-    .table-ledger th {
-        background-color: #f1f3f5;
-        color: #343a40;
-        font-weight: 700;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-bottom: 2px solid #dee2e6;
-        white-space: nowrap;
-        vertical-align: middle;
-    }
-
-    .table-ledger td {
-        white-space: nowrap;
-        vertical-align: middle;
-        font-size: 0.9rem;
-    }
-
-    /* ===================================================
-       สไตล์การ์ดสรุปยอดแบบใหม่ (Modern Summary Cards)
-       =================================================== */
-    .summary-card {
-        background: #ffffff;
-        border: 1px solid #eef2f6;
-        border-radius: 14px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-        transition: all 0.25s ease-in-out;
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* เอฟเฟกต์ Hover เมื่อเมาส์ชี้ */
-    .summary-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-    }
-
-    /* แถบสีเน้นด้านข้างการ์ด (Left Accent Bar) */
-    .summary-card::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 4px;
-    }
-
-    .summary-card.sales::before { background-color: #198754; }      /* สีเขียว */
-    .summary-card.completed::before { background-color: #0d6efd; }  /* สีฟ้า */
-    .summary-card.voided::before { background-color: #dc3545; }     /* สีแดง */
-
-    /* ไอคอนการ์ด */
-    .summary-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        flex-shrink: 0;
-    }
-
-    /* หัวข้อการ์ด */
-    .summary-title {
-        font-size: 0.85rem;
+    /* Bank Theme Badges & Custom Branding */
+    .bank-badge {
         font-weight: 600;
-        color: #6c757d;
-        letter-spacing: 0.2px;
+        font-size: 0.85rem;
+        padding: 0.35em 0.75em;
+        border-radius: 50rem;
+    }
+    .bank-promptpay { background-color: #003d6b; color: #ffffff; }
+    .bank-kbank     { background-color: #138f2d; color: #ffffff; }
+    .bank-scb       { background-color: #4e2583; color: #ffffff; }
+    .bank-ktb       { background-color: #00a5e5; color: #ffffff; }
+    .bank-bbl       { background-color: #1e3a8a; color: #ffffff; }
+    .bank-bay       { background-color: #fec400; color: #212529; }
+    .bank-ttb       { background-color: #002d62; color: #ffffff; }
+    .bank-gsb       { background-color: #eb1985; color: #ffffff; }
+    .bank-truemoney { background-color: #ff5722; color: #ffffff; }
+    .bank-other     { background-color: #6c757d; color: #ffffff; }
+
+    /* Payment Card Styling */
+    .payment-card {
+        transition: all 0.25s ease-in-out;
+        border: 1px solid #e9ecef;
+        border-radius: 14px;
+        background: #ffffff;
+    }
+    .payment-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+    }
+    .qr-container {
+        height: 200px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #f1f3f5;
+        position: relative;
+    }
+    .qr-img {
+        max-height: 170px;
+        max-width: 170px;
+        object-fit: contain;
     }
 
-    /* ตัวเลขสรุปยอด */
-    .summary-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #212529;
-        line-height: 1.2;
-    }
-
-    /* หน่วยนับ */
-    .summary-unit {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #6c757d;
-        margin-left: 4px;
-    }
-
-    /* ปุ่มลัดเลือกช่วงเวลา */
-    .btn-quick-date {
-        font-size: 0.78rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 20px;
-    }
-
-    /* ส่วนเซ็นชื่อเมื่อพิมพ์รายงาน */
-    .print-signature-block {
+    /* Batch Bar Styling */
+    .batch-bar {
+        background: #eef6ff;
+        border: 1px solid #cce5ff;
+        border-radius: 12px;
         display: none;
     }
-
-    /* ===================================================
-       2. Responsive adjustments (มือถือ & แท็บเล็ต)
-       =================================================== */
-    @media (max-width: 767.98px) {
-        .filter-box {
-            padding: 0.75rem !important;
-        }
-
-        .summary-value {
-            font-size: 1.25rem !important;
-        }
-
-        .table-ledger th,
-        .table-ledger td {
-            padding: 0.6rem 0.5rem;
-            font-size: 0.82rem;
-        }
+    .batch-bar.active {
+        display: flex;
     }
 
-    /* ===================================================
-       3. Print Stylesheet (ปรับแต่งสำหรับพิมพ์เอกสาร A4)
-       =================================================== */
-    @media print {
+    /* Custom Checkbox Overlay */
+    .card-select-checkbox {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        width: 1.25em;
+        height: 1.25em;
+        cursor: pointer;
+    }
 
-        .no-print,
-        .no-print * {
-            display: none !important;
+    /* Dynamic Add Row */
+    .dynamic-payment-row {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    @media (max-width: 576px) {
+        .action-btns {
+            flex-direction: row;
+            width: 100%;
         }
-
-        body {
-            background: #ffffff !important;
-            color: #000000 !important;
-            padding: 0 !important;
-        }
-
-        .ledger-paper {
-            border: none !important;
-            box-shadow: none !important;
-            border-top: none !important;
-        }
-
-        .table-responsive {
-            overflow: visible !important;
-        }
-
-        .table-ledger th,
-        .table-ledger td {
-            border-color: #333 !important;
-            padding: 6px 8px !important;
-        }
-
-        .print-signature-block {
-            display: flex !important;
-            margin-top: 40px;
-            page-break-inside: avoid;
+        .action-btns .btn {
+            flex: 1;
         }
     }
 </style>
 
-<div class="container-fluid px-0 ledger-container">
+<!-- Header Title & Main Action -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fas fa-wallet text-primary me-2"></i>จัดการช่องทางชำระเงิน</h3>
+        <p class="text-muted mb-0 small">ตั้งค่า บัญชีธนาคาร พร้อมเพย์ และ QR Code สำหรับรับชำระเงิน</p>
+    </div>
+    <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" 
+            data-bs-toggle="modal" data-bs-target="#addBatchPaymentModal">
+        <i class="fas fa-plus-circle"></i> เพิ่มช่องทางชำระเงิน (หลายรายการ)
+    </button>
+</div>
 
-    <!-- 1. ส่วนหัวเล่มรายงาน (Report Header) -->
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 px-1">
-        <div>
-            <h4 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                <i class="fas fa-book-journal-whills text-primary"></i>
-                รายงานประวัติการขาย (Sales Ledger)
-            </h4>
-            <p class="text-muted small mb-0">
-                เล่มบันทึกรายการสั่งซื้อ สรุปรายรับ และตรวจสอบการยกเลิกบิล
-            </p>
-        </div>
-        <div class="d-flex align-items-center gap-2 no-print">
-            <button onclick="window.print()"
-                class="btn btn-dark btn-sm rounded-2 shadow-sm px-3 d-inline-flex align-items-center gap-2">
-                <i class="fas fa-print"></i>
-                <span>พิมพ์รายงาน (Print)</span>
-            </button>
+<!-- Search & Filter Bar -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control border-start-0 bg-light" 
+                           placeholder="ค้นหาตามชื่อบัญชี หรือ เลขบัญชี/พร้อมเพย์..." onkeyup="filterPayments()">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select id="bankFilter" class="form-select bg-light" onchange="filterPayments()">
+                    <option value="">-- ธนาคาร/บริการทั้งหมด --</option>
+                    <option value="พร้อมเพย์ (PromptPay)">พร้อมเพย์ (PromptPay)</option>
+                    <option value="ธนาคารกสิกรไทย (KBANK)">ธนาคารกสิกรไทย (KBANK)</option>
+                    <option value="ธนาคารไทยพาณิชย์ (SCB)">ธนาคารไทยพาณิชย์ (SCB)</option>
+                    <option value="ธนาคารกรุงไทย (KTB)">ธนาคารกรุงไทย (KTB)</option>
+                    <option value="ธนาคารกรุงเทพ (BBL)">ธนาคารกรุงเทพ (BBL)</option>
+                    <option value="ธนาคารกรุงศรีอยุธยา (BAY)">ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                    <option value="ธนาคารทหารไทยธนชาต (TTB)">ธนาคารทหารไทยธนชาต (TTB)</option>
+                    <option value="ธนาคารออมสิน (GSB)">ธนาคารออมสิน (GSB)</option>
+                    <option value="ทรูมันนี่ วอลเล็ท (TrueMoney)">ทรูมันนี่ วอลเล็ท (TrueMoney)</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select id="statusFilter" class="form-select bg-light" onchange="filterPayments()">
+                    <option value="">-- สถานะทั้งหมด --</option>
+                    <option value="active">เปิดใช้งาน</option>
+                    <option value="inactive">ปิดใช้งาน</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1 text-end">
+                <button class="btn btn-outline-secondary w-100 fw-bold" onclick="resetFilters()" title="ล้างการกรอง">
+                    <i class="fas fa-redo-alt"></i>
+                </button>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- 2. แผงควบคุมตัวกรองค้นหา (Advanced Filter Panel) -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4 no-print filter-box bg-white">
-        <div class="card-body p-3">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fw-bold text-secondary small d-flex align-items-center gap-1">
-                    <i class="fas fa-filter text-primary"></i> ตัวกรองข้อมูลรายงาน (Report Filters)
-                </span>
-                <!-- ปุ่มลัดช่วงเวลา -->
-                <div class="d-flex gap-1 flex-wrap">
-                    <button type="button" class="btn btn-outline-secondary btn-quick-date"
-                        onclick="setQuickDate('today')">วันนี้</button>
-                    <button type="button" class="btn btn-outline-secondary btn-quick-date"
-                        onclick="setQuickDate('7days')">7 วันล่าสุด</button>
-                    <button type="button" class="btn btn-outline-secondary btn-quick-date"
-                        onclick="setQuickDate('month')">เดือนนี้</button>
-                    <button type="button" class="btn btn-outline-danger btn-quick-date" onclick="resetFilters()">
-                        <i class="fas fa-rotate-left me-1"></i>รีเซ็ต
+<!-- Batch Operation Toolbar -->
+<div id="batchBar" class="batch-bar p-3 mb-4 align-items-center justify-content-between flex-wrap gap-2 shadow-sm">
+    <div class="d-flex align-items-center gap-3">
+        <div class="form-check m-0">
+            <input class="form-check-input" type="checkbox" id="selectAllCards" onchange="toggleSelectAllCards(this)">
+            <label class="form-check-label fw-bold small" for="selectAllCards">เลือกทั้งหมด</label>
+        </div>
+        <span class="badge bg-primary rounded-pill fs-6 px-3 py-1" id="selectedCount">เลือกแล้ว 0 รายการ</span>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-warning text-dark fw-bold btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#batchEditModal">
+            <i class="fas fa-pen me-1"></i> แก้ไขสถานะที่เลือก
+        </button>
+        <button type="button" class="btn btn-danger fw-bold btn-sm rounded-pill px-3" onclick="confirmBatchDelete()">
+            <i class="fas fa-trash-alt me-1"></i> ลบที่เลือก
+        </button>
+    </div>
+</div>
+
+<!-- Payment Cards Grid -->
+<div class="row g-3" id="paymentGrid">
+    {% for payment in payments %}
+    {% set bank_class = 'bank-other' %}
+    {% if 'พร้อมเพย์' in payment.bank_name %}{% set bank_class = 'bank-promptpay' %}
+    {% elif 'กสิกร' in payment.bank_name %}{% set bank_class = 'bank-kbank' %}
+    {% elif 'ไทยพาณิชย์' in payment.bank_name %}{% set bank_class = 'bank-scb' %}
+    {% elif 'กรุงไทย' in payment.bank_name %}{% set bank_class = 'bank-ktb' %}
+    {% elif 'กรุงเทพ' in payment.bank_name %}{% set bank_class = 'bank-bbl' %}
+    {% elif 'กรุงศรี' in payment.bank_name %}{% set bank_class = 'bank-bay' %}
+    {% elif 'ทหารไทย' in payment.bank_name or 'TTB' in payment.bank_name %}{% set bank_class = 'bank-ttb' %}
+    {% elif 'ออมสิน' in payment.bank_name %}{% set bank_class = 'bank-gsb' %}
+    {% elif 'ทรูมันนี่' in payment.bank_name %}{% set bank_class = 'bank-truemoney' %}
+    {% endif %}
+
+    <div class="col-12 col-sm-6 col-lg-4 payment-card-wrapper" 
+         data-bank="{{ payment.bank_name }}" 
+         data-account-name="{{ payment.account_name | lower }}" 
+         data-promptpay="{{ payment.promptpay_no }}"
+         data-status="{% if payment.is_active %}active{% else %}inactive{% endif %}">
+        
+        <div class="card h-100 payment-card shadow-sm position-relative overflow-hidden">
+            <input class="form-check-input card-select-checkbox payment-checkbox" type="checkbox" value="{{ payment.id }}" onchange="updateBatchBar()">
+
+            <div class="qr-container d-flex align-items-center justify-content-center p-3">
+                {% if payment.qr_image %}
+                    {% set img_url = payment.qr_image if payment.qr_image.startswith('http') else url_for('static', filename='uploads/' + payment.qr_image) %}
+                    <img src="{{ img_url }}" class="rounded bg-white p-2 border shadow-sm qr-img" alt="QR Code">
+                {% else %}
+                    <div class="text-muted text-center">
+                        <i class="fas fa-qrcode fa-3x mb-2 opacity-25"></i>
+                        <div class="small fw-semibold">ไม่มีรูป QR Code</div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card-body d-flex flex-column justify-content-between p-3">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge {{ bank_class }} bank-badge shadow-sm">
+                            <i class="fas fa-university me-1"></i> {{ payment.bank_name }}
+                        </span>
+                        {% if payment.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 small">
+                                <i class="fas fa-check-circle me-1"></i>เปิดใช้งาน
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-1 small">
+                                <i class="fas fa-minus-circle me-1"></i>ปิดใช้งาน
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="bg-light p-2 rounded-3 mb-3 border border-light-subtle">
+                        <p class="text-muted small mb-1">
+                            <i class="fas fa-user-circle me-1 text-secondary"></i> <strong>ชื่อบัญชี:</strong> 
+                            <span class="text-dark fw-bold">{{ payment.account_name }}</span>
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-credit-card me-1 text-secondary"></i> <strong>เลขบัญชี / พร้อมเพย์:</strong> 
+                            <span class="font-monospace fw-bold text-primary fs-6">{{ payment.promptpay_no }}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 action-btns pt-2 border-top">
+                    <button type="button" class="btn btn-outline-warning btn-sm fw-bold rounded-2 px-3 flex-fill"
+                            data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ payment.id }}">
+                        <i class="fas fa-pen me-1"></i> แก้ไข
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold rounded-2 px-3 flex-fill"
+                            onclick="deleteItem('{{ url_for(\'admin_payments_delete\', id=payment.id) }}')">
+                        <i class="fas fa-trash-can me-1"></i> ลบ
                     </button>
                 </div>
             </div>
-
-            <div class="row g-2 align-items-end">
-                <!-- ค้นหาคำด่วน -->
-                <div class="col-12 col-md-3">
-                    <label class="form-label text-muted small mb-1">ค้นหาด่วน (Search)</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
-                        <input type="text" id="filterKeyword" class="form-control"
-                            placeholder="รหัสออเดอร์, โต๊ะ, ยอดเงิน..." onkeyup="applyLedgerFilters()">
-                    </div>
-                </div>
-
-                <!-- วันที่เริ่มต้น -->
-                <div class="col-6 col-md-2">
-                    <label class="form-label text-muted small mb-1">ตั้งแต่วันที่</label>
-                    <input type="date" id="filterStartDate" class="form-control form-control-sm"
-                        onchange="applyLedgerFilters()">
-                </div>
-
-                <!-- วันที่สิ้นสุด -->
-                <div class="col-6 col-md-2">
-                    <label class="form-label text-muted small mb-1">ถึงวันที่</label>
-                    <input type="date" id="filterEndDate" class="form-control form-control-sm"
-                        onchange="applyLedgerFilters()">
-                </div>
-
-                <!-- ตัวกรองสถานะ -->
-                <div class="col-6 col-md-2">
-                    <label class="form-label text-muted small mb-1">สถานะบิล</label>
-                    <select id="filterStatus" class="form-select form-select-sm" onchange="applyLedgerFilters()">
-                        <option value="all">-- ทุกสถานะ --</option>
-                        <option value="completed">สำเร็จ (Completed)</option>
-                        <option value="voided">ยกเลิกแล้ว (Voided)</option>
-                        <option value="pending">รอดำเนินการ (Pending)</option>
-                    </select>
-                </div>
-
-                <!-- ช่องทางชำระเงิน -->
-                <div class="col-6 col-md-3">
-                    <label class="form-label text-muted small mb-1">ช่องทางชำระเงิน</label>
-                    <select id="filterPayment" class="form-select form-select-sm" onchange="applyLedgerFilters()">
-                        <option value="all">-- ทุกช่องทางชำระ --</option>
-                        <option value="เงินสด">เงินสด</option>
-                        <option value="PromptPay">PromptPay / โอนเงิน</option>
-                        <option value="บัตรเครดิต">บัตรเครดิต</option>
-                    </select>
-                </div>
-            </div>
         </div>
     </div>
 
-    <!-- 3. การ์ดสรุปยอดคำนวณเรียลไทม์ (Dynamic Summary Cards) -->
-    <div class="row g-3 mb-4">
-        <!-- ยอดขายรวม -->
-        <div class="col-12 col-md-4">
-            <div class="summary-card sales p-3 h-100">
-                <div class="d-flex align-items-center">
-                    <div class="summary-icon bg-success bg-opacity-10 text-success me-3">
-                        <i class="fas fa-wallet"></i>
+    <!-- Modal: Edit Single Payment -->
+    <div class="modal fade" id="editPaymentModal{{ payment.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="{{ url_for('admin_payments_edit', payment_id=payment.id) }}" 
+                  method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-3">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-pen-to-square text-warning me-2"></i>แก้ไขช่องทางชำระเงิน</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">เลือกธนาคาร / บริการ</label>
+                        <select name="bank_name" class="form-select" required>
+                            <option value="พร้อมเพย์ (PromptPay)" {% if 'พร้อมเพย์' in payment.bank_name %}selected{% endif %}>พร้อมเพย์ (PromptPay)</option>
+                            <option value="ธนาคารกสิกรไทย (KBANK)" {% if 'กสิกร' in payment.bank_name %}selected{% endif %}>ธนาคารกสิกรไทย (KBANK)</option>
+                            <option value="ธนาคารไทยพาณิชย์ (SCB)" {% if 'ไทยพาณิชย์' in payment.bank_name %}selected{% endif %}>ธนาคารไทยพาณิชย์ (SCB)</option>
+                            <option value="ธนาคารกรุงไทย (KTB)" {% if 'กรุงไทย' in payment.bank_name %}selected{% endif %}>ธนาคารกรุงไทย (KTB)</option>
+                            <option value="ธนาคารกรุงเทพ (BBL)" {% if 'กรุงเทพ' in payment.bank_name %}selected{% endif %}>ธนาคารกรุงเทพ (BBL)</option>
+                            <option value="ธนาคารกรุงศรีอยุธยา (BAY)" {% if 'กรุงศรี' in payment.bank_name %}selected{% endif %}>ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                            <option value="ธนาคารทหารไทยธนชาต (TTB)" {% if 'ทหารไทย' in payment.bank_name or 'TTB' in payment.bank_name %}selected{% endif %}>ธนาคารทหารไทยธนชาต (TTB)</option>
+                            <option value="ธนาคารออมสิน (GSB)" {% if 'ออมสิน' in payment.bank_name %}selected{% endif %}>ธนาคารออมสิน (GSB)</option>
+                            <option value="ทรูมันนี่ วอลเล็ท (TrueMoney)" {% if 'ทรูมันนี่' in payment.bank_name %}selected{% endif %}>ทรูมันนี่ วอลเล็ท (TrueMoney)</option>
+                            <option value="อื่นๆ" {% if payment.bank_name == 'อื่นๆ' %}selected{% endif %}>อื่นๆ</option>
+                        </select>
                     </div>
-                    <div class="flex-grow-1">
-                        <div class="summary-title mb-1">ยอดขายรวมสำเร็จ</div>
-                        <div class="summary-value" id="statTotalSales">฿0.00</div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">ชื่อบัญชี</label>
+                        <input type="text" name="account_name" class="form-control" value="{{ payment.account_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">เลขบัญชี / เบอร์พร้อมเพย์</label>
+                        <input type="text" name="promptpay_no" class="form-control font-monospace" value="{{ payment.promptpay_no }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">เปลี่ยนรูปภาพ QR Code (หากต้องการเปลี่ยน)</label>
+                        <input type="file" name="qr_image" class="form-control" accept="image/*">
+                    </div>
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActiveEdit{{ payment.id }}" {% if payment.is_active %}checked{% endif %}>
+                        <label class="form-check-label small fw-bold" for="isActiveEdit{{ payment.id }}">เปิดใช้งานช่องทางนี้</label>
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4">บันทึกการแก้ไข</button>
+                </div>
+            </form>
         </div>
+    </div>
+    {% endfor %}
 
-        <!-- รายการขายสำเร็จ -->
-        <div class="col-12 col-sm-6 col-md-4">
-            <div class="summary-card completed p-3 h-100">
-                <div class="d-flex align-items-center">
-                    <div class="summary-icon bg-primary bg-opacity-10 text-primary me-3">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="summary-title mb-1">รายการสำเร็จ</div>
-                        <div class="summary-value">
-                            <span id="statCompletedCount">0</span>
-                            <span class="summary-unit">บิล</span>
+    {% if not payments %}
+    <div class="col-12" id="noDataRow">
+        <div class="card border-0 shadow-sm text-center py-5 text-muted rounded-3">
+            <i class="fas fa-qrcode fa-4x mb-3 text-secondary opacity-50"></i>
+            <h5 class="fw-bold mb-1">ยังไม่มีช่องทางชำระเงินในระบบ</h5>
+            <p class="mb-0 small">กดปุ่ม "เพิ่มช่องทางชำระเงิน" เพื่อเริ่มต้นสร้างบัญชีรับชำระเงินของคุณ</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal: เพิ่มช่องทางชำระเงินหลายรายการพร้อมกัน (Batch Add) -->
+<div class="modal fade" id="addBatchPaymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                        <i class="fas fa-university text-primary"></i> เพิ่มช่องทางชำระเงินใหม่
+                    </h5>
+                    <p class="text-muted small mb-0">เลือกประเภทธนาคารและกรอกข้อมูล สามารถกดปุ่ม + เพื่อเพิ่มช่องทางชำระเงินหลายรายการพร้อมกันได้</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="batchAddForm" enctype="multipart/form-data">
+                    <div id="paymentRowsContainer" class="d-flex flex-column gap-3">
+                        <div class="dynamic-payment-row">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label small fw-bold">ธนาคาร / บริการ</label>
+                                    <select class="form-select payment-input-bank" required>
+                                        <option value="พร้อมเพย์ (PromptPay)">พร้อมเพย์ (PromptPay)</option>
+                                        <option value="ธนาคารกสิกรไทย (KBANK)">ธนาคารกสิกรไทย (KBANK)</option>
+                                        <option value="ธนาคารไทยพาณิชย์ (SCB)">ธนาคารไทยพาณิชย์ (SCB)</option>
+                                        <option value="ธนาคารกรุงไทย (KTB)">ธนาคารกรุงไทย (KTB)</option>
+                                        <option value="ธนาคารกรุงเทพ (BBL)">ธนาคารกรุงเทพ (BBL)</option>
+                                        <option value="ธนาคารกรุงศรีอยุธยา (BAY)">ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                                        <option value="ธนาคารทหารไทยธนชาต (TTB)">ธนาคารทหารไทยธนชาต (TTB)</option>
+                                        <option value="ธนาคารออมสิน (GSB)">ธนาคารออมสิน (GSB)</option>
+                                        <option value="ทรูมันนี่ วอลเล็ท (TrueMoney)">ทรูมันนี่ วอลเล็ท (TrueMoney)</option>
+                                        <option value="อื่นๆ">อื่นๆ</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label small fw-bold">ชื่อบัญชี</label>
+                                    <input type="text" class="form-control payment-input-account" placeholder="เช่น นายสมชาย ใจดี" required>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label small fw-bold">เลขบัญชี / เบอร์พร้อมเพย์</label>
+                                    <input type="text" class="form-control font-monospace payment-input-number" placeholder="เช่น 0812345678" required>
+                                </div>
+                                <div class="col-9 col-md-2">
+                                    <label class="form-label small fw-bold">รูป QR Code</label>
+                                    <input type="file" class="form-control payment-input-qr" accept="image/*">
+                                </div>
+                                <div class="col-3 col-md-1 text-end">
+                                    <button type="button" class="btn btn-outline-danger w-100" onclick="removePaymentRow(this)" title="ลบแถว">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </form>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3" onclick="addPaymentRow()">
+                        <i class="fas fa-plus me-1"></i> เพิ่มช่องทางชำระเงินอีก
+                    </button>
                 </div>
             </div>
+            <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" onclick="submitBatchAdd()">บันทึกข้อมูลทั้งหมด</button>
+            </div>
         </div>
+    </div>
+</div>
 
-        <!-- รายการยกเลิก -->
-        <div class="col-12 col-sm-6 col-md-4">
-            <div class="summary-card voided p-3 h-100">
-                <div class="d-flex align-items-center">
-                    <div class="summary-icon bg-danger bg-opacity-10 text-danger me-3">
-                        <i class="fas fa-ban"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="summary-title mb-1">รายการยกเลิก (Void)</div>
-                        <div class="summary-value">
-                            <span id="statVoidedCount">0</span>
-                            <span class="summary-unit">บิล</span>
-                        </div>
-                    </div>
+<!-- Modal: แก้ไขแบบกลุ่ม (Batch Edit Status) -->
+<div class="modal fade" id="batchEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-edit text-warning"></i> แก้ไขสถานะรายการที่เลือก
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">เลือกสถานะใหม่ที่ต้องการนำไปใช้กับรายการช่องทางชำระเงินที่เลือกไว้ทั้งหมด</p>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">สถานะใหม่</label>
+                    <select id="batchStatusInput" class="form-select">
+                        <option value="">-- ไม่เปลี่ยนแปลง --</option>
+                        <option value="true">เปิดใช้งาน (Active)</option>
+                        <option value="false">ปิดใช้งาน (Inactive)</option>
+                    </select>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- 4. ตารางประวัติการขายสไตล์สมุดรายงาน (Sales Ledger Table) -->
-    <div class="ledger-paper overflow-hidden mb-4">
-
-        <!-- Header ตารางรายงาน -->
-        <div class="ledger-header p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
-                <i class="fas fa-list text-secondary"></i>
-                <h6 class="fw-bold m-0 text-dark">รายการบันทึกการขาย</h6>
-                <span class="badge bg-secondary rounded-pill font-monospace" id="visibleRowCount">0 รายการ</span>
-            </div>
-            <div class="text-muted small">
-                <i class="far fa-clock me-1"></i>ข้อมูล ณ วันที่: {{ now_date if now_date else '' }}
-            </div>
-        </div>
-
-        <!-- Body ตาราง -->
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-ledger align-middle mb-0" id="salesLedgerTable">
-                    <thead>
-                        <tr>
-                            <th class="ps-3 py-3" style="min-width: 110px;">รหัสออเดอร์</th>
-                            <th style="min-width: 140px;">จำนวนลูกค้า / โต๊ะ</th>
-                            <th style="min-width: 120px;">ยอดรวม</th>
-                            <th style="min-width: 150px;">ช่องทางชำระ</th>
-                            <th style="min-width: 130px;">สถานะ</th>
-                            <th style="min-width: 160px;">วันที่-เวลา</th>
-                            <th class="text-end pe-3 no-print" style="min-width: 110px;">จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if orders %}
-                        {% for order in orders %}
-                        {% set order_status = order['status'] or 'pending' %}
-                        {% set order_amount = order['total_amount'] or 0 %}
-                        {% set order_payment = order['payment_method'] or 'เงินสด/PromptPay' %}
-                        {% set order_date_raw = order['created_at'] or '' %}
-                        {% set order_date_day = order_date_raw.split(' ')[0] if order_date_raw else '' %}
-
-                        <tr id="order-row-{{ order['id'] }}" class="ledger-row" data-id="{{ order['id'] }}"
-                            data-status="{{ order_status }}" data-amount="{{ order_amount }}"
-                            data-payment="{{ order_payment }}" data-date="{{ order_date_day }}"
-                            data-search="#{{ order['id'] }} โต๊ะ {{ order['table_no'] or '-' }} {{ order_payment }} {{ order_status }}">
-
-                            <!-- รหัสออเดอร์ -->
-                            <td class="ps-3 fw-bold text-primary font-monospace">#{{ order['id'] }}</td>
-
-                            <!-- โต๊ะ/จำนวนคน -->
-                            <td>
-                                <span class="fw-medium text-dark">
-                                    <i class="fas fa-chair text-muted me-1"></i>โต๊ะ {{ order['table_no'] or '-' }}
-                                </span>
-                                <span class="text-muted small ms-1">({{ order['customer_count'] or 1 }} คน)</span>
-                            </td>
-
-                            <!-- ยอดรวม -->
-                            <td class="fw-bold text-dark font-monospace">
-                                ฿{{ "{:,.2f}".format(order_amount) }}
-                            </td>
-
-                            <!-- ช่องทางชำระเงิน -->
-                            <td>
-                                <span class="badge bg-light text-dark border px-2 py-1 fw-normal">
-                                    <i class="fas fa-credit-card me-1 text-muted"></i>{{ order_payment }}
-                                </span>
-                            </td>
-
-                            <!-- สถานะ -->
-                            <td>
-                                {% if order_status == 'completed' %}
-                                <span
-                                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
-                                    <i class="fas fa-check me-1"></i>สำเร็จ
-                                </span>
-                                {% elif order_status == 'voided' or order_status == 'cancelled' %}
-                                <span
-                                    class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">
-                                    <i class="fas fa-times me-1"></i>ยกเลิกแล้ว (Void)
-                                </span>
-                                {% else %}
-                                <span
-                                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">
-                                    <i class="fas fa-clock me-1"></i>{{ order_status }}
-                                </span>
-                                {% endif %}
-                            </td>
-
-                            <!-- วันที่และเวลา -->
-                            <td class="text-muted small font-monospace">
-                                <i class="far fa-calendar-alt me-1"></i>{{ order_date_raw or '-' }}
-                            </td>
-
-                            <!-- ปุ่มจัดการ -->
-                            <td class="text-end pe-3 no-print">
-                                {% if order_status != 'voided' and order_status != 'cancelled' %}
-                                <button class="btn btn-outline-danger btn-sm rounded-2 px-2 py-1"
-                                    data-id="{{ order.id }}" onclick="voidOrder(this.getAttribute('data-id'))"
-                                    title="ยกเลิกบิลนี้">
-                                    <i class="fas fa-ban me-1"></i>ยกเลิก
-                                </button>
-                                {% else %}
-                                <span class="text-muted small">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr id="noDataRow">
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                <i class="fas fa-inbox fs-1 mb-2 d-block opacity-25"></i>
-                                ยังไม่มีประวัติการขายในระบบ
-                            </td>
-                        </tr>
-                        {% endif %}
-
-                        <!-- แถวแจ้งเมื่อค้นหาไม่เจอ -->
-                        <tr id="noMatchingRow" style="display: none;">
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                <i class="fas fa-search-minus fs-1 mb-2 d-block opacity-25"></i>
-                                ไม่พบข้อมูลรายการขายตามเงื่อนไขที่กรอง
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-warning text-dark fw-bold rounded-pill px-4" onclick="submitBatchEdit()">บันทึกการแก้ไข</button>
             </div>
         </div>
     </div>
-
-    <!-- 5. ส่วนท้ายเล่มรายงานสำหรับพิมพ์ลงกระดาษ (Print Signature Area) -->
-    <div class="print-signature-block justify-content-between px-4">
-        <div class="text-center" style="width: 200px;">
-            <div class="mb-2" style="border-bottom: 1px solid #000; height: 40px;"></div>
-            <p class="mb-0 small fw-bold">ลงชื่อ....................................................</p>
-            <p class="text-muted small">( ผู้จัดทำรายงาน / Report Issuer )</p>
-        </div>
-        <div class="text-center" style="width: 200px;">
-            <div class="mb-2" style="border-bottom: 1px solid #000; height: 40px;"></div>
-            <p class="mb-0 small fw-bold">ลงชื่อ....................................................</p>
-            <p class="text-muted small">( ผู้ตรวจสอบ / Auditor )</p>
-        </div>
-    </div>
-
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // คำนวณยอดครั้งแรกเมื่อโหลดหน้า
-        applyLedgerFilters();
-    });
+    function filterPayments() {
+        const search = document.getElementById('searchInput').value.toLowerCase().trim();
+        const bank = document.getElementById('bankFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        
+        const cards = document.querySelectorAll('.payment-card-wrapper');
 
-    // ==========================================
-    // ฟังก์ชันกรองข้อมูลรายงานและคำนวณยอดเรียลไทม์
-    // ==========================================
-    function applyLedgerFilters() {
-        const keyword = document.getElementById("filterKeyword").value.toLowerCase().trim();
-        const startDate = document.getElementById("filterStartDate").value;
-        const endDate = document.getElementById("filterEndDate").value;
-        const status = document.getElementById("filterStatus").value;
-        const payment = document.getElementById("filterPayment").value;
+        cards.forEach(card => {
+            const cardBank = card.getAttribute('data-bank') || '';
+            const cardAccount = card.getAttribute('data-account-name') || '';
+            const cardPromptpay = card.getAttribute('data-promptpay') || '';
+            const cardStatus = card.getAttribute('data-status') || '';
 
-        const rows = document.querySelectorAll(".ledger-row");
-        let visibleCount = 0;
-        let totalSalesSum = 0;
-        let completedCount = 0;
-        let voidedCount = 0;
+            const matchSearch = cardAccount.includes(search) || cardPromptpay.includes(search);
+            const matchBank = bank === '' || cardBank === bank;
+            const matchStatus = status === '' || cardStatus === status;
 
-        rows.forEach(row => {
-            const rowSearch = row.getAttribute("data-search").toLowerCase();
-            const rowStatus = row.getAttribute("data-status");
-            const rowAmount = parseFloat(row.getAttribute("data-amount")) || 0;
-            const rowPayment = row.getAttribute("data-payment");
-            const rowDate = row.getAttribute("data-date"); // YYYY-MM-DD
-
-            // 1. ตรวจสอบการค้นหาคีย์เวิร์ด
-            const matchKeyword = !keyword || rowSearch.includes(keyword);
-
-            // 2. ตรวจสอบช่วงวันที่
-            let matchDate = true;
-            if (startDate && rowDate && rowDate < startDate) matchDate = false;
-            if (endDate && rowDate && rowDate > endDate) matchDate = false;
-
-            // 3. ตรวจสอบสถานะ
-            let matchStatus = true;
-            if (status !== "all" && rowStatus !== status) {
-                if (status === "voided" && (rowStatus === "voided" || rowStatus === "cancelled")) {
-                    matchStatus = true;
-                } else {
-                    matchStatus = false;
-                }
-            }
-
-            // 4. ตรวจสอบช่องทางชำระเงิน
-            let matchPayment = true;
-            if (payment !== "all") {
-                matchPayment = rowPayment.toLowerCase().includes(payment.toLowerCase());
-            }
-
-            // สรุปผลการกรอง
-            if (matchKeyword && matchDate && matchStatus && matchPayment) {
-                row.style.display = "";
-                visibleCount++;
-
-                // คำนวณสรุปยอดเรียลไทม์เฉพาะรายการที่แสดง
-                if (rowStatus === "completed") {
-                    totalSalesSum += rowAmount;
-                    completedCount++;
-                } else if (rowStatus === "voided" || rowStatus === "cancelled") {
-                    voidedCount++;
-                }
+            if (matchSearch && matchBank && matchStatus) {
+                card.style.display = '';
             } else {
-                row.style.display = "none";
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('bankFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        filterPayments();
+    }
+
+    function toggleSelectAllCards(master) {
+        const checkboxes = document.querySelectorAll('.payment-checkbox');
+        checkboxes.forEach(cb => {
+            const cardWrapper = cb.closest('.payment-card-wrapper');
+            if (cardWrapper && cardWrapper.style.display !== 'none') {
+                cb.checked = master.checked;
+            }
+        });
+        updateBatchBar();
+    }
+
+    function getSelectedIds() {
+        const selected = [];
+        document.querySelectorAll('.payment-checkbox:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+        return selected;
+    }
+
+    function updateBatchBar() {
+        const selected = getSelectedIds();
+        const batchBar = document.getElementById('batchBar');
+        const countSpan = document.getElementById('selectedCount');
+        
+        if (selected.length > 0) {
+            batchBar.classList.add('active');
+            countSpan.textContent = `เลือกแล้ว ${selected.length} รายการ`;
+        } else {
+            batchBar.classList.remove('active');
+            const selectAllCb = document.getElementById('selectAllCards');
+            if (selectAllCb) selectAllCb.checked = false;
+        }
+    }
+
+    function addPaymentRow() {
+        const container = document.getElementById('paymentRowsContainer');
+        const div = document.createElement('div');
+        div.className = 'dynamic-payment-row';
+        div.innerHTML = `
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold">ธนาคาร / บริการ</label>
+                    <select class="form-select payment-input-bank" required>
+                        <option value="พร้อมเพย์ (PromptPay)">พร้อมเพย์ (PromptPay)</option>
+                        <option value="ธนาคารกสิกรไทย (KBANK)">ธนาคารกสิกรไทย (KBANK)</option>
+                        <option value="ธนาคารไทยพาณิชย์ (SCB)">ธนาคารไทยพาณิชย์ (SCB)</option>
+                        <option value="ธนาคารกรุงไทย (KTB)">ธนาคารกรุงไทย (KTB)</option>
+                        <option value="ธนาคารกรุงเทพ (BBL)">ธนาคารกรุงเทพ (BBL)</option>
+                        <option value="ธนาคารกรุงศรีอยุธยา (BAY)">ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                        <option value="ธนาคารทหารไทยธนชาต (TTB)">ธนาคารทหารไทยธนชาต (TTB)</option>
+                        <option value="ธนาคารออมสิน (GSB)">ธนาคารออมสิน (GSB)</option>
+                        <option value="ทรูมันนี่ วอลเล็ท (TrueMoney)">ทรูมันนี่ วอลเล็ท (TrueMoney)</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold">ชื่อบัญชี</label>
+                    <input type="text" class="form-control payment-input-account" placeholder="ชื่อบัญชี" required>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label small fw-bold">เลขบัญชี / เบอร์พร้อมเพย์</label>
+                    <input type="text" class="form-control font-monospace payment-input-number" placeholder="เลขบัญชี / พร้อมเพย์" required>
+                </div>
+                <div class="col-9 col-md-2">
+                    <label class="form-label small fw-bold">รูป QR Code</label>
+                    <input type="file" class="form-control payment-input-qr" accept="image/*">
+                </div>
+                <div class="col-3 col-md-1 text-end">
+                    <button type="button" class="btn btn-outline-danger w-100" onclick="removePaymentRow(this)" title="ลบแถว">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    }
+
+    function removePaymentRow(btn) {
+        const container = document.getElementById('paymentRowsContainer');
+        if (container.children.length > 1) {
+            btn.closest('.dynamic-payment-row').remove();
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'ไม่สามารถลบได้',
+                text: 'ต้องมีช่องทางชำระเงินอย่างน้อย 1 รายการ'
+            });
+        }
+    }
+
+    function submitBatchAdd() {
+        const rows = document.querySelectorAll('.dynamic-payment-row');
+        const formData = new FormData();
+        let isValid = true;
+
+        rows.forEach((row, index) => {
+            const bank = row.querySelector('.payment-input-bank').value;
+            const account = row.querySelector('.payment-input-account').value.trim();
+            const number = row.querySelector('.payment-input-number').value.trim();
+            const qrFile = row.querySelector('.payment-input-qr').files[0];
+
+            if (!account || !number) {
+                isValid = false;
+                Swal.fire('ข้อมูลไม่ครบถ้วน', `กรุณากรอกชื่อบัญชีและเลขบัญชีในรายการที่ ${index + 1}`, 'error');
+                return;
+            }
+
+            formData.append(`payments[${index}][bank_name]`, bank);
+            formData.append(`payments[${index}][account_name]`, account);
+            formData.append(`payments[${index}][promptpay_no]`, number);
+            if (qrFile) {
+                formData.append(`payments[${index}][qr_image]`, qrFile);
             }
         });
 
-        // อัปเดตตัวเลขการ์ดสรุปยอด
-        document.getElementById("statTotalSales").textContent = "฿" + totalSalesSum.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        document.getElementById("statCompletedCount").textContent = completedCount;
-        document.getElementById("statVoidedCount").textContent = voidedCount;
-        document.getElementById("visibleRowCount").textContent = visibleCount + " รายการ";
+        if (!isValid) return;
 
-        // ควบคุมแถวแจ้งไม่พบข้อมูล
-        const noMatchingRow = document.getElementById("noMatchingRow");
-        if (noMatchingRow) {
-            noMatchingRow.style.display = (visibleCount === 0 && rows.length > 0) ? "" : "none";
+        fetch("{{ url_for('admin_payments_batch_add') }}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ!',
+                    text: data.message || 'บันทึกช่องทางชำระเงินเรียบร้อย',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+        });
+    }
+
+    function submitBatchEdit() {
+        const ids = getSelectedIds();
+        const is_active = document.getElementById('batchStatusInput').value;
+
+        if (is_active === '') {
+            Swal.fire('แจ้งเตือน', 'กรุณาเลือกสถานะใหม่ที่ต้องการเปลี่ยน', 'warning');
+            return;
         }
+
+        fetch("{{ url_for('admin_payments_batch_edit') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, is_active: is_active === 'true' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'อัปเดตสำเร็จ!',
+                    text: data.message || 'อัปเดตสถานะช่องทางชำระเงินเรียบร้อย',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถอัปเดตข้อมูลได้', 'error');
+            }
+        });
     }
 
-    // ==========================================
-    // ฟังก์ชันตั้งค่าปุ่มลัดวันที่
-    // ==========================================
-    function setQuickDate(type) {
-        const startDateInput = document.getElementById("filterStartDate");
-        const endDateInput = document.getElementById("filterEndDate");
+    function confirmBatchDelete() {
+        const ids = getSelectedIds();
+        if (ids.length === 0) return;
 
-        const today = new Date();
-        const formatDate = (d) => d.toISOString().split('T')[0];
-
-        endDateInput.value = formatDate(today);
-
-        if (type === 'today') {
-            startDateInput.value = formatDate(today);
-        } else if (type === '7days') {
-            const past7 = new Date();
-            past7.setDate(today.getDate() - 6);
-            startDateInput.value = formatDate(past7);
-        } else if (type === 'month') {
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            startDateInput.value = formatDate(firstDay);
-        }
-
-        applyLedgerFilters();
-    }
-
-    // ==========================================
-    // ฟังก์ชันรีเซ็ตตัวกรองทั้งหมด
-    // ==========================================
-    function resetFilters() {
-        document.getElementById("filterKeyword").value = "";
-        document.getElementById("filterStartDate").value = "";
-        document.getElementById("filterEndDate").value = "";
-        document.getElementById("filterStatus").value = "all";
-        document.getElementById("filterPayment").value = "all";
-        applyLedgerFilters();
-    }
-
-    // ==========================================
-    // ฟังก์ชันยกเลิกบิล (Void Order)
-    // ==========================================
-    function voidOrder(orderId) {
-        if (confirm(`คุณต้องการยกเลิกรายการสั่งซื้อ #${orderId} ใช่หรือไม่?`)) {
-            fetch(`/admin/sales/void/${orderId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                .then(response => response.json())
+        Swal.fire({
+            title: 'ยืนยันการลบที่เลือก?',
+            text: `คุณต้องการลบช่องทางชำระเงินจำนวน ${ids.length} รายการใช่หรือไม่?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'ใช่, ลบทั้งหมด!',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch("{{ url_for('admin_payments_batch_delete') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                })
+                .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert(data.message);
-                        location.reload();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'ลบเรียบร้อย!',
+                            text: data.message || 'ลบช่องทางชำระเงินสำเร็จ',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => location.reload());
                     } else {
-                        alert('เกิดข้อผิดพลาด: ' + data.message);
+                        Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบข้อมูลได้', 'error');
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
                 });
-        }
+            }
+        });
+    }
+
+    function deleteItem(url) {
+        Swal.fire({
+            title: 'ยืนยันการลบ?',
+            text: 'คุณต้องการลบช่องทางชำระเงินนี้ใช่หรือไม่?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'ใช่, ลบเลย!',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(url, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                title: 'ลบเรียบร้อย!',
+                                text: data.message || 'ลบช่องทางชำระเงินสำเร็จ',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => location.reload());
+                        } else {
+                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบช่องทางชำระเงินได้', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+                    });
+            }
+        });
     }
 </script>
 {% endblock %}

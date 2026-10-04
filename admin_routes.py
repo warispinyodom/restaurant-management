@@ -55,16 +55,19 @@ def dashboard_stats():
                 except (ValueError, TypeError):
                     amount = 0.0
                 
-                if created_at.startswith(today_str):
+                # รองรับการแยกวันที่ทั้งรูปแบบ ISO ('T') และรูปแบบเว้นวรรค
+                clean_date_str = created_at.replace('T', ' ').split(' ')[0]
+                
+                if clean_date_str == today_str:
                     sales_today += amount
                     try:
-                        customers_today += int(order.get('customer_count', 0))
+                        customers_today += int(order.get('customer_count', order.get('guests', 0)))
                     except (ValueError, TypeError):
                         pass
                 
-                if created_at and created_at != '-':
+                if clean_date_str and clean_date_str != '-':
                     try:
-                        order_date = datetime.strptime(created_at.split(' ')[0], "%Y-%m-%d")
+                        order_date = datetime.strptime(clean_date_str, "%Y-%m-%d")
                         delta_days = (order_date.date() - start_of_week.date()).days
                         if 0 <= delta_days < 7:
                             weekly_sales[delta_days] += amount
@@ -107,10 +110,17 @@ def admin_menu_list():
 def admin_menu_add():
     try:
         st = request.form.get('status', 'available')
+        
+        try:
+            price = float(request.form.get('price', 0))
+        except (ValueError, TypeError):
+            flash("ราคาอาหารไม่ถูกต้อง กรุณาระบุเป็นตัวเลข", "error")
+            return redirect(url_for('admin.admin_menu_list'))
+
         payload = {
-            'name': request.form['name'].strip(),
-            'category': request.form['category'],
-            'price': float(request.form['price']),
+            'name': request.form.get('name', '').strip(),
+            'category': request.form.get('category', ''),
+            'price': price,
             'spice_level': request.form.get('spice_level', 'ไม่เผ็ด'),
             'size': request.form.get('size', 'ปกติ'),
             'status': st,
@@ -136,10 +146,17 @@ def admin_menu_add():
 def admin_menu_edit(id):
     try:
         st = request.form.get('status', 'available')
+        
+        try:
+            price = float(request.form.get('price', 0))
+        except (ValueError, TypeError):
+            flash("ราคาอาหารไม่ถูกต้อง กรุณาระบุเป็นตัวเลข", "error")
+            return redirect(url_for('admin.admin_menu_list'))
+
         payload = {
-            'name': request.form['name'].strip(),
-            'category': request.form['category'],
-            'price': float(request.form['price']),
+            'name': request.form.get('name', '').strip(),
+            'category': request.form.get('category', ''),
+            'price': price,
             'spice_level': request.form.get('spice_level'),
             'size': request.form.get('size'),
             'status': st,
@@ -197,8 +214,8 @@ def admin_staff_list():
 @admin_required
 def admin_staff_add():
     try:
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
         role = request.form.get('role', 'staff')
 
         if len(username) < 3 or len(password) < 4:
@@ -206,7 +223,11 @@ def admin_staff_add():
             return redirect(url_for('admin.admin_staff_list'))
 
         users = get_all_users() or {}
-        is_duplicate = any(info.get('username') == username for uid, info in users.items() if isinstance(info, dict))
+        is_duplicate = any(
+            info.get('username') == username 
+            for uid, info in users.items() 
+            if isinstance(info, dict)
+        )
         if is_duplicate:
             flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
             return redirect(url_for('admin.admin_staff_list'))
@@ -313,10 +334,10 @@ def admin_payments_list():
 def admin_payments_add():
     try:
         payload = {
-            'bank_name': request.form['bank_name'].strip(),
-            'account_name': request.form['account_name'].strip(),
-            'promptpay_no': request.form['promptpay_no'].strip(),
-            'is_active': 1 if request.form.get('is_active') == 'on' else 0,
+            'bank_name': request.form.get('bank_name', '').strip(),
+            'account_name': request.form.get('account_name', '').strip(),
+            'promptpay_no': request.form.get('promptpay_no', '').strip(),
+            'is_active': 1 if request.form.get('is_active') in ['on', 'true', '1'] else 0,
             'qr_image': None
         }
 
@@ -341,10 +362,10 @@ def admin_payments_add():
 def admin_payments_edit(id):
     try:
         payload = {
-            'bank_name': request.form['bank_name'].strip(),
-            'account_name': request.form['account_name'].strip(),
-            'promptpay_no': request.form['promptpay_no'].strip(),
-            'is_active': 1 if request.form.get('is_active') == 'on' else 0
+            'bank_name': request.form.get('bank_name', '').strip(),
+            'account_name': request.form.get('account_name', '').strip(),
+            'promptpay_no': request.form.get('promptpay_no', '').strip(),
+            'is_active': 1 if request.form.get('is_active') in ['on', 'true', '1'] else 0
         }
 
         file = request.files.get('qr_image')
@@ -402,13 +423,20 @@ def admin_sales_void(id):
 # ==========================================
 # TABLE MANAGEMENT ROUTES
 # ==========================================
+def _table_sort_key(table):
+    """ฟังก์ชันจัดเรียงเลขโต๊ะให้ถูกต้องตามหลักตัวเลข (เช่น 1, 2, 10)"""
+    val = str(table.get('table_no', ''))
+    if val.isdigit():
+        return (0, int(val), val)
+    return (1, 0, val)
+
 @admin_bp.route('/admin/tables')
 @staff_required
 def admin_tables_list():
     try:
         raw_tables = get_firebase_data('tables')
         tables = parse_firebase_data(raw_tables)
-        tables.sort(key=lambda x: str(x.get('table_no', '')))
+        tables.sort(key=_table_sort_key)
     except Exception as e:
         print(f"Error loading tables: {e}")
         tables = []
@@ -424,10 +452,14 @@ def admin_table_add():
         
         if add_type == 'bulk':
             prefix = request.form.get('prefix', '').strip()
-            start_no = int(request.form.get('start_no', 1))
-            quantity = int(request.form.get('quantity', 1))
-            capacity = int(request.form.get('bulk_capacity', 4))
-            
+            try:
+                start_no = int(request.form.get('start_no', 1))
+                quantity = int(request.form.get('quantity', 1))
+                capacity = int(request.form.get('bulk_capacity', 4))
+            except (ValueError, TypeError):
+                flash("ข้อมูลตัวเลขสำหรับการสร้างโต๊ะแบบกลุ่มไม่ถูกต้อง", "error")
+                return redirect(url_for('admin.admin_tables_list'))
+
             if quantity < 1 or quantity > 50:
                 flash("สามารถสร้างโต๊ะได้ครั้งละ 1 - 50 โต๊ะเท่านั้น", "error")
                 return redirect(url_for('admin.admin_tables_list'))
@@ -451,8 +483,11 @@ def admin_table_add():
 
         else:
             table_no = request.form.get('table_no', '').strip()
-            capacity = int(request.form.get('capacity', 4))
-            
+            try:
+                capacity = int(request.form.get('capacity', 4))
+            except (ValueError, TypeError):
+                capacity = 4
+
             if not table_no:
                 flash("กรุณาระบุหมายเลข/ชื่อโต๊ะ", "error")
                 return redirect(url_for('admin.admin_tables_list'))
@@ -479,7 +514,11 @@ def admin_table_add():
 def admin_table_edit(table_id):
     try:
         table_no = request.form.get('table_no', '').strip()
-        capacity = int(request.form.get('capacity', 4))
+        try:
+            capacity = int(request.form.get('capacity', 4))
+        except (ValueError, TypeError):
+            capacity = 4
+
         status = request.form.get('status', 'available')
 
         if not table_no:
