@@ -1,154 +1,61 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .table-card {
-        border: 2px solid #e2e8f0;
-        border-radius: 16px;
-        transition: all 0.25s ease;
-        position: relative;
-        background: #ffffff;
-        overflow: hidden;
-    }
-    .table-card.available {
-        cursor: pointer;
-        border-color: #22c55e;
-    }
-    .table-card.available:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 20px rgba(34, 197, 94, 0.15);
-        border-color: #16a34a;
-    }
-    .table-card.selected {
-        border-color: #2563eb !important;
-        background-color: #eff6ff !important;
-        box-shadow: 0 0 15px rgba(37, 99, 235, 0.25);
-    }
-    .table-card.occupied {
-        background-color: #fef2f2;
-        border-color: #ef4444;
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-    .table-card.reserved {
-        background-color: #fffbeb;
-        border-color: #f59e0b;
-        opacity: 0.75;
-        cursor: not-allowed;
-    }
-    .status-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        font-size: 0.75rem;
-        padding: 4px 10px;
-        border-radius: 20px;
-    }
-    .table-icon {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-    }
-</style>
-
-<div class="container-fluid py-2">
-    <!-- Header Section -->
-    <div class="row mb-4 text-center">
-        <div class="col-12">
-            <h3 class="fw-bold text-dark">กรุณาเลือกโต๊ะอาหารของคุณ</h3>
-            <p class="text-muted mb-2">เลือกโต๊ะที่ต้องการเพื่อนั่งรับประทานอาหารและเริ่มสั่งรายการ</p>
-        </div>
-        
-        <!-- Table Status Legend -->
-        <div class="col-12 d-flex justify-content-center gap-2 mt-2 flex-wrap">
-            <span class="badge bg-success px-3 py-2"><i class="fa-solid fa-check me-1"></i> ว่าง (พร้อมใช้งาน)</span>
-            <span class="badge bg-danger px-3 py-2"><i class="fa-solid fa-user-group me-1"></i> มีลูกค้าแล้ว</span>
-            <span class="badge bg-warning text-dark px-3 py-2"><i class="fa-solid fa-bookmark me-1"></i> จองแล้ว</span>
+<div class="container-fluid p-2 p-md-3">
+    <!-- หัวข้อหน้าเลือกโต๊ะ -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h3 class="fw-bold m-0"><i class="fas fa-chair text-primary me-2"></i>เลือกโต๊ะอาหาร</h3>
+            <p class="text-muted small m-0 mt-1">กรุณาเลือกโต๊ะที่ต้องการนั่งเพื่อเริ่มสั่งอาหาร</p>
         </div>
     </div>
 
-    <!-- Form เลือกโต๊ะ -->
-    <form id="chooseTableForm" method="POST" action="{{ url_for('customer_choose_table') }}">
-        <input type="hidden" name="table_id" id="selectedTableId" value="">
-        <input type="hidden" name="table_no" id="selectedTableNo" value="">
-
-        <div class="row g-3">
-            {% if tables %}
-                {% for table in tables %}
-                    <div class="col-6 col-md-4 col-lg-3">
-                        {% set status = table.get('status', 'available') %}
-                        <div class="card table-card h-100 p-3 text-center {{ status }}" 
-                             data-id="{{ table.id }}" 
-                             data-no="{{ table.table_no }}" 
-                             data-status="{{ status }}"
-                             onclick="selectTable(this)">
-                            
-                            <!-- Status Badge -->
-                            {% if status == 'available' %}
-                                <span class="badge bg-success status-badge">ว่าง</span>
-                            {% elif status == 'occupied' %}
-                                <span class="badge bg-danger status-badge">ไม่ว่าง</span>
-                            {% else %}
-                                <span class="badge bg-warning text-dark status-badge">จองแล้ว</span>
-                            {% endif %}
-
-                            <div class="card-body p-2 d-flex flex-column align-items-center justify-content-center">
-                                <i class="fa-solid fa-chair table-icon {{ 'text-success' if status == 'available' else ('text-danger' if status == 'occupied' else 'text-warning') }}"></i>
-                                <h4 class="fw-bold mb-1">โต๊ะ {{ table.table_no }}</h4>
-                                <p class="text-muted small mb-0">
-                                    <i class="fa-solid fa-users me-1"></i> รองรับ {{ table.capacity|default(4) }} ที่นั่ง
-                                </p>
+    <!-- รายการโต๊ะอาหาร -->
+    <div class="row g-3">
+        {% if tables and tables|length > 0 %}
+            {% for table in tables %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-3 h-100 {{ 'bg-light opacity-75' if table.status != 'available' }}">
+                    <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="fs-2 fw-bold text-dark mb-1">
+                                โต๊ะ {{ table.table_no }}
+                            </div>
+                            <span class="badge {{ 'bg-success' if table.status == 'available' else 'bg-secondary' }} px-3 py-1 mb-2">
+                                {{ 'ว่าง' if table.status == 'available' else 'ไม่ว่าง / มีผู้ใช้งาน' }}
+                            </span>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-users me-1"></i> รองรับได้ {{ table.capacity or 4 }} ท่าน
                             </div>
                         </div>
+
+                        {% if table.status == 'available' %}
+                        <form action="{{ url_for('customer.customer_choose_table') }}" method="POST">
+                            <input type="hidden" name="table_id" value="{{ table.id }}">
+                            <input type="hidden" name="table_no" value="{{ table.table_no }}">
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-medium">
+                                <i class="fas fa-check me-1"></i> เลือกโต๊ะนี้
+                            </button>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-outline-secondary w-100 rounded-pill" disabled>
+                            ไม่สามารถเลือกได้
+                        </button>
+                        {% endif %}
                     </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-12 text-center py-5">
-                    <i class="fa-solid fa-shop-slash fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">ไม่พบข้อมูลโต๊ะอาหารในขณะนี้</h5>
                 </div>
-            {% endif %}
-        </div>
-
-        <!-- Submit Action Bar -->
-        <div class="row mt-4">
-            <div class="col-12 text-center">
-                <button type="submit" id="btnConfirm" class="btn btn-primary btn-lg px-5 rounded-pill shadow" disabled>
-                    <i class="fa-solid fa-circle-check me-2"></i>ยืนยันเลือกโต๊ะ <span id="displaySelectedNo"></span>
-                </button>
             </div>
-        </div>
-    </form>
+            {% endfor %}
+        {% else %}
+            <!-- แสดงเมื่อยังไม่มีข้อมูลโต๊ะในระบบ -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-3 p-5 text-center">
+                    <i class="fas fa-chair fs-1 text-muted mb-3"></i>
+                    <h5 class="fw-bold text-secondary">ขณะนี้ยังไม่มีข้อมูลโต๊ะอาหารในระบบ</h5>
+                    <p class="text-muted small mb-0">กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มข้อมูลโต๊ะ</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    function selectTable(cardElement) {
-        const status = cardElement.getAttribute('data-status');
-        
-        // อนุญาตให้เลือกได้เฉพาะโต๊ะที่สถานะ 'available' เท่านั้น
-        if (status !== 'available') {
-            return;
-        }
-
-        // ลบคลาส selected จากทุกโต๊ะก่อน
-        document.querySelectorAll('.table-card').forEach(card => {
-            card.classList.remove('selected');
-        });
-
-        // เพิ่มคลาส selected ให้กับโต๊ะที่ถูกเลือก
-        cardElement.classList.add('selected');
-
-        // ดึงค่า id และ table_no ใส่ใน hidden input
-        const tableId = cardElement.getAttribute('data-id');
-        const tableNo = cardElement.getAttribute('data-no');
-
-        document.getElementById('selectedTableId').value = tableId;
-        document.getElementById('selectedTableNo').value = tableNo;
-
-        // แสดงเลขโต๊ะที่ปุ่มกดและเปิดใช้งานปุ่ม
-        document.getElementById('displaySelectedNo').innerText = "(โต๊ะ " + tableNo + ")";
-        document.getElementById('btnConfirm').disabled = false;
-    }
-</script>
 {% endblock %}

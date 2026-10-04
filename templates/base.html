@@ -221,33 +221,33 @@
                 {% if session.get('role') == 'admin' %}
                 <div class="menu-section-label">ผู้ดูแลระบบ (Admin)</div>
 
-                <a href="{{ url_for('admin_dashboard') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'admin_dashboard' }}">
+                <a href="{{ url_for('admin.admin_dashboard') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'admin.admin_dashboard' }}">
                     <i class="fas fa-chart-pie text-info"></i> <span>Dashboard</span>
                 </a>
 
-                <a href="{{ url_for('admin_menu_list') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_menu') }}">
+                <a href="{{ url_for('admin.admin_menu_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_menu') }}">
                     <i class="fas fa-hamburger text-warning"></i> <span>จัดการเมนูอาหาร</span>
                 </a>
 
-                <a href="{{ url_for('admin_tables_list') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_tables') }}">
+                <a href="{{ url_for('admin.admin_tables_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_table') }}">
                     <i class="fas fa-chair text-warning"></i> <span>จัดการโต๊ะอาหาร</span>
                 </a>
 
-                <a href="{{ url_for('admin_staff_list') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_staff') }}">
+                <a href="{{ url_for('admin.admin_staff_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_staff') }}">
                     <i class="fas fa-users text-primary"></i> <span>จัดการพนักงาน</span>
                 </a>
 
-                <a href="{{ url_for('admin_payments_list') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_payments') }}">
+                <a href="{{ url_for('admin.admin_payments_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_payment') }}">
                     <i class="fas fa-qrcode text-success"></i> <span>ช่องทางชำระเงิน</span>
                 </a>
 
-                <a href="{{ url_for('admin_sales_history') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_sales') }}">
+                <a href="{{ url_for('admin.admin_sales_history') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_sales') }}">
                     <i class="fas fa-receipt text-light"></i> <span>ประวัติการขาย</span>
                 </a>
 
@@ -255,18 +255,18 @@
                 {% elif session.get('role') == 'staff' %}
                 <div class="menu-section-label">พนักงาน (Staff Operations)</div>
 
-                <a href="{{ url_for('staff_orders') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff_orders' }}">
+                <a href="{{ url_for('staff.staff_orders') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_orders' }}">
                     <i class="fas fa-utensils text-warning"></i> <span>รายการออเดอร์หน้าร้าน</span>
                 </a>
 
-                <a href="{{ url_for('staff_check_bill') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff_check') }}">
+                <a href="{{ url_for('staff.staff_check_bill') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_check') }}">
                     <i class="fas fa-file-invoice-dollar text-success"></i> <span>เช็คบิล / ชำระเงิน</span>
                 </a>
 
-                <a href="{{ url_for('staff_menu_manage') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff_menu_manage' }}">
+                <a href="{{ url_for('staff.staff_menu_manage') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_menu_manage' }}">
                     <i class="fas fa-edit text-info"></i> <span>ปรับสถานะ/สต็อกเมนู</span>
                 </a>
 
@@ -274,13 +274,13 @@
                 {% elif session.get('role') == 'customer' %}
                 <div class="menu-section-label">ส่วนของลูกค้า (Customer)</div>
 
-                <a href="{{ url_for('customer_choose_table') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer_choose_table' }}">
+                <a href="{{ url_for('customer.customer_choose_table') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer.customer_choose_tables' }}">
                     <i class="fas fa-chair text-warning"></i> <span>เลือกโต๊ะอาหาร</span>
                 </a>
 
-                <a href="{{ url_for('customer_dashboard') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer_dashboard' }}">
+                <a href="{{ url_for('customer.customer_dashboard') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer.customer_dashboard' }}">
                     <i class="fas fa-store text-success"></i> <span>หน้าหลัก / สั่งอาหาร</span>
                 </a>
 
