@@ -14,8 +14,6 @@
       "is_available": true,
       "name": "ยำทะเลใต้",
       "price": 70,
-      "size": "ปกติ",
-      "spice_level": "ไม่เผ็ด",
       "status": "available"
     }
   },
@@ -38,7 +36,7 @@
         }
       ],
       "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
-      "status": "pending",
+      "status": "voided",
       "table_no": "1",
       "total_amount": 760
     },
@@ -54,7 +52,39 @@
         }
       ],
       "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
+      "status": "voided",
+      "total_amount": 50
+    },
+    "-P33xK36nEjOfftKHKQ0": {
+      "created_at": "2026-10-04 10:29:08",
+      "customer_count": 1,
+      "items": [
+        {
+          "id": "-P3-znEpB71xT6mhxX2y",
+          "name": "ยำทะเล",
+          "price": 50,
+          "qty": 1
+        }
+      ],
+      "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
       "status": "pending",
+      "total_amount": 50
+    },
+    "-P346CoPyi7SxYM7RRKK": {
+      "created_at": "2026-10-04 11:12:20",
+      "customer_count": 1,
+      "items": [
+        {
+          "id": "-P3-znEpB71xT6mhxX2y",
+          "name": "ยำทะเล",
+          "price": 50,
+          "qty": 1
+        }
+      ],
+      "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
+      "status": "pending",
+      "table_id": "-P33yIfdL1Z2tDO3kFmv",
+      "table_no": "T-1",
       "total_amount": 50
     }
   },
@@ -67,35 +97,48 @@
       "qr_image": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/payments%2Fpayments_20261003174551_5c5019ef.png?alt=media"
     }
   },
-  "tables": [
-    null,
-    {
+  "tables": {
+    "-P33yIfdL1Z2tDO3kFmv": {
       "capacity": 4,
-      "current_order_id": "-P31_tNOe3AVcgq5n-ga",
-      "name": "โต๊ะ 1",
-      "status": "occupied"
+      "order": {
+        "total_amount": 0
+      },
+      "status": "occupied",
+      "table_no": "T-1"
     },
-    {
+    "-P33yIhBQsij4wZDormE": {
       "capacity": 4,
-      "name": "โต๊ะ 2",
-      "status": "available"
+      "order": {
+        "total_amount": 0
+      },
+      "status": "available",
+      "table_no": "T-2"
     },
-    {
-      "capacity": 2,
-      "name": "โต๊ะ 3",
-      "status": "available"
-    },
-    {
+    "-P33yIigkegxwT85l1Km": {
       "capacity": 4,
-      "name": "โต๊ะ 4",
-      "status": "available"
+      "order": {
+        "total_amount": 0
+      },
+      "status": "available",
+      "table_no": "T-3"
     },
-    {
-      "capacity": 6,
-      "name": "โต๊ะ 5",
-      "status": "available"
+    "-P33yIkDkOySyxo7ihSp": {
+      "capacity": 4,
+      "order": {
+        "total_amount": 0
+      },
+      "status": "available",
+      "table_no": "T-4"
+    },
+    "-P33yIlkEA_B8XSQOrxX": {
+      "capacity": 4,
+      "order": {
+        "total_amount": 0
+      },
+      "status": "available",
+      "table_no": "T-5"
     }
-  ],
+  },
   "users": {
     "-P2shSPjGCQhFWTr-R8G": {
       "is_active": true,

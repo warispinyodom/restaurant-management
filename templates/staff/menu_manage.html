@@ -87,12 +87,12 @@
         align-items: center;
         gap: 8px;
         overflow-x: auto;
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
-        padding-vertical: 2px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding: 2px 0;
     }
     .bulk-actions-scroll::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
+        display: none;
     }
 
     .bulk-btn {
@@ -200,7 +200,7 @@
                                     <div class="input-group input-group-sm mb-1" style="max-width: 150px;">
                                         <span class="input-group-text bg-light text-muted">฿</span>
                                         <input type="number" class="form-control menu-price fw-bold text-dark" 
-                                               value="{{ (menu.get('price', 0)|float)|abs }}" 
+                                               value="{{ (menu.price|default(0)|float)|abs }}" 
                                                step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-price', this.value); calculateNetPrice('{{ menu.id }}')">
                                     </div>
                                     <!-- ส่วนลด -->
@@ -208,7 +208,7 @@
                                         <div class="input-group input-group-sm" style="max-width: 110px;">
                                             <span class="input-group-text bg-warning-subtle text-warning-emphasis border-0">-฿</span>
                                             <input type="number" class="form-control menu-discount bg-light" 
-                                                   value="{{ (menu.get('discount', 0)|float)|abs }}" 
+                                                   value="{{ (menu.discount|default(0)|float)|abs }}" 
                                                    step="0.5" min="0" placeholder="ส่วนลด" onchange="syncInputVal('{{ menu.id }}', '.menu-discount', this.value); calculateNetPrice('{{ menu.id }}')">
                                         </div>
                                         <!-- ปุ่มทางลัดส่วนลด -->
@@ -223,12 +223,12 @@
                                     <div class="input-group input-group-sm" style="max-width: 140px;">
                                         <span class="input-group-text bg-light"><i class="fas fa-box text-secondary"></i></span>
                                         <input type="number" class="form-control menu-stock" 
-                                               value="{% if menu.get('stock') is not none and menu.get('stock') != '' %}{{ (menu.get('stock')|int)|abs }}{% endif %}" 
+                                               value="{% if menu.stock is defined and menu.stock is not none and menu.stock != '' %}{{ (menu.stock|int)|abs }}{% endif %}" 
                                                placeholder="ไม่จำกัด" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-stock', this.value)">
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    {% set is_avail = (menu.get('status') == 'available') %}
+                                    {% set is_avail = (menu.status == 'available') %}
                                     <div class="form-check form-switch d-inline-block">
                                         <input class="form-check-input menu-status-toggle fs-5" type="checkbox" role="switch" 
                                                id="statusSwitchDesktop{{ menu.id }}" 
@@ -267,7 +267,7 @@
     <div class="d-block d-md-none">
         {% if menus %}
             {% for menu in menus %}
-            {% set is_avail = (menu.get('status') == 'available') %}
+            {% set is_avail = (menu.status == 'available') %}
             <div class="pantry-card p-3 mb-3 shadow-sm menu-item-card" id="menu-card-{{ menu.id }}" data-id="{{ menu.id }}">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
@@ -304,7 +304,7 @@
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-white">฿</span>
                                 <input type="number" class="form-control menu-price fw-bold" 
-                                       value="{{ (menu.get('price', 0)|float)|abs }}" step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-price', this.value); calculateNetPrice('{{ menu.id }}')">
+                                       value="{{ (menu.price|default(0)|float)|abs }}" step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-price', this.value); calculateNetPrice('{{ menu.id }}')">
                             </div>
                         </div>
                         <div class="col-6">
@@ -312,7 +312,7 @@
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-warning-subtle">-฿</span>
                                 <input type="number" class="form-control menu-discount" 
-                                       value="{{ (menu.get('discount', 0)|float)|abs }}" step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-discount', this.value); calculateNetPrice('{{ menu.id }}')">
+                                       value="{{ (menu.discount|default(0)|float)|abs }}" step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-discount', this.value); calculateNetPrice('{{ menu.id }}')">
                             </div>
                         </div>
                         <!-- ปุ่มลดราคาทางลัด -->
@@ -331,7 +331,7 @@
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white"><i class="fas fa-cubes text-secondary"></i></span>
                             <input type="number" class="form-control menu-stock" 
-                                   value="{% if menu.get('stock') is not none and menu.get('stock') != '' %}{{ (menu.get('stock')|int)|abs }}{% endif %}" 
+                                   value="{% if menu.stock is defined and menu.stock is not none and menu.stock != '' %}{{ (menu.stock|int)|abs }}{% endif %}" 
                                    placeholder="สต็อกไม่จำกัด" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-stock', this.value)">
                         </div>
                     </div>
@@ -350,7 +350,7 @@
     </div>
 </div>
 
-<!-- Bulk Action Floating Bar (ปรับปรุงสไตล์ใหม่) -->
+<!-- Bulk Action Floating Bar -->
 <div class="bulk-floating-bar" id="bulkFloatingBar">
     <div class="bulk-floating-header">
         <span class="badge selected-badge rounded-pill fs-7 px-3 py-2" id="selectedCountBadge">
@@ -418,14 +418,14 @@ function syncStatus(menuId, isChecked) {
 
 // คำนวณราคาสุทธิตามส่วนลด
 function calculateNetPrice(menuId) {
-    const row = document.querySelector(`[data-id="${menuId}"]`);
+    const row = document.getElementById(`menu-row-${menuId}`) || document.getElementById(`menu-card-${menuId}`);
     if (!row) return;
 
     const priceInput = row.querySelector('.menu-price');
     const discountInput = row.querySelector('.menu-discount');
     
-    let price = parseFloat(priceInput.value) || 0;
-    let discount = parseFloat(discountInput.value) || 0;
+    let price = parseFloat(priceInput ? priceInput.value : 0) || 0;
+    let discount = parseFloat(discountInput ? discountInput.value : 0) || 0;
     let net = Math.max(0, price - discount);
 
     const netText = discount > 0 ? `สุทธิ: ฿${net.toFixed(1)}` : '';
@@ -507,7 +507,7 @@ function toggleSelectAll(forceState) {
     updateBulkBar();
 }
 
-// อัปเดตแถบ Floating Bar พร้อม Animation
+// อัปเดตแถบ Floating Bar
 function updateBulkBar() {
     const selectedIds = getSelectedMenuIds();
     const count = selectedIds.length;
@@ -531,19 +531,22 @@ function updateBulkBar() {
 
 // รวบรวมข้อมูลจากไอเทม
 function getItemData(menuId) {
-    const element = document.getElementById(`menu-row-${menuId}`) || document.getElementById(`menu-card-${menuId}`);
-    if (!element) return null;
-
-    const priceVal = parseFloat(element.querySelector('.menu-price').value) || 0;
-    const discountVal = parseFloat(element.querySelector('.menu-discount').value) || 0;
+    const row = document.getElementById(`menu-row-${menuId}`);
+    const card = document.getElementById(`menu-card-${menuId}`);
     
-    const stockInput = element.querySelector('.menu-stock');
+    const activeElement = (window.innerWidth < 768 && card) ? card : (row || card);
+    if (!activeElement) return null;
+
+    const priceVal = parseFloat(activeElement.querySelector('.menu-price')?.value || 0) || 0;
+    const discountVal = parseFloat(activeElement.querySelector('.menu-discount')?.value || 0) || 0;
+    
+    const stockInput = activeElement.querySelector('.menu-stock');
     let stockVal = null;
     if (stockInput && stockInput.value.trim() !== '') {
         stockVal = Math.abs(parseInt(stockInput.value.trim(), 10) || 0);
     }
 
-    const statusToggle = element.querySelector('.menu-status-toggle');
+    const statusToggle = activeElement.querySelector('.menu-status-toggle');
     const statusVal = statusToggle && statusToggle.checked ? 'available' : 'out_of_stock';
 
     return {

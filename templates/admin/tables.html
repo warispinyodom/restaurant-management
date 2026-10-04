@@ -1,0 +1,626 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-4 py-3">
+    <!-- Header Page -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="fas fa-th-large text-primary fs-3"></i> ผังโต๊ะอาหารและสถานะแบบเรียลไทม์
+            </h3>
+            <p class="text-muted mb-0 small">จัดการโครงสร้างโต๊ะ ควบคุมสถานะ และบริหารจัดการกลุ่มโต๊ะอาหารในร้าน</p>
+        </div>
+        <div class="d-flex gap-2 w-100 w-md-auto">
+            <button class="btn btn-outline-secondary rounded-3 px-3 py-2 fw-semibold w-100 w-md-auto shadow-sm" onclick="toggleSelectAllModal()">
+                <i class="fas fa-tasks me-1"></i> เลือกทั้งหมด
+            </button>
+            <button class="btn btn-primary rounded-3 px-3 py-2 shadow-sm fw-semibold w-100 w-md-auto text-nowrap" data-bs-toggle="modal" data-bs-target="#addTableModal">
+                <i class="fas fa-plus-circle me-1"></i> เพิ่มโต๊ะอาหาร
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards & Status Filters -->
+    {% set total_count = tables | length %}
+    {% set available_count = tables | selectattr('status', 'equalto', 'available') | list | length %}
+    {% set occupied_count = tables | selectattr('status', 'equalto', 'occupied') | list | length %}
+    {% set billing_count = tables | selectattr('status', 'equalto', 'billing') | list | length %}
+
+    <div class="row g-2 g-md-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 filter-card active cursor-pointer" onclick="filterByStatus('all', this)">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted small fw-semibold mb-1">โต๊ะทั้งหมด</div>
+                        <h2 class="fw-bold mb-0 text-dark" id="stat-total">{{ total_count }}</h2>
+                    </div>
+                    <div class="stat-icon bg-light text-secondary rounded-4 p-3">
+                        <i class="fas fa-border-all fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 filter-card cursor-pointer border-start border-4 border-success" onclick="filterByStatus('available', this)">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-success small fw-semibold mb-1">โต๊ะว่าง</div>
+                        <h2 class="fw-bold mb-0 text-success" id="stat-available">{{ available_count }}</h2>
+                    </div>
+                    <div class="stat-icon bg-success-subtle text-success rounded-4 p-3">
+                        <i class="fas fa-chair fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 filter-card cursor-pointer border-start border-4 border-danger" onclick="filterByStatus('occupied', this)">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-danger small fw-semibold mb-1">มีลูกค้า</div>
+                        <h2 class="fw-bold mb-0 text-danger" id="stat-occupied">{{ occupied_count }}</h2>
+                    </div>
+                    <div class="stat-icon bg-danger-subtle text-danger rounded-4 p-3">
+                        <i class="fas fa-user-friends fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 filter-card cursor-pointer border-start border-4 border-warning" onclick="filterByStatus('billing', this)">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-warning small fw-semibold mb-1">รอเช็คบิล</div>
+                        <h2 class="fw-bold mb-0 text-warning" id="stat-billing">{{ billing_count }}</h2>
+                    </div>
+                    <div class="stat-icon bg-warning-subtle text-warning rounded-4 p-3">
+                        <i class="fas fa-receipt fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar: Search & Quick Filter Buttons -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5 col-lg-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-3 text-muted">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="searchTableInput" class="form-control border-start-0 rounded-end-3 shadow-none" placeholder="ค้นหาตามเลขโต๊ะ..." onkeyup="filterTables()">
+                </div>
+            </div>
+            <div class="col-12 col-md-7 col-lg-8 d-flex justify-content-start justify-content-md-end gap-2 overflow-x-auto pb-1 pb-md-0">
+                <button class="btn btn-sm rounded-pill px-3 py-2 fw-semibold filter-btn active" data-status="all" onclick="filterByStatus('all', this)">ทั้งหมด ({{ total_count }})</button>
+                <button class="btn btn-sm rounded-pill px-3 py-2 fw-semibold filter-btn btn-outline-success" data-status="available" onclick="filterByStatus('available', this)">ว่าง ({{ available_count }})</button>
+                <button class="btn btn-sm rounded-pill px-3 py-2 fw-semibold filter-btn btn-outline-danger" data-status="occupied" onclick="filterByStatus('occupied', this)">มีลูกค้า ({{ occupied_count }})</button>
+                <button class="btn btn-sm rounded-pill px-3 py-2 fw-semibold filter-btn btn-outline-warning" data-status="billing" onclick="filterByStatus('billing', this)">รอเช็คบิล ({{ billing_count }})</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Cards Grid Responsive Layout -->
+    <div class="row g-2 g-md-3" id="tablesContainer">
+        {% if tables %}
+            {% for table in tables %}
+            <div class="col-6 col-sm-6 col-md-4 col-lg-3 col-xl-2 table-item-col" 
+                 data-table-id="{{ table.id }}"
+                 data-table-no="{{ table.table_no }}" 
+                 data-status="{{ table.status }}">
+                
+                <div class="card h-100 border-0 shadow-sm rounded-4 card-table position-relative transition-all status-card-{{ table.status }}" id="table-card-{{ table.id }}">
+                    
+                    <!-- Checkbox for Bulk Actions -->
+                    <div class="position-absolute top-0 start-0 p-2 z-2">
+                        <div class="form-check custom-checkbox-wrapper m-0">
+                            <input type="checkbox" class="form-check-input custom-table-checkbox cursor-pointer rounded-2" value="{{ table.id }}" onchange="handleCheckboxChange('{{ table.id }}')">
+                        </div>
+                    </div>
+
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <!-- Top Header: Table Number & Seats -->
+                        <div class="text-center pt-2 mb-2">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-light border shadow-sm rounded-circle mb-2 table-icon-badge" style="width: 52px; height: 52px;">
+                                <i class="fas fa-utensils fs-4 text-secondary"></i>
+                            </div>
+                            <h5 class="fw-bold mb-0 text-dark">โต๊ะ {{ table.table_no }}</h5>
+                            <span class="badge bg-light text-secondary border px-2 py-1 mt-1 rounded-pill small">
+                                <i class="fas fa-user me-1"></i>{{ table.capacity or 4 }} ที่นั่ง
+                            </span>
+                        </div>
+
+                        <!-- Current Status Indicator Badge -->
+                        <div class="text-center mb-3">
+                            {% if table.status == 'occupied' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-2 w-100 fw-bold">
+                                    <i class="fas fa-user-check me-1"></i> มีลูกค้า
+                                </span>
+                            {% elif table.status == 'billing' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-2 w-100 fw-bold">
+                                    <i class="fas fa-file-invoice-dollar me-1"></i> รอเช็คบิล
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 w-100 fw-bold">
+                                    <i class="fas fa-check-circle me-1"></i> ว่าง
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Actions: Dropdown Status Switcher & Single Delete -->
+                        <div class="d-flex gap-1 pt-2 border-top">
+                            <div class="dropdown flex-grow-1">
+                                <button class="btn btn-light btn-sm w-100 rounded-3 border dropdown-toggle fw-semibold text-secondary d-flex align-items-center justify-content-between px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="small">สถานะ</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 fs-7">
+                                    <li><button class="dropdown-item text-success fw-semibold py-2" onclick="updateSingleStatus('{{ table.id }}', 'available')"><i class="fas fa-check me-2"></i> ว่าง / เคลียร์โต๊ะ</button></li>
+                                    <li><button class="dropdown-item text-danger fw-semibold py-2" onclick="updateSingleStatus('{{ table.id }}', 'occupied')"><i class="fas fa-user-friends me-2"></i> มีลูกค้าเข้านั่ง</button></li>
+                                    <li><button class="dropdown-item text-warning-emphasis fw-semibold py-2" onclick="updateSingleStatus('{{ table.id }}', 'billing')"><i class="fas fa-receipt me-2"></i> รอเช็คบิล</button></li>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-danger btn-sm rounded-3 px-2" title="ลบโต๊ะ" onclick="confirmDeleteSingle('{{ table.id }}', '{{ table.table_no }}')">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-chair text-muted fa-3x mb-3"></i>
+                <h5 class="text-muted">ยังไม่มีข้อมูลโต๊ะในระบบ</h5>
+                <p class="text-muted small">กดปุ่ม "เพิ่มโต๊ะอาหาร" เพื่อเริ่มต้นสร้างผังโต๊ะในร้าน</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- No Search Results Found Message -->
+    <div id="noResultsMsg" class="text-center py-5 d-none">
+        <i class="fas fa-search text-muted fa-3x mb-3"></i>
+        <h5 class="text-muted">ไม่พบข้อมูลโต๊ะที่ค้นหา</h5>
+        <p class="text-muted small">ลองค้นหาด้วยหมายเลขโต๊ะอื่น หรือปรับเปลี่ยนตัวกรองสถานะ</p>
+    </div>
+</div>
+
+<!-- Modern Glassmorphic Bulk Action Bar (สไตล์สปอร์ต ปรับปรุงใหม่ responsive 100%) -->
+<div id="bulkActionBar" class="bulk-floating-bar d-none">
+    <div class="d-flex align-items-center justify-content-between w-100 gap-2">
+        <!-- Left Side: Badge & Cancel -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary px-3 py-2 rounded-pill fs-6 shadow-sm d-flex align-items-center gap-1 text-nowrap" id="selectedCountBadge">
+                <i class="fas fa-check-circle"></i> เลือก 0 โต๊ะ
+            </span>
+            <button type="button" class="btn btn-link text-white-50 text-decoration-none p-0 small fw-semibold text-nowrap opacity-75 hover-opacity-100" onclick="deselectAllCheckboxes()">
+                ยกเลิก
+            </button>
+        </div>
+
+        <!-- Right Side: Bulk Actions Dropdown & Delete Button -->
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm rounded-3 dropdown-toggle fw-semibold px-2 px-sm-3 py-2 d-flex align-items-center gap-1 shadow-sm fs-7" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-sync-alt text-warning"></i>
+                    <span class="d-none d-sm-inline">เปลี่ยนสถานะ</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2 fs-7 overflow-hidden">
+                    <li><button class="dropdown-item py-2 text-success fw-semibold" onclick="bulkUpdateStatus('available')"><i class="fas fa-check me-2"></i> ตั้งเป็น "ว่าง"</button></li>
+                    <li><button class="dropdown-item py-2 text-danger fw-semibold" onclick="bulkUpdateStatus('occupied')"><i class="fas fa-user-friends me-2"></i> ตั้งเป็น "มีลูกค้า"</button></li>
+                    <li><button class="dropdown-item py-2 text-warning-emphasis fw-semibold" onclick="bulkUpdateStatus('billing')"><i class="fas fa-receipt me-2"></i> ตั้งเป็น "รอเช็คบิล"</button></li>
+                </ul>
+            </div>
+
+            <button type="button" class="btn btn-danger btn-sm rounded-3 fw-semibold px-2 px-sm-3 py-2 d-flex align-items-center gap-1 shadow-sm fs-7" onclick="confirmBulkDelete()">
+                <i class="fas fa-trash-alt"></i>
+                <span class="d-none d-sm-inline">ลบที่เลือก</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: เพิ่มโต๊ะอาหาร -->
+<div class="modal fade" id="addTableModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle text-primary me-2"></i>เพิ่มโต๊ะอาหาร</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form action="{{ url_for('admin_table_add') }}" method="POST">
+                <div class="modal-body pt-3">
+                    <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3 mb-3" id="addModeTab" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active rounded-3 py-2 fw-semibold" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-pane" type="button" onclick="setAddType('single')">
+                                เพิ่มทีละ 1 โต๊ะ
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-3 py-2 fw-semibold" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk-pane" type="button" onclick="setAddType('bulk')">
+                                เพิ่มหลายโต๊ะพร้อมกัน
+                            </button>
+                        </li>
+                    </ul>
+
+                    <input type="hidden" name="add_type" id="add_type" value="single">
+
+                    <div class="tab-content">
+                        <!-- Single Form -->
+                        <div class="tab-pane fade show active" id="single-pane">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">หมายเลข/ชื่อโต๊ะ <span class="text-danger">*</span></label>
+                                <input type="text" name="table_no" class="form-control rounded-3" placeholder="เช่น T-01 หรือ 1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">จำนวนที่นั่ง (คน)</label>
+                                <input type="number" name="capacity" class="form-control rounded-3" value="4" min="1">
+                            </div>
+                        </div>
+
+                        <!-- Bulk Form -->
+                        <div class="tab-pane fade" id="bulk-pane">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">คำนำหน้า (Prefix)</label>
+                                    <input type="text" name="prefix" class="form-control rounded-3" placeholder="เช่น T-">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">เลขเริ่มต้น <span class="text-danger">*</span></label>
+                                    <input type="number" name="start_no" class="form-control rounded-3" value="1" min="1">
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">จำนวนโต๊ะที่สร้าง <span class="text-danger">*</span></label>
+                                    <input type="number" name="quantity" class="form-control rounded-3" value="5" min="1" max="50">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">ที่นั่งต่อโต๊ะ</label>
+                                    <input type="number" name="bulk_capacity" class="form-control rounded-3" value="4" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirm Delete Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg rounded-4 text-center p-3">
+            <div class="modal-body">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                </div>
+                <h5 class="fw-bold mb-2" id="deleteModalTitle">ยืนยันการลบ</h5>
+                <p class="text-muted small mb-4" id="deleteModalBody">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?</p>
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-danger rounded-3 px-3" id="confirmDeleteBtn">ยืนยันลบ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* CSS Styles for Modern POS Table Cards & Floating Action Bar */
+.cursor-pointer { cursor: pointer; }
+
+/* Quick Filter Cards */
+.filter-card {
+    transition: all 0.2s ease-in-out;
+}
+.filter-card:hover {
+    transform: translateY(-3px);
+}
+.filter-card.active {
+    box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15) !important;
+    border: 2px solid #0d6efd !important;
+}
+
+/* POS Table Cards Styling */
+.card-table {
+    border: 2px solid #e9ecef !important;
+    transition: all 0.25s ease-in-out;
+    background-color: #ffffff;
+}
+.card-table:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08) !important;
+}
+.card-table.card-selected {
+    border-color: #0d6efd !important;
+    background-color: #f8fafe !important;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Status Accents */
+.status-card-available {
+    border-top: 5px solid #198754 !important;
+}
+.status-card-occupied {
+    border-top: 5px solid #dc3545 !important;
+}
+.status-card-billing {
+    border-top: 5px solid #ffc107 !important;
+}
+
+/* Custom Checkbox Styling */
+.custom-table-checkbox {
+    width: 22px;
+    height: 22px;
+    border-color: #adb5bd;
+    cursor: pointer;
+}
+.custom-table-checkbox:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Floating Bulk Action Bar (Glassmorphism & Responsive Fix) */
+.bulk-floating-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 640px;
+    z-index: 1080;
+    background: rgba(24, 28, 36, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 12px 18px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    animation: slideUpFloating 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFloating {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 30px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.hover-opacity-100:hover {
+    opacity: 1 !important;
+}
+
+.fs-7 { font-size: 0.85rem; }
+.transition-all { transition: all 0.25s ease; }
+</style>
+
+<script>
+let currentStatusFilter = 'all';
+let pendingDeleteAction = null;
+
+function setAddType(type) {
+    document.getElementById('add_type').value = type;
+}
+
+// -------------------------------------------------------------
+// Filter & Search Functions
+// -------------------------------------------------------------
+function filterByStatus(status, element) {
+    currentStatusFilter = status;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-status') === status) {
+            btn.classList.add('active', 'btn-primary');
+            btn.classList.remove('btn-outline-success', 'btn-outline-danger', 'btn-outline-warning');
+        } else {
+            btn.classList.remove('active', 'btn-primary');
+        }
+    });
+
+    document.querySelectorAll('.filter-card').forEach(card => card.classList.remove('active'));
+    if (element && element.classList.contains('filter-card')) {
+        element.classList.add('active');
+    }
+
+    filterTables();
+}
+
+function filterTables() {
+    const searchText = document.getElementById('searchTableInput').value.toLowerCase().trim();
+    const items = document.querySelectorAll('.table-item-col');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const tableNo = (item.getAttribute('data-table-no') || '').toLowerCase();
+        const status = item.getAttribute('data-status') || '';
+
+        const matchesSearch = tableNo.includes(searchText);
+        const matchesStatus = (currentStatusFilter === 'all') || (status === currentStatusFilter);
+
+        if (matchesSearch && matchesStatus) {
+            item.classList.remove('d-none');
+            visibleCount++;
+        } else {
+            item.classList.add('d-none');
+        }
+    });
+
+    const noResults = document.getElementById('noResultsMsg');
+    if (visibleCount === 0 && items.length > 0) {
+        noResults.classList.remove('d-none');
+    } else {
+        noResults.classList.add('d-none');
+    }
+}
+
+// -------------------------------------------------------------
+// Checkbox & Bulk Selection Logic
+// -------------------------------------------------------------
+function getSelectedTableIds() {
+    const checkboxes = document.querySelectorAll('.custom-table-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function handleCheckboxChange(tableId) {
+    if (tableId) {
+        const card = document.getElementById(`table-card-${tableId}`);
+        const cb = card ? card.querySelector('.custom-table-checkbox') : null;
+        if (card && cb) {
+            if (cb.checked) {
+                card.classList.add('card-selected');
+            } else {
+                card.classList.remove('card-selected');
+            }
+        }
+    }
+
+    const selectedIds = getSelectedTableIds();
+    const bar = document.getElementById('bulkActionBar');
+    const badge = document.getElementById('selectedCountBadge');
+
+    if (selectedIds.length > 0) {
+        bar.classList.remove('d-none');
+        badge.innerHTML = `<i class="fas fa-check-circle me-1"></i> เลือก ${selectedIds.length} โต๊ะ`;
+    } else {
+        bar.classList.add('d-none');
+    }
+}
+
+function deselectAllCheckboxes() {
+    document.querySelectorAll('.custom-table-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    document.querySelectorAll('.card-table').forEach(card => {
+        card.classList.remove('card-selected');
+    });
+    handleCheckboxChange();
+}
+
+function toggleSelectAllModal() {
+    const checkboxes = document.querySelectorAll('.custom-table-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+        const card = document.getElementById(`table-card-${cb.value}`);
+        if (card) {
+            if (!allChecked) card.classList.add('card-selected');
+            else card.classList.remove('card-selected');
+        }
+    });
+    handleCheckboxChange();
+}
+
+// -------------------------------------------------------------
+// Single Table Actions
+// -------------------------------------------------------------
+function updateSingleStatus(tableId, newStatus) {
+    fetch(`/admin/tables/status/${tableId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert(data.message || 'ไม่สามารถอัปเดตสถานะได้');
+        }
+    })
+    .catch(() => alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'));
+}
+
+function confirmDeleteSingle(tableId, tableNo) {
+    document.getElementById('deleteModalTitle').innerText = 'ยืนยันการลบโต๊ะ';
+    document.getElementById('deleteModalBody').innerText = `คุณแน่ใจหรือไม่ว่าต้องการลบ โต๊ะ ${tableNo}?`;
+    
+    pendingDeleteAction = () => {
+        fetch(`/admin/tables/delete/${tableId}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// -------------------------------------------------------------
+// Bulk Actions (Mass Delete & Mass Status Change)
+// -------------------------------------------------------------
+function bulkUpdateStatus(newStatus) {
+    const selectedIds = getSelectedTableIds();
+    if (selectedIds.length === 0) return;
+
+    fetch('/admin/tables/bulk-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_ids: selectedIds, status: newStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert(data.message || 'ไม่สามารถอัปเดตสถานะแบบกลุ่มได้');
+        }
+    })
+    .catch(() => alert('เกิดข้อผิดพลาดในการทำรายการกลุ่ม'));
+}
+
+function confirmBulkDelete() {
+    const selectedIds = getSelectedTableIds();
+    if (selectedIds.length === 0) return;
+
+    document.getElementById('deleteModalTitle').innerText = 'ยืนยันลบหลายรายการ';
+    document.getElementById('deleteModalBody').innerText = `คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะที่เลือกทั้ง ${selectedIds.length} รายการ?`;
+
+    pendingDeleteAction = () => {
+        fetch('/admin/tables/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_ids: selectedIds })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert(data.message || 'ไม่สามารถลบโต๊ะที่เลือกได้');
+            }
+        });
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// Global Delete Event Listener
+document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+    if (pendingDeleteAction) {
+        pendingDeleteAction();
+    }
+});
+</script>
+{% endblock %}

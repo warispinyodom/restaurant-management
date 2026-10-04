@@ -1,44 +1,139 @@
 {
-  "categories": {},
-  "menus": {},
-  "orders": {},
-  "payment_channels": {},
+  "menus": {
+    "menu_001": {
+      "category": "อาหารจานหลัก",
+      "image_file": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/menus%2Fmenus_20261003160124_a9b2d369.webp?alt=media",
+      "is_available": true,
+      "name": "ยำทะเล",
+      "price": 50,
+      "status": "available"
+    },
+    "menu_002": {
+      "category": "อาหารจานหลัก",
+      "image_file": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/menus%2Fmenus_20261003164332_d89e4726.webp?alt=media",
+      "is_available": true,
+      "name": "ยำทะเลใต้",
+      "price": 70,
+      "status": "available"
+    },
+    "menu_003": {
+      "category": "อาหารจานหลัก",
+      "image_file": "https://via.placeholder.com/150",
+      "is_available": true,
+      "name": "ต้มยำกุ้งน้ำข้น",
+      "price": 150,
+      "status": "available"
+    },
+    "menu_004": {
+      "category": "เครื่องดื่ม",
+      "image_file": "https://via.placeholder.com/150",
+      "is_available": true,
+      "name": "ชาไทยเย็น",
+      "price": 35,
+      "status": "available"
+    }
+  },
+  "tables": {
+    "table_001": {
+      "capacity": 4,
+      "current_order_id": "ord_002",
+      "status": "occupied",
+      "table_no": "T-1"
+    },
+    "table_002": {
+      "capacity": 4,
+      "current_order_id": null,
+      "status": "available",
+      "table_no": "T-2"
+    },
+    "table_003": {
+      "capacity": 4,
+      "current_order_id": null,
+      "status": "available",
+      "table_no": "T-3"
+    },
+    "table_004": {
+      "capacity": 4,
+      "current_order_id": null,
+      "status": "available",
+      "table_no": "T-4"
+    },
+    "table_005": {
+      "capacity": 6,
+      "current_order_id": null,
+      "status": "available",
+      "table_no": "T-5"
+    }
+  },
+  "orders": {
+    "ord_001": {
+      "created_at": "2026-10-03 18:30:00",
+      "customer_count": 2,
+      "items": [
+        {
+          "id": "menu_001",
+          "name": "ยำทะเล",
+          "price": 50,
+          "qty": 2
+        },
+        {
+          "id": "menu_002",
+          "name": "ยำทะเลใต้",
+          "price": 70,
+          "qty": 1
+        }
+      ],
+      "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
+      "status": "completed",
+      "table_id": "table_002",
+      "table_no": "T-2",
+      "total_amount": 170
+    },
+    "ord_002": {
+      "created_at": "2026-10-04 11:12:20",
+      "customer_count": 2,
+      "items": [
+        {
+          "id": "menu_001",
+          "name": "ยำทะเล",
+          "price": 50,
+          "qty": 1
+        },
+        {
+          "id": "menu_004",
+          "name": "ชาไทยเย็น",
+          "price": 35,
+          "qty": 2
+        }
+      ],
+      "payment_method": "พร้อมเพย์ - นายสมพร ใจดี",
+      "status": "pending",
+      "table_id": "table_001",
+      "table_no": "T-1",
+      "total_amount": 120
+    }
+  },
+  "payment_channels": {
+    "pay_001": {
+      "account_name": "นายสมพร ใจดี",
+      "bank_name": "พร้อมเพย์",
+      "is_active": true,
+      "promptpay_no": "0811818080",
+      "qr_image": "https://firebasestorage.googleapis.com/v0/b/webapplication-e7922.firebasestorage.app/o/payments%2Fpayments_20261003174551_5c5019ef.png?alt=media"
+    }
+  },
   "users": {
-    "-P2shSPjGCQhFWTr-R8G": {
-      "is_active": true,
-      "password": "scrypt:32768:8:1$zEECGtbA0zm9fXgn$0066751ca8e8467aef471231b11ba7f138621afa072da2fab48860040183f89bf150eb490a2c8600fbb0a16de05b519d166faccf6242870ddcf596ed10f88002",
-      "role": "staff",
-      "username": "staff01"
-    },
-    "-P2vxpFZO8c3dsmYIvrP": {
-      "is_active": true,
-      "password": "scrypt:32768:8:1$isQM3uMLVKjszgCy$1d20397725a13709acca8860fe3e206b4c5e8d24720fffb239356d569742aed32cceca5d43411c6b65485bfc78654d3cf20c9793051e96b6543397c974bdcc2c",
-      "role": "customer",
-      "username": "user02"
-    },
-    "-P2w0WRlnzZ3fInz_m6N": {
-      "is_active": true,
-      "password": "scrypt:32768:8:1$mgDE3lt9VFDLsGj3$cda6266fc804b34377e209560854d821a3e48b576c7c41adcf2f1e695f92aaa57df8ed3e2df82a103ef48149c25692a1bc40997ac4c65e11da108b7ee916ea7e",
-      "role": "customer",
-      "username": "test01"
-    },
-    "-P2wHvwZQTBeYLMwyXxW": {
-      "is_active": true,
-      "password": "scrypt:32768:8:1$a4THK1pumUf9Sd16$0d01dc310d9752df5fb8cefc07f6d56625420c0e46f6f01d00206168f945c2a9dfc80ec925a238fdb03a349333a5eaa4a3a4105c6954312ec5482424d80d819f",
-      "role": "customer",
-      "username": "Oak"
-    },
-    "-P2wNY1SdyC6Wqk7BkzM": {
-      "is_active": true,
-      "password": "scrypt:32768:8:1$Nsvg7IpE5N6JCwxF$6ba95d9c9f0d8dd13f83bba7ef8988ee7ce5de9aa642e88d045671e53abbbc3b94e7dd00376f8bfe61427192837e47b0210180559c721334093e1cfe43d10306",
-      "role": "customer",
-      "username": "Soda"
-    },
     "usr_admin01": {
       "is_active": true,
       "password": "scrypt:32768:8:1$E8PxqDbqpDt4G8nL$d0783a548e308bf2dd94e9cdccaecdc75d66d9863f7847127fdc4d582e9f52ebf397e707f84d81404f169e670ea0e1c0aacee6071d15b9d110e917829b48a5c7",
       "role": "admin",
       "username": "admin01"
+    },
+    "usr_staff01": {
+      "is_active": true,
+      "password": "scrypt:32768:8:1$zEECGtbA0zm9fXgn$0066751ca8e8467aef471231b11ba7f138621afa072da2fab48860040183f89bf150eb490a2c8600fbb0a16de05b519d166faccf6242870ddcf596ed10f88002",
+      "role": "staff",
+      "username": "staff01"
     },
     "usr_user01": {
       "is_active": true,

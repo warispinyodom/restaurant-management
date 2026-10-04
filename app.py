@@ -51,9 +51,12 @@ from auth_utils import (
 from staff_utils import (
     get_all_orders, 
     update_order_status_db, 
+    get_staff_status,
+    update_staff_status_db,
     get_all_menus, 
     update_menu_item_db,
-    bulk_update_menu_items_db
+    bulk_update_menu_items_db,
+    get_bill_by_table
 )
 
 app = Flask(__name__)
@@ -129,7 +132,7 @@ def get_firebase_data(path):
     try:
         url = f"{FIREBASE_URL}/{path}.json"
         req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, context=ssl_context) as response:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
             data = json.loads(response.read().decode('utf-8'))
             return data if data is not None else {}
     except Exception as e:
@@ -141,7 +144,7 @@ def post_firebase_data(path, payload):
         url = f"{FIREBASE_URL}/{path}.json"
         req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), 
                                      headers={'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req, context=ssl_context) as response:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
             return json.loads(response.read().decode('utf-8'))
     except Exception as e:
         print(f"Error posting {path}: {e}")
@@ -149,10 +152,11 @@ def post_firebase_data(path, payload):
 
 def patch_firebase_data(path, item_id, payload):
     try:
-        url = f"{FIREBASE_URL}/{path}/{item_id}.json"
+        safe_item_id = urllib.parse.quote(str(item_id), safe='')
+        url = f"{FIREBASE_URL}/{path}/{safe_item_id}.json"
         req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), 
                                      headers={'Content-Type': 'application/json'}, method='PATCH')
-        with urllib.request.urlopen(req, context=ssl_context) as response:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
             return response.status == 200
     except Exception as e:
         print(f"Error patching {path}/{item_id}: {e}")
@@ -160,9 +164,10 @@ def patch_firebase_data(path, item_id, payload):
 
 def delete_firebase_data(path, item_id):
     try:
-        url = f"{FIREBASE_URL}/{path}/{item_id}.json"
+        safe_item_id = urllib.parse.quote(str(item_id), safe='')
+        url = f"{FIREBASE_URL}/{path}/{safe_item_id}.json"
         req = urllib.request.Request(url, method='DELETE')
-        with urllib.request.urlopen(req, context=ssl_context) as response:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
             return response.status == 200
     except Exception as e:
         print(f"Error deleting {path}/{item_id}: {e}")
@@ -285,103 +290,295 @@ def signout():
 def admin_dashboard():
     return render_template('dashboard.html', username=session.get('username'), role=session.get('role'))
 
+# --- STAFF: ORDERS MANAGEMENT ---
 @app.route('/staff/orders')
 @staff_required
 def staff_orders():
     try:
-        staff_status = session.get('staff_status', 'ready')
-        orders = get_all_orders() or {}
-        return render_template('staff/orders.html', orders=orders, staff_status=staff_status)
+        staff_status = session.get('staff_status') or get_staff_status()
+        session['staff_status'] = staff_status
+        orders = get_all_orders() or []
+        
+        # ป้องกันปัญหา items ใน dict ล้มเหลว
+        for o in orders:
+            if isinstance(o, dict):
+                raw_items = o.get('items')
+                if not isinstance(raw_items, list):
+                    raw_order_items = o.get('order_items')
+                    o['items'] = raw_order_items if isinstance(raw_order_items, list) else []
+
+        try:
+            return render_template('staff/orders.html', orders=orders, staff_status=staff_status)
+        except Exception:
+            return render_template('orders.html', orders=orders, staff_status=staff_status)
+            
     except Exception as e:
         flash(f"เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล: {str(e)}", "error")
-        return render_template('staff/orders.html', orders={}, staff_status='ready')
+        return render_template('staff/orders.html', orders=[], staff_status='ready')
+
+@app.route('/staff/api/orders')
+@app.route('/api/staff/orders')
+@staff_required
+def api_staff_orders():
+    """API สำหรับดึงออเดอร์แบบ Real-time/AJAX ฝั่ง Frontend พนักงาน"""
+    try:
+        orders = get_all_orders() or []
+        return jsonify({'status': 'success', 'orders': orders})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/staff/order/update-status', methods=['POST'])
+@app.route('/staff/order/update-status/<order_id>', methods=['POST'])
+@staff_required
+def update_order_status(order_id=None):
+    """อัปเดตสถานะออเดอร์ (รองรับทั้ง URL Param, JSON และ Form Data)"""
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict() or {}
+
+        target_order_id = order_id or data.get('order_id') or data.get('id')
+        new_status = data.get('status') or data.get('new_status')
+
+        if not target_order_id or not new_status:
+            return jsonify({'status': 'error', 'message': 'ข้อมูลไม่ครบถ้วน'}), 400
+        
+        if update_order_status_db(target_order_id, new_status):
+            return jsonify({'status': 'success', 'message': f'อัปเดตสถานะเป็น {new_status} สำเร็จ'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตสถานะออเดอร์ได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/staff/status/update', methods=['POST'])
 @staff_required
 def update_staff_status():
-    data = request.get_json() or {}
-    new_status = data.get('status', 'ready')
-    session['staff_status'] = new_status
-    return jsonify({'status': 'success', 'message': f'เปลี่ยนสถานะพนักงานเป็น {new_status} สำเร็จ'})
-
-@app.route('/admin/staff/toggle-status/<user_id>', methods=['POST'])
-@admin_required
-def admin_staff_toggle_status(user_id):
+    """เปลี่ยนสถานะความพร้อมของพนักงาน (เช่น ready, busy)"""
     try:
-        target_user = get_firebase_data(f"users/{user_id}")
-        if isinstance(target_user, dict) and target_user.get('role') == 'admin':
-            return jsonify({'status': 'error', 'message': 'ไม่สามารถเปลี่ยนสถานะผู้ดูแลระบบได้!'}), 400
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict() or {}
 
-        current_status = target_user.get('is_active', True) if isinstance(target_user, dict) else True
-        new_status = not current_status
-
-        if patch_firebase_data('users', user_id, {"is_active": new_status}):
-            status_text = "เปิดใช้งาน" if new_status else "ถูกระงับ"
-            return jsonify({'status': 'success', 'message': f'เปลี่ยนสถานะบัญชีเป็น "{status_text}" เรียบร้อยแล้ว'})
-
-        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
+        new_status = data.get('status', 'ready')
+        session['staff_status'] = new_status
+        update_staff_status_db(new_status)
+        return jsonify({'status': 'success', 'message': f'เปลี่ยนสถานะพนักงานเป็น {new_status} สำเร็จ', 'staff_status': new_status})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# ==========================================
-# STAFF: MENU MANAGEMENT
-# ==========================================
+# --- STAFF: CHECK BILL MANAGEMENT ---
+@app.route('/staff/check-bill')
+@staff_required
+def staff_check_bill():
+    try:
+        orders = get_all_orders() or []
+        unpaid_orders = []
+        
+        for o in orders:
+            if isinstance(o, dict) and str(o.get('status', '')).lower() not in ['completed', 'paid', 'voided', 'cancelled']:
+                # ป้องกันปัญหา order.items ชนกับ method items() ของ dict
+                raw_items = o.get('items')
+                if not isinstance(raw_items, list):
+                    raw_order_items = o.get('order_items')
+                    o['items'] = raw_order_items if isinstance(raw_order_items, list) else []
+                unpaid_orders.append(o)
+        
+        raw_tables = get_firebase_data('tables')
+        tables = parse_firebase_data(raw_tables)
+        tables.sort(key=lambda x: str(x.get('table_no', '')))
+        
+        raw_payments = get_firebase_data('payment_channels')
+        payments = [
+            p for p in parse_firebase_data(raw_payments) 
+            if str(p.get('is_active')).lower() in ['1', 'true', 'on'] or p.get('is_active') == 1
+        ]
+        
+        try:
+            return render_template('staff/check_bill.html', orders=unpaid_orders, tables=tables, payments=payments)
+        except Exception:
+            return render_template('staff/check_bill.html', orders=unpaid_orders, tables=tables, payments=payments)
+
+    except Exception as e:
+        print(f"Error loading check bill page: {e}")
+        flash(f"เกิดข้อผิดพลาดในการโหลดข้อมูลเช็คบิล: {str(e)}", "error")
+        return render_template('staff/check_bill.html', orders=[], tables=[], payments=[])
+
+@app.route('/staff/api/check-bill')
+@staff_required
+def api_staff_check_bill():
+    """API ดึงข้อมูลออเดอร์ที่ยังไม่ชำระเงินสำหรับ Frontend"""
+    try:
+        orders = get_all_orders() or []
+        unpaid_orders = []
+        for o in orders:
+            if isinstance(o, dict) and str(o.get('status', '')).lower() not in ['completed', 'paid', 'voided', 'cancelled']:
+                raw_items = o.get('items')
+                if not isinstance(raw_items, list):
+                    raw_order_items = o.get('order_items')
+                    o['items'] = raw_order_items if isinstance(raw_order_items, list) else []
+                unpaid_orders.append(o)
+
+        raw_tables = get_firebase_data('tables')
+        tables = parse_firebase_data(raw_tables)
+        raw_payments = get_firebase_data('payment_channels')
+        payments = [
+            p for p in parse_firebase_data(raw_payments) 
+            if str(p.get('is_active')).lower() in ['1', 'true', 'on'] or p.get('is_active') == 1
+        ]
+        return jsonify({'status': 'success', 'orders': unpaid_orders, 'tables': tables, 'payments': payments})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/staff/check-bill/process', methods=['POST'])
+@staff_required
+def staff_process_payment():
+    """ดำเนินการเช็คบิล/รับชำระเงิน"""
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict() or {}
+
+        order_id = data.get('order_id') or data.get('id')
+        table_id = data.get('table_id')
+        table_no = data.get('table_no')
+        payment_method = data.get('payment_method', 'เงินสด')
+        
+        try:
+            received_amount = float(data.get('received_amount', 0))
+        except (ValueError, TypeError):
+            received_amount = 0.0
+
+        try:
+            change_amount = float(data.get('change_amount', 0))
+        except (ValueError, TypeError):
+            change_amount = 0.0
+
+        if not order_id:
+            return jsonify({'status': 'error', 'message': 'ไม่พบรหัสออเดอร์ที่ต้องการชำระเงิน'}), 400
+
+        order_update = {
+            'status': 'completed',
+            'payment_method': payment_method,
+            'received_amount': received_amount,
+            'change_amount': change_amount,
+            'paid_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        if patch_firebase_data('orders', order_id, order_update):
+            if not table_id and table_no:
+                raw_tables = get_firebase_data('tables')
+                tables = parse_firebase_data(raw_tables)
+                for t in tables:
+                    if str(t.get('table_no')) == str(table_no):
+                        table_id = t.get('id')
+                        break
+
+            if table_id:
+                patch_firebase_data('tables', table_id, {
+                    'status': 'available',
+                    'order': {'items': [], 'total_amount': 0.0}
+                })
+
+            return jsonify({'status': 'success', 'message': f'เช็คบิลออเดอร์ โต๊ะ {table_no or ""} เรียบร้อยแล้ว'})
+
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถบันทึกการชำระเงินได้'}), 500
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# --- STAFF: MENU MANAGEMENT ---
 @app.route('/staff/menu-manage')
 @staff_required
 def staff_menu_manage():
     try:
-        menus = get_all_menus()
+        menus = get_all_menus() or []
     except Exception as e:
         print(f"Error loading staff menus: {e}")
         menus = []
         flash("เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลเมนู กรุณาลองใหม่อีกครั้ง", "error") 
 
-    return render_template('staff/menu_manage.html', menus=menus)
+    try:
+        return render_template('staff/menu_manage.html', menus=menus)
+    except Exception:
+        return render_template('menu_manage.html', menus=menus)
+
+@app.route('/staff/api/menus')
+@staff_required
+def api_staff_menus():
+    """API สำหรับดึงรายการเมนูในหน้าจัดการเมนูพนักงาน"""
+    try:
+        menus = get_all_menus() or []
+        return jsonify({'status': 'success', 'menus': menus})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/staff/menu/quick-update/<menu_id>', methods=['POST'])
 @staff_required
 def quick_update_menu(menu_id):
-    data = request.get_json() or {}
-    update_fields = {}
-    
-    if 'price' in data and data['price'] is not None:
-        try:
-            update_fields['price'] = abs(float(data['price']))
-        except ValueError:
-            pass
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict() or {}
 
-    if 'discount' in data and data['discount'] is not None:
-        try:
-            update_fields['discount'] = abs(float(data['discount']))
-        except ValueError:
-            pass
-
-    if 'stock' in data:
-        stock_val = data['stock']
-        try:
-            update_fields['stock'] = abs(int(stock_val)) if (stock_val is not None and stock_val != "") else None
-        except ValueError:
-            pass
-
-    if 'status' in data:
-        update_fields['status'] = data['status']
+        update_fields = {}
         
-    if update_menu_item_db(menu_id, update_fields):
-        return jsonify({'status': 'success', 'message': 'ปรับปรุงข้อมูลเมนูสำเร็จ'})
-    return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
+        if 'price' in data and data['price'] is not None and data['price'] != "":
+            try:
+                update_fields['price'] = abs(float(data['price']))
+            except ValueError:
+                pass
+
+        if 'discount' in data and data['discount'] is not None and data['discount'] != "":
+            try:
+                update_fields['discount'] = abs(float(data['discount']))
+            except ValueError:
+                pass
+
+        if 'stock' in data:
+            stock_val = data['stock']
+            try:
+                update_fields['stock'] = abs(int(stock_val)) if (stock_val is not None and stock_val != "") else None
+            except ValueError:
+                pass
+
+        if 'status' in data:
+            st = str(data['status']).lower().strip()
+            update_fields['status'] = st
+            update_fields['is_available'] = (st in ['available', 'true', 'active'])
+            
+        if update_menu_item_db(menu_id, update_fields):
+            return jsonify({'status': 'success', 'message': 'ปรับปรุงข้อมูลเมนูสำเร็จ'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/staff/menu/bulk-update', methods=['POST'])
 @staff_required
 def bulk_update_menu():
-    data = request.get_json() or {}
-    items_data = data.get('items', {})
-    
-    if not items_data or not isinstance(items_data, dict):
-        return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการบันทึก'}), 400
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict() or {}
 
-    if bulk_update_menu_items_db(items_data):
-        return jsonify({'status': 'success', 'message': 'อัปเดตรายการสินค้าทั้งหมดเรียบร้อยแล้ว'})
-    return jsonify({'status': 'error', 'message': 'ไม่สามารถบันทึกข้อมูลแบบกลุ่มได้'}), 500
+        items_data = data.get('items', {})
+        if isinstance(items_data, str):
+            try:
+                items_data = json.loads(items_data)
+            except Exception:
+                pass
+        
+        if not items_data or not isinstance(items_data, dict):
+            return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการบันทึก'}), 400
+
+        if bulk_update_menu_items_db(items_data):
+            return jsonify({'status': 'success', 'message': 'อัปเดตรายการสินค้าทั้งหมดเรียบร้อยแล้ว'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถบันทึกข้อมูลแบบกลุ่มได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ==========================================
 # REAL-TIME API FOR ADMIN DASHBOARD
@@ -397,17 +594,19 @@ def dashboard_stats():
     sales_today = 0.0
     customers_today = 0
     
-    orders = get_all_orders()
-    orders_list = parse_firebase_data(orders) if isinstance(orders, (dict, list)) else []
+    orders_list = get_all_orders() or []
     
     for order in orders_list:
         if isinstance(order, dict):
-            created_at = order.get('created_at', '')
-            status = order.get('status', '')
+            created_at = str(order.get('created_at') or '')
+            status = str(order.get('status', '')).lower()
             
             if status in ['completed', 'paid']:
                 try:
-                    amount = float(order.get('total_amount', 0))
+                    tot = order.get('total_price') if order.get('total_price') is not None else order.get('total_amount')
+                    if tot is None:
+                        tot = order.get('total', 0)
+                    amount = float(tot)
                 except (ValueError, TypeError):
                     amount = 0.0
                 
@@ -418,7 +617,7 @@ def dashboard_stats():
                     except (ValueError, TypeError):
                         pass
                 
-                if created_at:
+                if created_at and created_at != '-':
                     try:
                         order_date = datetime.strptime(created_at.split(' ')[0], "%Y-%m-%d")
                         delta_days = (order_date.date() - start_of_week.date()).days
@@ -441,7 +640,7 @@ def dashboard_stats():
         'active_staff': active_staff,
         'weekly_sales': [round(x, 2) for x in weekly_sales]
     })
-    
+
 # ==========================================
 # ADMIN: MENU MANAGEMENT
 # ==========================================
@@ -462,13 +661,15 @@ def admin_menu_list():
 @admin_required
 def admin_menu_add():
     try:
+        st = request.form.get('status', 'available')
         payload = {
             'name': request.form['name'].strip(),
             'category': request.form['category'],
             'price': float(request.form['price']),
             'spice_level': request.form.get('spice_level', 'ไม่เผ็ด'),
             'size': request.form.get('size', 'ปกติ'),
-            'status': request.form.get('status', 'available'),
+            'status': st,
+            'is_available': (st == 'available'),
             'image_file': None
         }
 
@@ -489,13 +690,15 @@ def admin_menu_add():
 @admin_required
 def admin_menu_edit(id):
     try:
+        st = request.form.get('status', 'available')
         payload = {
             'name': request.form['name'].strip(),
             'category': request.form['category'],
             'price': float(request.form['price']),
             'spice_level': request.form.get('spice_level'),
             'size': request.form.get('size'),
-            'status': request.form.get('status')
+            'status': st,
+            'is_available': (st == 'available')
         }
 
         file = request.files.get('image')
@@ -618,6 +821,25 @@ def admin_staff_edit(user_id):
 
     return redirect(url_for('admin_staff_list'))
 
+@app.route('/admin/staff/toggle-status/<user_id>', methods=['POST'])
+@admin_required
+def admin_staff_toggle_status(user_id):
+    try:
+        target_user = get_firebase_data(f"users/{user_id}")
+        if isinstance(target_user, dict) and target_user.get('role') == 'admin':
+            return jsonify({'status': 'error', 'message': 'ไม่สามารถเปลี่ยนสถานะผู้ดูแลระบบได้!'}), 400
+
+        current_status = target_user.get('is_active', True) if isinstance(target_user, dict) else True
+        new_status = not current_status
+
+        if patch_firebase_data('users', user_id, {"is_active": new_status}):
+            status_text = "เปิดใช้งาน" if new_status else "ถูกระงับ"
+            return jsonify({'status': 'success', 'message': f'เปลี่ยนสถานะบัญชีเป็น "{status_text}" เรียบร้อยแล้ว'})
+
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/admin/staff/delete/<id>', methods=['POST'])
 @admin_required
 def admin_staff_delete(id):
@@ -719,7 +941,7 @@ def admin_payments_delete(id):
 def admin_sales_history():
     raw_orders = get_firebase_data('orders')
     orders = parse_firebase_data(raw_orders)
-    orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    orders.sort(key=lambda x: str(x.get('created_at') or ''), reverse=True)
     return render_template('admin/sales.html', orders=orders)
 
 @app.route('/admin/sales/void/<id>', methods=['POST'])
@@ -733,6 +955,157 @@ def admin_sales_void(id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ==========================================
+# ADMIN: TABLE MANAGEMENT ROUTES
+# ==========================================
+@app.route('/admin/tables')
+@staff_required
+def admin_tables_list():
+    try:
+        raw_tables = get_firebase_data('tables')
+        tables = parse_firebase_data(raw_tables)
+        tables.sort(key=lambda x: str(x.get('table_no', '')))
+    except Exception as e:
+        print(f"Error loading tables: {e}")
+        tables = []
+        flash("เกิดข้อผิดพลาดในการโหลดข้อมูลโต๊ะอาหาร", "error")
+
+    return render_template('admin/tables.html', tables=tables)
+
+@app.route('/admin/tables/add', methods=['POST'])
+@admin_required
+def admin_table_add():
+    try:
+        add_type = request.form.get('add_type', 'single')
+        
+        if add_type == 'bulk':
+            prefix = request.form.get('prefix', '').strip()
+            start_no = int(request.form.get('start_no', 1))
+            quantity = int(request.form.get('quantity', 1))
+            capacity = int(request.form.get('bulk_capacity', 4))
+            
+            if quantity < 1 or quantity > 50:
+                flash("สามารถสร้างโต๊ะได้ครั้งละ 1 - 50 โต๊ะเท่านั้น", "error")
+                return redirect(url_for('admin_tables_list'))
+
+            success_count = 0
+            for i in range(quantity):
+                num = start_no + i
+                num_str = f"{num:02d}" if (start_no + quantity) > 10 else f"{num}"
+                table_no = f"{prefix}{num_str}" if prefix else f"{num}"
+
+                payload = {
+                    'table_no': table_no,
+                    'capacity': capacity,
+                    'status': 'available',
+                    'order': {'items': [], 'total_amount': 0.0}
+                }
+                if post_firebase_data('tables', payload):
+                    success_count += 1
+
+            flash(f"สร้างโต๊ะใหม่สำเร็จเรียบร้อยจำนวน {success_count} โต๊ะ", "success")
+
+        else:
+            table_no = request.form.get('table_no', '').strip()
+            capacity = int(request.form.get('capacity', 4))
+            
+            if not table_no:
+                flash("กรุณาระบุหมายเลข/ชื่อโต๊ะ", "error")
+                return redirect(url_for('admin_tables_list'))
+
+            payload = {
+                'table_no': table_no,
+                'capacity': capacity,
+                'status': 'available',
+                'order': {'items': [], 'total_amount': 0.0}
+            }
+
+            if post_firebase_data('tables', payload):
+                flash("เพิ่มโต๊ะอาหารเรียบร้อยแล้ว", "success")
+            else:
+                flash("เกิดข้อผิดพลาดในการเพิ่มโต๊ะ", "error")
+
+    except Exception as e:
+        flash(f"เกิดข้อผิดพลาด: {str(e)}", "error")
+
+    return redirect(url_for('admin_tables_list'))
+
+@app.route('/admin/tables/edit/<table_id>', methods=['POST'])
+@staff_required
+def admin_table_edit(table_id):
+    try:
+        table_no = request.form.get('table_no', '').strip()
+        capacity = int(request.form.get('capacity', 4))
+        status = request.form.get('status', 'available')
+
+        if not table_no:
+            flash("กรุณาระบุหมายเลข/ชื่อโต๊ะ", "error")
+            return redirect(url_for('admin_tables_list'))
+
+        payload = {
+            'table_no': table_no,
+            'capacity': capacity,
+            'status': status
+        }
+
+        if patch_firebase_data('tables', table_id, payload):
+            flash("แก้ไขข้อมูลโต๊ะเรียบร้อยแล้ว", "success")
+        else:
+            flash("เกิดข้อผิดพลาดในการแก้ไขข้อมูลโต๊ะ", "error")
+
+    except Exception as e:
+        flash(f"เกิดข้อผิดพลาด: {str(e)}", "error")
+
+    return redirect(url_for('admin_tables_list'))
+
+@app.route('/admin/tables/status/<table_id>', methods=['POST'])
+@staff_required
+def admin_table_status(table_id):
+    try:
+        data = request.get_json() or {}
+        new_status = data.get('status', 'available')
+
+        update_payload = {'status': new_status}
+        if new_status == 'available':
+            update_payload['order'] = {'items': [], 'total_amount': 0.0}
+
+        if patch_firebase_data('tables', table_id, update_payload):
+            return jsonify({'status': 'success', 'message': 'อัปเดตสถานะโต๊ะสำเร็จ'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตสถานะได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/admin/tables/clear/<table_id>', methods=['POST'])
+@staff_required
+def admin_table_clear(table_id):
+    try:
+        payload = {
+            'status': 'available',
+            'order': {'items': [], 'total_amount': 0.0}
+        }
+        if patch_firebase_data('tables', table_id, payload):
+            return jsonify({'status': 'success', 'message': 'เคลียร์โต๊ะเรียบร้อยแล้ว'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถเคลียร์โต๊ะได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/admin/tables/delete/<table_id>', methods=['POST'])
+@admin_required
+def admin_table_delete(table_id):
+    try:
+        if delete_firebase_data('tables', table_id):
+            return jsonify({'status': 'success', 'message': 'ลบข้อมูลโต๊ะเรียบร้อยแล้ว'})
+        return jsonify({'status': 'error', 'message': 'เกิดข้อผิดพลาดในการลบ'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# API สำหรับหน้า Customer หรือหน้าสั่งอาหารเรียลไทม์
+@app.route('/api/tables')
+def api_get_tables():
+    raw_tables = get_firebase_data('tables')
+    tables = parse_firebase_data(raw_tables)
+    return jsonify({'status': 'success', 'tables': tables})
+
+# ==========================================
 # CUSTOMER ROUTES 
 # ==========================================
 @app.route('/customer')
@@ -743,9 +1116,11 @@ def customer_dashboard():
     
     try:
         raw_menus = get_firebase_data('menus')
-        menus = [m for m in parse_firebase_data(raw_menus) if m.get('status') == 'available']
+        menus = [
+            m for m in parse_firebase_data(raw_menus) 
+            if str(m.get('status')).lower() in ['available', 'true', 'active'] or m.get('is_available') is True
+        ]
         
-        # จัดระเบียบหมวดหมู่: ดึงหมวดหมู่ที่มีใน DB แล้วจัดเรียงตามหมวดหมู่มาตรฐานกลาง
         existing_cats = set(m.get('category') for m in menus if m.get('category'))
         categories = [c for c in DEFAULT_CATEGORIES if c in existing_cats]
         for cat in existing_cats:
@@ -762,7 +1137,47 @@ def customer_dashboard():
         menus, payments, categories = [], [], []
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", "error")
     
-    return render_template('customer/customer.html', menus=menus, payments=payments, categories=categories)
+    selected_table_no = session.get('selected_table_no', None)
+    return render_template('customer/customer.html', menus=menus, payments=payments, categories=categories, selected_table_no=selected_table_no)
+
+@app.route('/customer/choose_table', methods=['GET', 'POST'])
+@app.route('/customer/choose-table', methods=['GET', 'POST'])
+def customer_choose_table():
+    if session.get('role') != 'customer':
+        flash("หน้านี้สำหรับลูกค้าเท่านั้น", "error")
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        table_id = request.form.get('table_id')
+        table_no = request.form.get('table_no')
+
+        if not table_id:
+            flash("กรุณาเลือกโต๊ะก่อนดำเนินการต่อ", "error")
+            return redirect(url_for('customer_choose_table'))
+
+        current_table = get_firebase_data(f'tables/{table_id}')
+        if not current_table or current_table.get('status') != 'available':
+            flash(f"ขออภัย โต๊ะ {table_no} ถูกใช้งานหรือถูกจองแล้ว กรุณาเลือกโต๊ะอื่น", "error")
+            return redirect(url_for('customer_choose_table'))
+
+        session['selected_table_id'] = table_id
+        session['selected_table_no'] = table_no
+
+        patch_firebase_data('tables', table_id, {'status': 'occupied'})
+
+        flash(f"เลือกโต๊ะ {table_no} เรียบร้อยแล้ว สามารถสั่งอาหารได้เลยครับ", "success")
+        return redirect(url_for('customer_dashboard'))
+
+    try:
+        raw_tables = get_firebase_data('tables')
+        tables = parse_firebase_data(raw_tables)
+        tables.sort(key=lambda x: str(x.get('table_no', '')))
+    except Exception as e:
+        print(f"Error loading tables for customer: {e}")
+        tables = []
+        flash("เกิดข้อผิดพลาดในการโหลดข้อมูลโต๊ะอาหาร", "error")
+
+    return render_template('customer/choose_tables.html', tables=tables)
 
 @app.route('/customer/checkout', methods=['POST'])
 def customer_checkout():
@@ -771,7 +1186,7 @@ def customer_checkout():
 
     data = request.get_json() or {}
     
-    raw_total = data.get('total_amount')
+    raw_total = data.get('total_amount') or data.get('total_price')
     try:
         total_amount = float(raw_total) if raw_total is not None else 0.0
     except (ValueError, TypeError):
@@ -787,14 +1202,18 @@ def customer_checkout():
 
     payment_method = data.get('payment_method', 'เงินสด')
     items = data.get('items', []) 
+    table_no = data.get('table_no') or session.get('selected_table_no', 'ไม่ระบุ')
 
     if not items:
         return jsonify({'status': 'error', 'message': 'ไม่มีสินค้าในตะกร้า'}), 400
 
     try:
         payload = {
+            "table_no": table_no,
+            "table_id": session.get('selected_table_id', ''),
             "customer_count": customer_count,
             "total_amount": total_amount,
+            "total_price": total_amount,
             "payment_method": payment_method,
             "status": "pending",
             "items": items,

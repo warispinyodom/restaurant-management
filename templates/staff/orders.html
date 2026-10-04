@@ -13,10 +13,11 @@
         position: relative;
         transition: transform 0.2s ease-in-out;
     }
+
     .receipt-card:hover {
         transform: translateY(-4px);
     }
-    
+
     /* เส้นปรักั้นส่วนแบบใบเสร็จ */
     .receipt-divider {
         border-top: 2px dashed #a0a0a0;
@@ -28,6 +29,7 @@
         position: relative;
         background: #ffffff;
     }
+
     .receipt-zigzag::after {
         content: "";
         position: absolute;
@@ -35,8 +37,8 @@
         left: 0;
         width: 100%;
         height: 10px;
-        background: linear-gradient(-45deg, transparent 7px, #ffffff 0), 
-                    linear-gradient(45deg, transparent 7px, #ffffff 0);
+        background: linear-gradient(-45deg, transparent 7px, #ffffff 0),
+            linear-gradient(45deg, transparent 7px, #ffffff 0);
         background-repeat: repeat-x;
         background-size: 14px 14px;
         z-index: 2;
@@ -53,10 +55,30 @@
         transform: rotate(-6deg);
         letter-spacing: 1px;
     }
-    .stamp-pending { border: 2px dashed #ffc107; color: #856404; background: #fff3cd; }
-    .stamp-cooking { border: 2px dashed #0dcaf0; color: #055160; background: #cff4fc; }
-    .stamp-ready   { border: 2px dashed #198754; color: #0f5132; background: #d1e7dd; }
-    .stamp-done    { border: 2px dashed #6c757d; color: #1b1e21; background: #e2e3e5; }
+
+    .stamp-pending {
+        border: 2px dashed #ffc107;
+        color: #856404;
+        background: #fff3cd;
+    }
+
+    .stamp-cooking {
+        border: 2px dashed #0dcaf0;
+        color: #055160;
+        background: #cff4fc;
+    }
+
+    .stamp-ready {
+        border: 2px dashed #198754;
+        color: #0f5132;
+        background: #d1e7dd;
+    }
+
+    .stamp-done {
+        border: 2px dashed #6c757d;
+        color: #1b1e21;
+        background: #e2e3e5;
+    }
 
     .order-id-truncate {
         max-width: 90px;
@@ -72,6 +94,7 @@
         white-space: nowrap;
         font-weight: 600;
     }
+
     .filter-btn.active {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
@@ -93,18 +116,22 @@
         <span class="fw-bold text-secondary small">สถานะพนักงาน:</span>
         <div class="dropdown">
             <button class="btn btn-sm btn-{{ 'success' if staff_status == 'ready' else 'danger' }} dropdown-toggle fw-bold rounded-pill px-3 shadow-sm"
-                    type="button" data-bs-toggle="dropdown">
+                type="button" data-bs-toggle="dropdown" id="staff-status-btn">
                 <i class="fas fa-circle me-1 small"></i> {{ 'พร้อมรับงาน' if staff_status == 'ready' else 'ไม่พร้อม (พัก)' }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-1">
                 <li>
-                    <a class="dropdown-item text-success fw-bold py-2" href="#" onclick="updateStaffStatus('ready')">
+                    <a class="dropdown-item text-success fw-bold py-2" href="#"
+                        onclick="updateStaffStatus('ready'); return false;">
                         <i class="fas fa-check-circle me-2"></i> พร้อมรับงาน
                     </a>
                 </li>
-                <li><hr class="dropdown-divider my-1"></li>
                 <li>
-                    <a class="dropdown-item text-danger fw-bold py-2" href="#" onclick="updateStaffStatus('busy')">
+                    <hr class="dropdown-divider my-1">
+                </li>
+                <li>
+                    <a class="dropdown-item text-danger fw-bold py-2" href="#"
+                        onclick="updateStaffStatus('busy'); return false;">
                         <i class="fas fa-minus-circle me-2"></i> ไม่พร้อม (พัก)
                     </a>
                 </li>
@@ -118,13 +145,16 @@
     <button class="btn btn-primary filter-btn rounded-pill px-3 py-2 active" onclick="filterOrders(this, 'all')">
         <i class="fas fa-list me-1"></i> ทั้งหมด
     </button>
-    <button class="btn btn-outline-warning text-dark filter-btn rounded-pill px-3 py-2" onclick="filterOrders(this, 'pending')">
+    <button class="btn btn-outline-warning text-dark filter-btn rounded-pill px-3 py-2"
+        onclick="filterOrders(this, 'pending')">
         <i class="fas fa-clock me-1 text-warning"></i> รอดำเนินการ
     </button>
-    <button class="btn btn-outline-info text-dark filter-btn rounded-pill px-3 py-2" onclick="filterOrders(this, 'cooking')">
+    <button class="btn btn-outline-info text-dark filter-btn rounded-pill px-3 py-2"
+        onclick="filterOrders(this, 'cooking')">
         <i class="fas fa-fire me-1 text-info"></i> กำลังทำ
     </button>
-    <button class="btn btn-outline-success text-dark filter-btn rounded-pill px-3 py-2" onclick="filterOrders(this, 'ready')">
+    <button class="btn btn-outline-success text-dark filter-btn rounded-pill px-3 py-2"
+        onclick="filterOrders(this, 'ready')">
         <i class="fas fa-bell me-1 text-success"></i> พร้อมเสิร์ฟ
     </button>
 </div>
@@ -134,23 +164,24 @@
     {% for order in orders %}
     <div class="col-12 col-md-6 col-xl-4 order-card-wrapper" data-status="{{ order.status }}">
         <div class="receipt-card receipt-zigzag rounded-top-3 pb-3">
-            
+
             <!-- แถบสีสถานะด้านบนสุด -->
-            <div class="bg-{{ 'warning' if order.status == 'pending' else ('info' if order.status == 'cooking' else ('success' if order.status == 'ready' else 'secondary')) }} py-1"></div>
+            <div class="bg-{{ 'warning' if order.status == 'pending' else ('info' if order.status == 'cooking' else ('success' if order.status == 'ready' else 'secondary')) }} py-1">
+            </div>
 
             <!-- Receipt Header -->
             <div class="p-3 pb-0">
                 <div class="text-center text-uppercase fw-bold text-muted small tracking-wider mb-1">
                     *** ใบรายการสั่งอาหาร ***
                 </div>
-                
+
                 <div class="d-flex justify-content-between align-items-start my-2">
                     <div>
                         <div class="fs-2 fw-bolder text-dark lh-1">
-                            {% if order.table_no and order.table_no != '-' and order.table_no != 'ไม่ระบุ' %}
-                                โต๊ะ {{ order.table_no }}
+                            {% if order.table_no and order.table_no != 'ไม่ระบุ' %}
+                            โต๊ะ {{ order.table_no }}
                             {% else %}
-                                <span class="fs-5 text-secondary">ไม่ระบุโต๊ะ / กลับบ้าน</span>
+                            <span class="fs-5 text-secondary">ไม่ระบุโต๊ะ / กลับบ้าน</span>
                             {% endif %}
                         </div>
                         <div class="text-secondary small fw-bold mt-1">
@@ -161,20 +192,20 @@
                     <!-- ตราปั๊มสถานะ -->
                     <div>
                         {% if order.status == 'pending' %}
-                            <span class="status-stamp stamp-pending"><i class="fas fa-hourglass-start me-1"></i>รอดำเนินการ</span>
+                        <span class="status-stamp stamp-pending"><i class="fas fa-hourglass-start me-1"></i>รอดำเนินการ</span>
                         {% elif order.status == 'cooking' %}
-                            <span class="status-stamp stamp-cooking"><i class="fas fa-fire me-1"></i>กำลังทำ</span>
+                        <span class="status-stamp stamp-cooking"><i class="fas fa-fire me-1"></i>กำลังทำ</span>
                         {% elif order.status == 'ready' %}
-                            <span class="status-stamp stamp-ready"><i class="fas fa-bell me-1"></i>พร้อมเสิร์ฟ</span>
+                        <span class="status-stamp stamp-ready"><i class="fas fa-bell me-1"></i>พร้อมเสิร์ฟ</span>
                         {% else %}
-                            <span class="status-stamp stamp-done"><i class="fas fa-check me-1"></i>เสร็จสิ้น</span>
+                        <span class="status-stamp stamp-done"><i class="fas fa-check me-1"></i>เสร็จสิ้น</span>
                         {% endif %}
                     </div>
                 </div>
 
-                {% if order.created_at %}
+                {% if order.created_at and order.created_at != '-' %}
                 <div class="text-end text-muted small fw-bold">
-                    เวลา: {{ order.created_at.split(' ')[1] if ' ' in order.created_at else order.created_at }} น.
+                    เวลา: {{ order.created_at.split(' ')[1] if ' ' in (order.created_at | string) else order.created_at }} น.
                 </div>
                 {% endif %}
 
@@ -190,13 +221,13 @@
 
                 <div class="bg-light p-2 rounded border border-secondary-subtle">
                     <ul class="list-unstyled mb-0">
-                        {% for item in order.order_items %}
+                        {% for item in (order.order_items or order.items or []) %}
                         <li class="d-flex justify-content-between align-items-center py-1 border-bottom border-light-subtle">
                             <div class="d-flex align-items-center me-2 text-truncate">
-                                <span class="fw-bolder text-dark me-2">[x{{ item.quantity if item.quantity is defined else item.qty }}]</span>
-                                <span class="fw-bold text-dark text-truncate" style="max-width: 160px;">{{ item.name or item.menu_name }}</span>
+                                <span class="fw-bolder text-dark me-2">[x{{ item.quantity or item.qty or 1 }}]</span>
+                                <span class="fw-bold text-dark text-truncate" style="max-width: 160px;">{{ item.name }}</span>
                             </div>
-                            <span class="fw-bold text-dark">฿{{ item.price * (item.quantity if item.quantity is defined else item.qty) }}</span>
+                            <span class="fw-bold text-dark">฿{{ "%.2f"|format(item.subtotal | float) }}</span>
                         </li>
                         {% endfor %}
                     </ul>
@@ -207,7 +238,7 @@
                 <!-- ยอดรวมสุทธิ -->
                 <div class="d-flex justify-content-between align-items-center my-2">
                     <span class="fw-bolder text-dark fs-6 text-uppercase">TOTAL / ยอดรวม</span>
-                    <span class="fw-bolder text-danger fs-3">฿{{ order.total_price if order.total_price is defined else order.total_amount }}</span>
+                    <span class="fw-bolder text-danger fs-3">฿{{ "%.2f"|format(order.total_price | float) }}</span>
                 </div>
 
                 <div class="receipt-divider mb-3"></div>
@@ -218,17 +249,17 @@
                 <div class="d-flex gap-2">
                     {% if order.status == 'pending' %}
                     <button class="btn btn-warning flex-grow-1 fw-bold text-dark shadow-sm border-2 border-dark"
-                            onclick="changeOrderStatus('{{ order.id }}', 'cooking')">
+                        onclick="changeOrderStatus('{{ order.id }}', 'cooking', this)">
                         <i class="fas fa-fire me-1"></i> เริ่มทำอาหาร
                     </button>
                     {% elif order.status == 'cooking' %}
                     <button class="btn btn-info text-dark flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                            onclick="changeOrderStatus('{{ order.id }}', 'ready')">
+                        onclick="changeOrderStatus('{{ order.id }}', 'ready', this)">
                         <i class="fas fa-bell me-1"></i> พร้อมเสิร์ฟ
                     </button>
                     {% elif order.status == 'ready' %}
                     <button class="btn btn-success text-white flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                            onclick="changeOrderStatus('{{ order.id }}', 'completed')">
+                        onclick="changeOrderStatus('{{ order.id }}', 'completed', this)">
                         <i class="fas fa-check-circle me-1"></i> เสิร์ฟสำเร็จ
                     </button>
                     {% else %}
@@ -237,7 +268,7 @@
 
                     {% if order.status != 'completed' and order.status != 'cancelled' %}
                     <button class="btn btn-outline-danger px-3 border-2" title="ยกเลิกออเดอร์"
-                            onclick="changeOrderStatus('{{ order.id }}', 'cancelled')">
+                        onclick="changeOrderStatus('{{ order.id }}', 'cancelled', this)">
                         <i class="fas fa-times fs-5"></i>
                     </button>
                     {% endif %}
@@ -259,36 +290,60 @@
 
 {% block scripts %}
 <script>
-    function updateStaffStatus(status) {
-        fetch('/staff/status/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: status })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') location.reload();
-            else alert('Error: ' + data.message);
-        });
+    async function updateStaffStatus(status) {
+        try {
+            const response = await fetch('/staff/status/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: status })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && (data.status === 'success' || data.success)) {
+                location.reload();
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถอัปเดตสถานะพนักงานได้'));
+            }
+        } catch (error) {
+            console.error('Error updating staff status:', error);
+            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+        }
     }
 
-    function changeOrderStatus(orderId, nextStatus) {
-        fetch(`/staff/order/update-status/${orderId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: nextStatus })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') location.reload();
-            else alert('Error: ' + data.message);
-        });
+    async function changeOrderStatus(orderId, nextStatus, btnElement) {
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
+        }
+
+        try {
+            const cleanOrderId = String(orderId).replace(/^#/, '');
+            const response = await fetch(`/staff/order/update-status/${encodeURIComponent(cleanOrderId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: nextStatus })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok && (data.status === 'success' || data.success)) {
+                location.reload();
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถอัปเดตสถานะออเดอร์ได้'));
+                if (btnElement) location.reload();
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+            if (btnElement) location.reload();
+        }
     }
 
     function filterOrders(btnElement, status) {
         const buttons = document.querySelectorAll('.filter-btn');
         buttons.forEach(btn => {
-            btn.classList.remove('active', 'btn-primary', 'btn-warning', 'btn-info', 'btn-success', 'text-white');
+            btn.classList.remove('active', 'btn-primary', 'btn-warning', 'btn-info', 'btn-success', 'btn-outline-warning', 'btn-outline-info', 'btn-outline-success', 'text-white');
             btn.classList.add('btn-outline-secondary', 'text-dark');
         });
 
@@ -309,7 +364,8 @@
         let visibleCount = 0;
 
         cards.forEach(card => {
-            if (status === 'all' || card.dataset.status === status) {
+            const cardStatus = (card.dataset.status || '').toLowerCase().trim();
+            if (status === 'all' || cardStatus === status) {
                 card.classList.remove('d-none');
                 visibleCount++;
             } else {

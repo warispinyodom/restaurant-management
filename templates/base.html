@@ -154,7 +154,8 @@
 
 <body>
     <!-- Top Navbar เฉพาะจอมือถือ (< 768px) -->
-    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top" style="background-color: #0f172a !important;">
+    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top"
+        style="background-color: #0f172a !important;">
         <span class="navbar-brand fw-bold d-flex align-items-center gap-2 mb-0 fs-6">
             <i class="fas fa-utensils text-warning"></i> POS System
         </span>
@@ -166,7 +167,8 @@
 
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        <div class="offcanvas-md offcanvas-start sidebar text-white p-3 d-flex flex-column" id="sidebarMenu" tabindex="-1">
+        <div class="offcanvas-md offcanvas-start sidebar text-white p-3 d-flex flex-column" id="sidebarMenu"
+            tabindex="-1">
 
             <!-- Header โลโก้ -->
             <div class="d-flex align-items-center justify-content-between mb-3 px-1 pt-1">
@@ -198,14 +200,14 @@
                     </div>
                     <div>
                         {% if session.get('role') == 'admin' %}
-                            <span class="badge bg-danger text-white rounded-pill px-2 py-1"
-                                style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
+                        <span class="badge bg-danger text-white rounded-pill px-2 py-1"
+                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
                         {% elif session.get('role') == 'staff' %}
-                            <span class="badge bg-info text-dark rounded-pill px-2 py-1"
-                                style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
+                        <span class="badge bg-info text-dark rounded-pill px-2 py-1"
+                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
                         {% else %}
-                            <span class="badge bg-success text-white rounded-pill px-2 py-1"
-                                style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
+                        <span class="badge bg-success text-white rounded-pill px-2 py-1"
+                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
                         {% endif %}
                     </div>
                 </div>
@@ -227,6 +229,11 @@
                 <a href="{{ url_for('admin_menu_list') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_menu') }}">
                     <i class="fas fa-hamburger text-warning"></i> <span>จัดการเมนูอาหาร</span>
+                </a>
+
+                <a href="{{ url_for('admin_tables_list') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin_tables') }}">
+                    <i class="fas fa-chair text-warning"></i> <span>จัดการโต๊ะอาหาร</span>
                 </a>
 
                 <a href="{{ url_for('admin_staff_list') }}"
@@ -253,6 +260,11 @@
                     <i class="fas fa-utensils text-warning"></i> <span>รายการออเดอร์หน้าร้าน</span>
                 </a>
 
+                <a href="{{ url_for('staff_check_bill') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff_check') }}">
+                    <i class="fas fa-file-invoice-dollar text-success"></i> <span>เช็คบิล / ชำระเงิน</span>
+                </a>
+
                 <a href="{{ url_for('staff_menu_manage') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint == 'staff_menu_manage' }}">
                     <i class="fas fa-edit text-info"></i> <span>ปรับสถานะ/สต็อกเมนู</span>
@@ -261,6 +273,11 @@
                 <!-- 3. CUSTOMER MENU -->
                 {% elif session.get('role') == 'customer' %}
                 <div class="menu-section-label">ส่วนของลูกค้า (Customer)</div>
+
+                <a href="{{ url_for('customer_choose_table') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'customer_choose_table' }}">
+                    <i class="fas fa-chair text-warning"></i> <span>เลือกโต๊ะอาหาร</span>
+                </a>
 
                 <a href="{{ url_for('customer_dashboard') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint == 'customer_dashboard' }}">

@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header Page -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="fas fa-file-invoice-dollar text-success me-2"></i>ระบบเช็คบิล / รับชำระเงิน</h3>
+            <p class="text-muted mb-0">เลือกโต๊ะหรือออเดอร์ที่ต้องการคำนวณเงินและปิดโต๊ะ</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="location.reload()" class="btn btn-outline-secondary rounded-3">
+                <i class="fas fa-sync-alt me-1"></i> รีเฟรชข้อมูล
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter / Search Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchTableInput" class="form-control border-start-0 ps-0"
+                    placeholder="ค้นหาตามหมายเลขโต๊ะ..." onkeyup="filterOrders()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Unpaid Orders Cards -->
+    <div class="row g-3" id="ordersGrid">
+        {% if orders %}
+        {% for order in orders %}
+        <div class="col-12 col-md-6 col-lg-4 order-card-item" data-table="{{ order.table_no }}">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom border-light p-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary fs-6 px-3 py-2 rounded-3">
+                            โต๊ะ {{ order.table_no }}
+                        </span>
+                        <small class="text-muted"><i class="far fa-clock me-1"></i>{{ order.created_at.split(' ')[1] if order.created_at and ' ' in (order.created_at | string) else (order.created_at or '-') }}</small>
+                    </div>
+                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill fw-semibold">
+                        รอชำระเงิน
+                    </span>
+                </div>
+
+                <div class="card-body p-3">
+                    <div class="mb-3" style="max-height: 180px; overflow-y: auto;">
+                        <ul class="list-group list-group-flush">
+                            {% for item in order.items %}
+                            <li class="list-group-item px-0 py-1 border-0 d-flex justify-content-between align-items-center">
+                                <span class="text-truncate me-2" style="max-width: 200px;">
+                                    {{ item.name }} <small class="text-muted">x{{ item.quantity or item.qty or 1 }}</small>
+                                </span>
+                                <span class="fw-semibold">฿{{ "{:,.2f}".format((item.price | float) * ((item.quantity or item.qty or 1) | float)) }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-secondary">ยอดรวมทั้งหมด</span>
+                        <span class="fs-4 fw-bold text-success">฿{{ "{:,.2f}".format(order.total_amount | float) }}</span>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-white border-top-0 p-3 pt-0">
+                    <button type="button"
+                        class="btn btn-success w-100 py-2 fw-semibold rounded-3 d-flex justify-content-center align-items-center gap-2"
+                        data-order="{{ order | tojson | forceescape }}" onclick="openPaymentModal(this)">
+                        <i class="fas fa-calculator"></i> คำนวณเงิน / เช็คบิล
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5 bg-white rounded-4 shadow-sm">
+                <i class="fas fa-check-circle text-success display-4 mb-3"></i>
+                <h5 class="fw-bold text-secondary">ไม่มีรายการออเดอร์ที่รอชำระเงิน</h5>
+                <p class="text-muted mb-0">ออเดอร์ทั้งหมดถูกชำระเงินเรียบร้อยแล้ว</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal คำนวณเงินและชำระเงิน -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-dark text-white border-0 py-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-receipt me-2 text-warning"></i>รายละเอียดการเช็คบิล - <span id="modalTableNo"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <!-- รายการอาหาร -->
+                    <div class="col-md-6 border-end">
+                        <h6 class="fw-bold text-secondary mb-3">รายการอาหารที่สั่ง</h6>
+                        <div id="modalOrderItems" class="mb-3" style="max-height: 250px; overflow-y: auto;">
+                            <!-- Dynamic Content -->
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center fs-5 fw-bold">
+                            <span>ยอดรวมสุทธิ</span>
+                            <span class="text-success" id="modalTotalAmount">฿0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- ช่องทางการชำระเงิน -->
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary mb-3">เลือกวิธีชำระเงิน</h6>
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="paymentMethod" id="payCash" value="เงินสด"
+                                checked onchange="togglePaymentUI()">
+                            <label class="btn btn-outline-primary py-2" for="payCash"><i class="fas fa-money-bill-wave me-1"></i> เงินสด</label>
+
+                            <input type="radio" class="btn-check" name="paymentMethod" id="payQR"
+                                value="พร้อมเพย์ / QR Code" onchange="togglePaymentUI()">
+                            <label class="btn btn-outline-primary py-2" for="payQR"><i class="fas fa-qrcode me-1"></i> QR Code</label>
+                        </div>
+
+                        <!-- คำนวณเงินสด -->
+                        <div id="cashCalcArea">
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">รับเงินมา (บาท)</label>
+                                <input type="number" id="receivedInput"
+                                    class="form-control form-control-lg text-end fw-bold" placeholder="0.00"
+                                    oninput="calculateChange()">
+                            </div>
+                            <div class="d-flex gap-2 mb-3">
+                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash('exact')">พอดี</button>
+                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(100)">100</button>
+                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(500)">500</button>
+                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(1000)">1,000</button>
+                            </div>
+                            <div class="p-3 bg-light rounded-3 text-center mb-3">
+                                <span class="d-block text-muted small mb-1">เงินทอน</span>
+                                <h3 class="fw-bold mb-0 text-primary" id="changeText">฿0.00</h3>
+                            </div>
+                        </div>
+
+                        <!-- แสดง QR Code ชำระเงิน -->
+                        <div id="qrCodeArea" class="d-none text-center py-2">
+                            {% if payments %}
+                            {% for p in payments %}
+                            <div class="p-2 border rounded-3 mb-2">
+                                <div class="fw-bold">{{ p.bank_name }} - {{ p.account_name }}</div>
+                                <div class="text-muted small">พร้อมเพย์: {{ p.promptpay_no }}</div>
+                                {% if p.qr_image %}
+                                <img src="{{ p.qr_image }}" alt="QR Code" class="img-fluid mt-2 rounded-2" style="max-height: 140px;">
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="alert alert-warning text-center small mb-0">
+                                ยังไม่มีข้อมูลช่องทางชำระเงิน QR Code
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 p-3 bg-light">
+                <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-success px-4 rounded-3 fw-bold" onclick="submitCheckBill()">
+                    <i class="fas fa-check-circle me-1"></i> ยืนยันการชำระเงิน
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentOrder = null;
+    let currentTotal = 0;
+
+    function filterOrders() {
+        const input = document.getElementById('searchTableInput').value.toLowerCase();
+        const cards = document.querySelectorAll('.order-card-item');
+
+        cards.forEach(card => {
+            const tableNo = String(card.getAttribute('data-table') || '').toLowerCase();
+            if (tableNo.includes(input)) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function openPaymentModal(element) {
+        let order = element;
+        if (element instanceof HTMLElement) {
+            const rawData = element.dataset.order || element.getAttribute('data-order');
+            try {
+                order = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+            } catch (e) {
+                console.error("Error parsing order JSON:", e);
+                order = {};
+            }
+        }
+        
+        currentOrder = order;
+        currentTotal = parseFloat(order.total_amount || order.total_price || 0);
+
+        document.getElementById('modalTableNo').innerText = 'โต๊ะ ' + String(order.table_no || 'ไม่ระบุ');
+        document.getElementById('modalTotalAmount').innerText = '฿' + currentTotal.toLocaleString('th-TH', {minimumFractionDigits: 2});
+
+        // Render items
+        const itemsContainer = document.getElementById('modalOrderItems');
+        itemsContainer.innerHTML = '';
+        
+        const items = order.items || order.order_items || [];
+        if (items.length > 0) {
+            items.forEach(item => {
+                const qty = item.quantity || item.qty || 1;
+                const price = parseFloat(item.price || 0);
+                const itemTotal = price * qty;
+
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between align-items-center py-2 border-bottom';
+                div.innerHTML = `
+                    <div>
+                        <div class="fw-semibold">${item.name}</div>
+                        <small class="text-muted">${qty} x ฿${price.toFixed(2)}</small>
+                    </div>
+                    <div class="fw-bold">฿${itemTotal.toFixed(2)}</div>
+                `;
+                itemsContainer.appendChild(div);
+            });
+        }
+
+        // Reset Form
+        document.getElementById('payCash').checked = true;
+        document.getElementById('receivedInput').value = '';
+        document.getElementById('changeText').innerText = '฿0.00';
+        togglePaymentUI();
+
+        const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        paymentModal.show();
+    }
+
+    function togglePaymentUI() {
+        const isCash = document.getElementById('payCash').checked;
+        const cashArea = document.getElementById('cashCalcArea');
+        const qrArea = document.getElementById('qrCodeArea');
+
+        if (isCash) {
+            cashArea.classList.remove('d-none');
+            qrArea.classList.add('d-none');
+        } else {
+            cashArea.classList.add('d-none');
+            qrArea.classList.remove('d-none');
+        }
+    }
+
+    function calculateChange() {
+        const receivedVal = document.getElementById('receivedInput').value;
+        if (receivedVal === '') {
+            document.getElementById('changeText').innerText = '฿0.00';
+            document.getElementById('changeText').className = 'fw-bold mb-0 text-primary fs-3';
+            return;
+        }
+
+        const received = parseFloat(receivedVal || 0);
+        const change = received - currentTotal;
+        const changeText = document.getElementById('changeText');
+
+        if (change < 0) {
+            changeText.innerText = 'จำนวนเงินไม่พอ';
+            changeText.className = 'fw-bold mb-0 text-danger fs-5';
+        } else {
+            changeText.innerText = '฿' + change.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            changeText.className = 'fw-bold mb-0 text-primary fs-3';
+        }
+    }
+
+    function setQuickCash(amount) {
+        if (amount === 'exact') {
+            document.getElementById('receivedInput').value = currentTotal;
+        } else {
+            document.getElementById('receivedInput').value = amount;
+        }
+        calculateChange();
+    }
+
+    function submitCheckBill() {
+        if (!currentOrder) return;
+
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const rawReceived = document.getElementById('receivedInput').value;
+        const receivedAmount = (paymentMethod === 'เงินสด') ? (rawReceived === '' ? 0 : parseFloat(rawReceived)) : currentTotal;
+        const changeAmount = receivedAmount - currentTotal;
+
+        if (paymentMethod === 'เงินสด' && receivedAmount < currentTotal) {
+            Swal.fire('เกิดข้อผิดพลาด', 'จำนวนเงินที่รับมาไม่พอชำระยอดรวม', 'error');
+            return;
+        }
+
+        Swal.fire({
+            title: 'ยืนยันการชำระเงิน?',
+            text: `ยอดชำระ ฿${currentTotal.toFixed(2)} (${paymentMethod})`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'ยืนยันและปิดโต๊ะ',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('/staff/check-bill/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: String(currentOrder.id || currentOrder.order_id || ''),
+                        table_id: String(currentOrder.table_id || ''),
+                        table_no: String(currentOrder.table_no || ''),
+                        payment_method: String(paymentMethod),
+                        received_amount: receivedAmount,
+                        change_amount: changeAmount > 0 ? changeAmount : 0
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire('สำเร็จ', data.message || 'ชำระเงินเรียบร้อยแล้ว', 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถทำรายการได้', 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้', 'error');
+                });
+            }
+        });
+    }
+</script>
+{% endblock %}
