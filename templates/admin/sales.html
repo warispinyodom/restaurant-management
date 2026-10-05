@@ -18,16 +18,16 @@
     }
     @media print {
         body * {
-            visibility: hidden;
+            visibility: hidden !important;
         }
         .printable-area, .printable-area * {
-            visibility: visible;
+            visibility: visible !important;
         }
         .printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
         }
     }
 </style>
@@ -39,34 +39,20 @@
         <p class="text-muted mb-0 small">ตรวจสอบประวัติยอดขาย ยอดออเดอร์ และจัดการการยกเลิกรายการ (Void)</p>
     </div>
     <div>
-        <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" onclick="window.location.reload();">
-            <i class="fas fa-sync-alt me-1"></i> รีเฟรชข้อมูล
+        <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" onclick="resetAllFilters()">
+            <i class="fas fa-sync-alt me-1"></i> รีเฟรชข้อมูลทั้งหมด
         </button>
     </div>
 </div>
 
 <!-- Sales Statistics Summary Cards -->
 <div class="row g-3 mb-4">
-    {% set ns = namespace(total_sales=0, completed_count=0, voided_count=0, pending_count=0) %}
-    {% for order in orders %}
-        {% set st = (order.status or 'completed') | lower %}
-        {% set amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else (order.total if order.total is defined and order.total is not none else 0)) %}
-        {% if st in ['completed', 'paid', 'success'] %}
-            {% set ns.total_sales = ns.total_sales + (amt | float) %}
-            {% set ns.completed_count = ns.completed_count + 1 %}
-        {% elif st in ['voided', 'cancelled'] %}
-            {% set ns.voided_count = ns.voided_count + 1 %}
-        {% else %}
-            {% set ns.pending_count = ns.pending_count + 1 %}
-        {% endif %}
-    {% endfor %}
-
     <div class="col-12 col-sm-6 col-xl-3">
         <div class="card sales-card bg-primary text-white shadow-sm h-100">
             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-white-50 small fw-bold">ยอดขายรวม (สำเร็จ)</div>
-                    <h3 class="fw-bold mb-0 mt-1">฿<span id="statTotalSales">{{ "%.2f"|format(ns.total_sales) }}</span></h3>
+                    <h3 class="fw-bold mb-0 mt-1">฿<span id="statTotalSales">{{ "%.2f"|format(total_revenue) }}</span></h3>
                 </div>
                 <div class="bg-white bg-opacity-25 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="fas fa-coins fa-lg text-white"></i>
@@ -80,7 +66,7 @@
             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-white-50 small fw-bold">ออเดอร์สำเร็จ</div>
-                    <h3 class="fw-bold mb-0 mt-1"><span id="statCompletedCount">{{ ns.completed_count }}</span> รายการ</h3>
+                    <h3 class="fw-bold mb-0 mt-1"><span id="statCompletedCount">{{ total_completed_orders }}</span> รายการ</h3>
                 </div>
                 <div class="bg-white bg-opacity-25 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="fas fa-check-circle fa-lg text-white"></i>
@@ -94,7 +80,7 @@
             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-dark-50 small fw-bold">รอดำเนินการ/กำลังทำ</div>
-                    <h3 class="fw-bold mb-0 mt-1"><span id="statPendingCount">{{ ns.pending_count }}</span> รายการ</h3>
+                    <h3 class="fw-bold mb-0 mt-1"><span id="statPendingCount">{{ total_pending_orders }}</span> รายการ</h3>
                 </div>
                 <div class="bg-white bg-opacity-25 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="fas fa-hourglass-half fa-lg text-dark"></i>
@@ -108,7 +94,7 @@
             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-white-50 small fw-bold">ยกเลิกรายการ (Void)</div>
-                    <h3 class="fw-bold mb-0 mt-1"><span id="statVoidedCount">{{ ns.voided_count }}</span> รายการ</h3>
+                    <h3 class="fw-bold mb-0 mt-1"><span id="statVoidedCount">{{ total_voided_orders }}</span> รายการ</h3>
                 </div>
                 <div class="bg-white bg-opacity-25 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="fas fa-ban fa-lg text-white"></i>
@@ -118,9 +104,84 @@
     </div>
 </div>
 
+<!-- Top Selling Items Card -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-dark">
+            <i class="fas fa-trophy text-warning me-2"></i>5 อันดับเมนูขายดีที่สุด (Top Best Sellers)
+        </h5>
+        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 small">คำนวณจากออเดอร์สำเร็จ</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-muted">
+                    <tr>
+                        <th class="ps-3 text-center" style="width: 80px;">อันดับ</th>
+                        <th>ชื่อเมนูอาหาร</th>
+                        <th class="text-center" style="width: 150px;">จำนวนที่ขายได้</th>
+                        <th class="text-end pe-3" style="width: 160px;">ยอดขายรวม</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if top_selling_menus %}
+                        {% for item in top_selling_menus %}
+                        <tr>
+                            <td class="ps-3 text-center">
+                                {% if loop.index == 1 %}
+                                    <span class="badge bg-warning text-dark fs-6 shadow-sm"><i class="fas fa-crown me-1 text-dark"></i>1</span>
+                                {% elif loop.index == 2 %}
+                                    <span class="badge bg-secondary fs-6">2</span>
+                                {% elif loop.index == 3 %}
+                                    <span class="badge bg-danger-subtle text-danger border fs-6">3</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border fw-bold">{{ loop.index }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-dark">{{ item.name }}</td>
+                            <td class="text-center fw-bold text-primary">{{ item.qty }} รายการ</td>
+                            <td class="text-end pe-3 fw-bold text-success">฿{{ "%.2f"|format(item.total_revenue) }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>ยังไม่มีข้อมูลยอดขายเมนูในช่วงเวลานี้
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- Search & Filter Bar -->
 <div class="card border-0 shadow-sm rounded-3 mb-4">
     <div class="card-body p-3">
+        <!-- Date Range Form (Backend Filter) -->
+        <form method="GET" action="{{ url_for('admin.admin_sales_history') }}" class="row g-2 align-items-center mb-3 pb-3 border-bottom">
+            <div class="col-12 col-sm-5 col-md-4">
+                <label class="form-label small text-muted fw-semibold mb-1">ตั้งแต่วันที่</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+            </div>
+            <div class="col-12 col-sm-5 col-md-4">
+                <label class="form-label small text-muted fw-semibold mb-1">ถึงวันที่</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+            </div>
+            <div class="col-12 col-sm-2 col-md-4 d-flex align-items-end gap-2 mt-sm-auto">
+                <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                    <i class="fas fa-filter me-1"></i> กรองวันที่
+                </button>
+                {% if start_date or end_date %}
+                <a href="{{ url_for('admin.admin_sales_history') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    ล้างวันที่
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Client-Side Search Filters -->
         <div class="row g-2 align-items-center">
             <div class="col-12 col-md-5">
                 <div class="input-group">
@@ -137,7 +198,7 @@
                     <option value="voided">ยกเลิกแล้ว (Void)</option>
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-5 col-md-3">
                 <select id="paymentFilter" class="form-select bg-light" onchange="filterSales()">
                     <option value="">-- ทุกช่องทางชำระเงิน --</option>
                     <option value="promptpay">พร้อมเพย์ / โอนเงิน</option>
@@ -145,8 +206,8 @@
                     <option value="qr">QR Code</option>
                 </select>
             </div>
-            <div class="col-12 col-md-1 text-end">
-                <button class="btn btn-outline-secondary w-100 fw-bold" onclick="resetFilters()" title="ล้างการกรอง">
+            <div class="col-1 col-md-1 text-end">
+                <button class="btn btn-outline-secondary w-100 fw-bold" onclick="resetClientFilters()" title="ล้างการค้นหา">
                     <i class="fas fa-redo-alt"></i>
                 </button>
             </div>
@@ -176,18 +237,19 @@
                 {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else (order.total if order.total is defined and order.total is not none else 0)) %}
                 {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
                 {% set pay_method = order.payment_method if order.payment_method is defined and order.payment_method else (order.payment_type if order.payment_type is defined and order.payment_type else 'ไม่ระบุ') %}
-                {% set created_str = order.created_at if order.created_at is defined and order.created_at else '-' %}
+                {% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
+                {% set order_id_str = (order.id | string) if order.id is defined and order.id else 'N/A' %}
                 {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
 
                 <tr class="sales-row" 
-                    data-order-id="{{ order.id | lower }}" 
+                    data-order-id="{{ order_id_str | lower }}" 
                     data-table="{{ table_no | lower }}" 
                     data-status="{% if st in ['completed', 'paid', 'success'] %}completed{% elif st in ['voided', 'cancelled'] %}voided{% else %}pending{% endif %}"
                     data-payment="{{ pay_method | lower }}"
                     data-amount="{{ total_amt }}">
                     
                     <td class="ps-3 fw-bold font-monospace text-primary">
-                        #{{ order.id[:8] if order.id else 'N/A' }}
+                        #{{ order_id_str[:8] }}
                     </td>
                     <td class="small text-muted">
                         <i class="far fa-clock me-1"></i>{{ created_str.replace('T', ' ')[:16] }}
@@ -236,12 +298,12 @@
                     <td class="text-center pe-3">
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" 
-                                    data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}" title="ดูรายละเอียด">
+                                    data-bs-toggle="modal" data-bs-target="#orderModal{{ order_id_str }}" title="ดูรายละเอียด">
                                 <i class="fas fa-eye"></i>
                             </button>
                             {% if st not in ['voided', 'cancelled'] %}
                             <button type="button" class="btn btn-outline-danger" 
-                                    onclick="confirmVoidOrder('{{ order.id }}')" title="ยกเลิกออเดอร์ (Void)">
+                                    onclick="confirmVoidOrder('{{ order_id_str }}')" title="ยกเลิกออเดอร์ (Void)">
                                 <i class="fas fa-ban"></i>
                             </button>
                             {% endif %}
@@ -262,7 +324,7 @@
                 <tr>
                     <td colspan="8" class="text-center py-5 text-muted">
                         <i class="fas fa-receipt fa-4x mb-3 text-secondary opacity-50"></i>
-                        <h5 class="fw-bold mb-1">ยังไม่มีประวัติการขายในระบบ</h5>
+                        <h5 class="fw-bold mb-1">ยังไม่มีประวัติการขายในช่วงเวลานี้</h5>
                         <p class="mb-0 small">เมื่อมีการสั่งซื้อและชำระเงิน รายการออเดอร์จะมาแสดง ณ ที่นี้</p>
                     </td>
                 </tr>
@@ -272,25 +334,26 @@
     </div>
 </div>
 
-<!-- Order Details Modals Container (แยกออกมาไว้นอก Table เพื่อไม่ให้ Layout พัง) -->
+<!-- Order Details Modals Container -->
 {% for order in orders %}
 {% set st = (order.status or 'completed') | lower %}
 {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else (order.total if order.total is defined and order.total is not none else 0)) %}
 {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
 {% set pay_method = order.payment_method if order.payment_method is defined and order.payment_method else (order.payment_type if order.payment_type is defined and order.payment_type else 'ไม่ระบุ') %}
-{% set created_str = order.created_at if order.created_at is defined and order.created_at else '-' %}
+{% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
+{% set order_id_str = (order.id | string) if order.id is defined and order.id else 'N/A' %}
 {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
 
-<div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="orderModal{{ order_id_str }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg rounded-3">
             <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">
-                    <i class="fas fa-receipt text-primary me-2"></i>รายละเอียดออเดอร์ #{{ order.id }}
+                    <i class="fas fa-receipt text-primary me-2"></i>รายละเอียดออเดอร์ #{{ order_id_str }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4" id="printableArea{{ order.id }}">
+            <div class="modal-body p-4" id="printableArea{{ order_id_str }}">
                 <div class="row g-3 mb-3 p-3 bg-light rounded-3 border">
                     <div class="col-6 col-sm-3">
                         <div class="text-muted small">โต๊ะอาหาร</div>
@@ -334,8 +397,8 @@
                         <tbody>
                             {% if items_list %}
                                 {% for item in items_list %}
-                                {% set item_price = item.price if item.price is defined else 0 %}
-                                {% set item_qty = item.quantity if item.quantity is defined else (item.qty if item.qty is defined else 1) %}
+                                {% set item_price = item.price if item.price is defined and item.price is not none else 0 %}
+                                {% set item_qty = item.quantity if item.quantity is defined and item.quantity is not none else (item.qty if item.qty is defined and item.qty is not none else 1) %}
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td class="fw-bold">{{ item.name if item.name is defined else item.title }}</td>
@@ -361,11 +424,11 @@
                 </div>
             </div>
             <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="printReceipt('printableArea{{ order.id }}')">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="printReceipt('printableArea{{ order_id_str }}')">
                     <i class="fas fa-print me-1"></i> พิมพ์ใบเสร็จ
                 </button>
                 {% if st not in ['voided', 'cancelled'] %}
-                <button type="button" class="btn btn-danger rounded-pill px-3" onclick="confirmVoidOrder('{{ order.id }}')">
+                <button type="button" class="btn btn-danger rounded-pill px-3" onclick="confirmVoidOrder('{{ order_id_str }}', '#orderModal{{ order_id_str }}')">
                     <i class="fas fa-ban me-1"></i> ยกเลิกออเดอร์ (Void)
                 </button>
                 {% endif %}
@@ -413,14 +476,28 @@
         }
     }
 
-    function resetFilters() {
+    function resetClientFilters() {
         document.getElementById('searchInput').value = '';
         document.getElementById('statusFilter').value = '';
         document.getElementById('paymentFilter').value = '';
         filterSales();
     }
 
-    function confirmVoidOrder(orderId) {
+    function resetAllFilters() {
+        window.location.href = "{{ url_for('admin.admin_sales_history') }}";
+    }
+
+    function confirmVoidOrder(orderId, modalId) {
+        if (modalId) {
+            const modalEl = document.querySelector(modalId);
+            if (modalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+        }
+
         Swal.fire({
             title: 'ยืนยันการยกเลิกออเดอร์ (Void)?',
             text: `คุณต้องการยกเลิกออเดอร์ #${orderId} ใช่หรือไม่? การกระทำนี้จะไม่สามารถย้อนกลับได้`,
@@ -462,15 +539,11 @@
         const win = window.open('', '', 'height=600,width=800');
         win.document.write('<html><head><title>พิมพ์ใบเสร็จ</title>');
         win.document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">');
-        win.document.write('</head><body class="p-4">');
+        win.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">');
+        win.document.write('</head><body class="p-4" onload="window.print(); window.close();">');
         win.document.write(printContent);
         win.document.write('</body></html>');
         win.document.close();
-        win.focus();
-        setTimeout(() => {
-            win.print();
-            win.close();
-        }, 500);
     }
 </script>
 {% endblock %}

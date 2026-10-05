@@ -110,10 +110,13 @@
                  data-table-no="{{ table.table_no }}" 
                  data-status="{{ table.status }}">
                 
-                <div class="card h-100 border-0 shadow-sm rounded-4 card-table position-relative transition-all status-card-{{ table.status }}" id="table-card-{{ table.id }}">
+                <!-- เพิ่ม onclick ให้คลิกที่การ์ดเพื่อเลือกได้เลย -->
+                <div class="card h-100 border-0 shadow-sm rounded-4 card-table position-relative transition-all status-card-{{ table.status }} cursor-pointer" 
+                     id="table-card-{{ table.id }}"
+                     onclick="toggleCardSelect(event, '{{ table.id }}')">
                     
-                    <!-- Checkbox for Bulk Actions -->
-                    <div class="position-absolute top-0 start-0 p-2 z-2">
+                    <!-- Checkbox Indicator -->
+                    <div class="position-absolute top-0 start-0 p-2 z-2" onclick="event.stopPropagation()">
                         <div class="form-check custom-checkbox-wrapper m-0">
                             <input type="checkbox" class="form-check-input custom-table-checkbox cursor-pointer rounded-2" value="{{ table.id }}" onchange="handleCheckboxChange('{{ table.id }}')">
                         </div>
@@ -148,8 +151,8 @@
                             {% endif %}
                         </div>
 
-                        <!-- Actions: Dropdown Status Switcher & Single Delete -->
-                        <div class="d-flex gap-1 pt-2 border-top">
+                        <!-- Actions: Dropdown Status Switcher & Single Delete (ใส่ stopPropagation เพื่อไม่ให้ติดการเลือกการ์ด) -->
+                        <div class="d-flex gap-1 pt-2 border-top" onclick="event.stopPropagation()">
                             <div class="dropdown flex-grow-1">
                                 <button class="btn btn-light btn-sm w-100 rounded-3 border dropdown-toggle fw-semibold text-secondary d-flex align-items-center justify-content-between px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <span class="small">สถานะ</span>
@@ -338,6 +341,7 @@
     border: 2px solid #e9ecef !important;
     transition: all 0.25s ease-in-out;
     background-color: #ffffff;
+    user-select: none;
 }
 .card-table:hover {
     transform: translateY(-3px);
@@ -345,7 +349,7 @@
 }
 .card-table.card-selected {
     border-color: #0d6efd !important;
-    background-color: #f8fafe !important;
+    background-color: #f0f6ff !important;
     box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
 }
 
@@ -488,8 +492,24 @@ function filterTables() {
 }
 
 // -------------------------------------------------------------
-// Checkbox & Bulk Selection Logic
+// Card Click & Selection Logic
 // -------------------------------------------------------------
+function toggleCardSelect(event, tableId) {
+    // หากกดปุ่มหรือดรอปดาวน์ภายใน ให้ข้ามการสลับสถานะการเลือก
+    if (event.target.closest('.dropdown') || event.target.closest('button') || event.target.closest('input')) {
+        return;
+    }
+
+    const card = document.getElementById(`table-card-${tableId}`);
+    if (!card) return;
+
+    const cb = card.querySelector('.custom-table-checkbox');
+    if (cb) {
+        cb.checked = !cb.checked;
+        handleCheckboxChange(tableId);
+    }
+}
+
 function getSelectedTableIds() {
     const checkboxes = document.querySelectorAll('.custom-table-checkbox:checked');
     return Array.from(checkboxes).map(cb => cb.value);

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from collections import Counter, defaultdict
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash
 from auth_utils import get_all_users, create_user
@@ -28,7 +29,6 @@ def admin_dashboard():
     try:
         return render_template('admin/dashboard.html', username=session.get('username'), role=session.get('role'))
     except Exception:
-        # Fallback กรณีเก็บไฟล์ไว้ที่ templates/dashboard.html
         return render_template('dashboard.html', username=session.get('username'), role=session.get('role'))
 
 @admin_bp.route('/api/admin/dashboard_stats')
@@ -41,6 +41,7 @@ def dashboard_stats():
     weekly_sales = [0.0] * 7
     sales_today = 0.0
     customers_today = 0
+    item_counter = Counter()
     
     orders_list = get_all_orders() or []
     
@@ -49,7 +50,7 @@ def dashboard_stats():
             created_at = str(order.get('created_at') or '')
             status = str(order.get('status', '')).lower()
             
-            if status in ['completed', 'paid']:
+            if status in ['completed', 'paid', 'success']:
                 try:
                     tot = order.get('total_price') if order.get('total_price') is not None else order.get('total_amount')
                     if tot is None:
@@ -58,7 +59,6 @@ def dashboard_stats():
                 except (ValueError, TypeError):
                     amount = 0.0
                 
-                # รองรับการแยกวันที่ทั้งรูปแบบ ISO ('T') และรูปแบบเว้นวรรค
                 clean_date_str = created_at.replace('T', ' ').split(' ')[0]
                 
                 if clean_date_str == today_str:
@@ -67,6 +67,17 @@ def dashboard_stats():
                         customers_today += int(order.get('customer_count', order.get('guests', 0)))
                     except (ValueError, TypeError):
                         pass
+
+                    items = order.get('items') or order.get('order_items') or []
+                    for item in items:
+                        if isinstance(item, dict):
+                            item_name = item.get('name') or item.get('title')
+                            try:
+                                qty = int(item.get('quantity') or item.get('qty', 1))
+                            except (ValueError, TypeError):
+                                qty = 1
+                            if item_name:
+                                item_counter[item_name] += qty
                 
                 if clean_date_str and clean_date_str != '-':
                     try:
@@ -76,6 +87,11 @@ def dashboard_stats():
                             weekly_sales[delta_days] += amount
                     except Exception:
                         pass
+
+    top_selling_today = [
+        {'name': name, 'qty': qty} 
+        for name, qty in item_counter.most_common(5)
+    ]
 
     all_users = get_all_users()
     active_staff = 0
@@ -89,7 +105,8 @@ def dashboard_stats():
         'sales_today': round(sales_today, 2),
         'customers_today': customers_today,
         'active_staff': active_staff,
-        'weekly_sales': [round(x, 2) for x in weekly_sales]
+        'weekly_sales': [round(x, 2) for x in weekly_sales],
+        'top_selling_today': top_selling_today
     })
 
 # ==========================================
@@ -332,7 +349,6 @@ def admin_menu_batch_delete():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Alias Function Name
 admin_menu_bulk_delete = admin_menu_batch_delete
 
 # ==========================================
@@ -489,7 +505,7 @@ def admin_payments_add():
 
         payload['qr_image'] = upload_to_firebase_storage(file, folder="payments")
 
-        if post_firebase_data('payment_channels', payload):
+        if post_firebase_data('payments', payload):
             flash("เพิ่มช่องทางชำระเงินสำเร็จ", "success")
         else:
             flash("เกิดข้อผิดพลาดในการเพิ่มช่องทาง", "error")
@@ -634,15 +650,119 @@ def admin_payments_batch_delete():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ==========================================
-# SALES HISTORY & ORDERS
+# SALES HISTORY & REPORTS (รายงานยอดขายรายวัน + เมนูขายดี)
 # ==========================================
 @admin_bp.route('/admin/sales')
 @admin_required
 def admin_sales_history():
     raw_orders = get_firebase_data('orders')
-    orders = parse_firebase_data(raw_orders)
-    orders.sort(key=lambda x: str(x.get('created_at') or ''), reverse=True)
-    return render_template('admin/sales.html', orders=orders)
+    orders = parse_firebase_data(raw_orders) or []
+    
+    start_date_str = request.args.get('start_date', '').strip()
+    end_date_str = request.args.get('end_date', '').strip()
+    
+    daily_sales_map = defaultdict(lambda: {'total_amount': 0.0, 'order_count': 0, 'item_count': 0})
+    item_sales_map = defaultdict(lambda: {'qty': 0, 'total_revenue': 0.0})
+    
+    filtered_orders = []
+    total_revenue = 0.0
+    total_completed_orders = 0
+    total_pending_orders = 0
+    total_voided_orders = 0
+    total_items_sold = 0
+
+    for order in orders:
+        if not isinstance(order, dict):
+            continue
+
+        created_at = str(order.get('created_at') or '')
+        status = str(order.get('status', '')).lower()
+        clean_date_str = created_at.replace('T', ' ').split(' ')[0] if created_at else ''
+
+        if start_date_str and clean_date_str and clean_date_str < start_date_str:
+            continue
+        if end_date_str and clean_date_str and clean_date_str > end_date_str:
+            continue
+
+        filtered_orders.append(order)
+
+        if status in ['completed', 'paid', 'success']:
+            try:
+                tot = order.get('total_price') if order.get('total_price') is not None else order.get('total_amount')
+                if tot is None:
+                    tot = order.get('total', 0)
+                amount = float(tot)
+            except (ValueError, TypeError):
+                amount = 0.0
+
+            total_revenue += amount
+            total_completed_orders += 1
+
+            if clean_date_str:
+                daily_sales_map[clean_date_str]['total_amount'] += amount
+                daily_sales_map[clean_date_str]['order_count'] += 1
+
+            items = order.get('items') or order.get('order_items') or []
+            for item in items:
+                if isinstance(item, dict):
+                    item_name = item.get('name') or item.get('title') or 'ไม่ระบุชื่อ'
+                    try:
+                        qty = int(item.get('quantity') or item.get('qty', 1))
+                    except (ValueError, TypeError):
+                        qty = 1
+
+                    try:
+                        price = float(item.get('price', 0))
+                    except (ValueError, TypeError):
+                        price = 0.0
+
+                    item_revenue = price * qty
+
+                    if item_name:
+                        item_sales_map[item_name]['qty'] += qty
+                        item_sales_map[item_name]['total_revenue'] += item_revenue
+                        total_items_sold += qty
+                        if clean_date_str:
+                            daily_sales_map[clean_date_str]['item_count'] += qty
+        elif status in ['voided', 'cancelled']:
+            total_voided_orders += 1
+        else:
+            total_pending_orders += 1
+
+    top_selling_menus = [
+        {
+            'name': name,
+            'qty': data['qty'],
+            'total_revenue': round(data['total_revenue'], 2)
+        }
+        for name, data in sorted(item_sales_map.items(), key=lambda x: x[1]['qty'], reverse=True)[:5]
+    ]
+
+    daily_sales_report = [
+        {
+            'date': date_key,
+            'total_amount': round(info['total_amount'], 2),
+            'order_count': info['order_count'],
+            'item_count': info['item_count']
+        }
+        for date_key, info in sorted(daily_sales_map.items(), key=lambda x: x[0], reverse=True)
+    ]
+
+    filtered_orders.sort(key=lambda x: str(x.get('created_at') or ''), reverse=True)
+
+    return render_template(
+        'admin/sales.html', 
+        orders=filtered_orders,
+        daily_sales_report=daily_sales_report,
+        top_selling_menus=top_selling_menus,
+        total_revenue=round(total_revenue, 2),
+        total_completed_orders=total_completed_orders,
+        total_pending_orders=total_pending_orders,
+        total_voided_orders=total_voided_orders,
+        total_items_sold=total_items_sold,
+        start_date=start_date_str,
+        end_date=end_date_str
+    )
 
 @admin_bp.route('/admin/sales/void/<id>', methods=['POST'])
 @admin_required
@@ -658,7 +778,6 @@ def admin_sales_void(id):
 # TABLE MANAGEMENT ROUTES
 # ==========================================
 def _table_sort_key(table):
-    """ฟังก์ชันจัดเรียงเลขโต๊ะให้ถูกต้องตามหลักตัวเลข (เช่น 1, 2, 10)"""
     val = str(table.get('table_no', ''))
     if val.isdigit():
         return (0, int(val), val)

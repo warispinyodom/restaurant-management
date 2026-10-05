@@ -1,12 +1,37 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    /* Print Receipt Thermal Style */
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #receiptModal .modal-body, #receiptModal .modal-body * {
+            visibility: visible;
+        }
+        #receiptModal .modal-body {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: 80mm;
+            padding: 0;
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+
 <div class="container-fluid px-0">
     <!-- Header Page -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h3 class="fw-bold mb-1"><i class="fas fa-file-invoice-dollar text-success me-2"></i>ระบบเช็คบิล / รับชำระเงิน</h3>
-            <p class="text-muted mb-0">เลือกโต๊ะหรือออเดอร์ที่ต้องการคำนวณเงินและปิดโต๊ะ</p>
+            <p class="text-muted mb-0">เลือกโต๊ะหรือออเดอร์ คำนวณส่วนลด ภาษี ค่าบริการ และพิมพ์ใบเสร็จ</p>
         </div>
         <div class="d-flex gap-2">
             <button onclick="location.reload()" class="btn btn-outline-secondary rounded-3">
@@ -20,7 +45,7 @@
         <div class="col-md-4">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                <input type="text" id="searchTableInput" class="form-control border-start-0 ps-0"
+                <input type="text" id="searchTableInput" class="form-control border-start-0 ps-0 shadow-none"
                     placeholder="ค้นหาตามหมายเลขโต๊ะ..." onkeyup="filterOrders()">
             </div>
         </div>
@@ -30,14 +55,15 @@
     <div class="row g-3" id="ordersGrid">
         {% if orders %}
         {% for order in orders %}
-        <div class="col-12 col-md-6 col-lg-4 order-card-item" data-table="{{ order.table_no }}">
+        <div class="col-12 col-md-6 col-lg-4 order-card-item" data-table="{{ order.get('table_no', '') }}">
             <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="card-header bg-white border-bottom border-light p-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary fs-6 px-3 py-2 rounded-3">
-                            โต๊ะ {{ order.table_no }}
+                            โต๊ะ {{ order.get('table_no', 'ไม่ระบุ') }}
                         </span>
-                        <small class="text-muted"><i class="far fa-clock me-1"></i>{{ order.created_at.split(' ')[1] if order.created_at and ' ' in (order.created_at | string) else (order.created_at or '-') }}</small>
+                        {% set created_time = order.get('created_at', '') %}
+                        <small class="text-muted"><i class="far fa-clock me-1"></i>{{ created_time.split(' ')[1] if created_time and ' ' in (created_time | string) else (created_time or '-') }}</small>
                     </div>
                     <span class="badge bg-warning text-dark px-2 py-1 rounded-pill fw-semibold">
                         รอชำระเงิน
@@ -47,27 +73,34 @@
                 <div class="card-body p-3">
                     <div class="mb-3" style="max-height: 180px; overflow-y: auto;">
                         <ul class="list-group list-group-flush">
-                            {% for item in order.items %}
+                            {# ดึงรายการสินค้าอย่างปลอดภัย #}
+                            {% set order_items = order.get('items', []) %}
+                            {% for item in order_items %}
                             <li class="list-group-item px-0 py-1 border-0 d-flex justify-content-between align-items-center">
                                 <span class="text-truncate me-2" style="max-width: 200px;">
-                                    {{ item.name }} <small class="text-muted">x{{ item.quantity or item.qty or 1 }}</small>
+                                    {{ item.get('name', 'ไม่ระบุ') }} <small class="text-muted">x{{ item.get('quantity') or item.get('qty') or 1 }}</small>
                                 </span>
-                                <span class="fw-semibold">฿{{ "{:,.2f}".format((item.price | float) * ((item.quantity or item.qty or 1) | float)) }}</span>
+                                {% set item_price = (item.get('price') or 0) | float %}
+                                {% set item_qty = (item.get('quantity') or item.get('qty') or 1) | float %}
+                                <span class="fw-semibold">฿{{ "{:,.2f}".format(item_price * item_qty) }}</span>
                             </li>
+                            {% else %}
+                            <li class="list-group-item px-0 py-1 border-0 text-muted small text-center">ไม่มีรายการอาหาร</li>
                             {% endfor %}
                         </ul>
                     </div>
 
                     <div class="bg-light p-3 rounded-3 d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-bold text-secondary">ยอดรวมทั้งหมด</span>
-                        <span class="fs-4 fw-bold text-success">฿{{ "{:,.2f}".format(order.total_amount | float) }}</span>
+                        <span class="fw-bold text-secondary">ยอดรวมก่อนคิดส่วนลด</span>
+                        {% set total_amt = (order.get('total_amount') or order.get('total_price') or 0) | float %}
+                        <span class="fs-4 fw-bold text-success">฿{{ "{:,.2f}".format(total_amt) }}</span>
                     </div>
                 </div>
 
                 <div class="card-footer bg-white border-top-0 p-3 pt-0">
                     <button type="button"
                         class="btn btn-success w-100 py-2 fw-semibold rounded-3 d-flex justify-content-center align-items-center gap-2"
-                        data-order="{{ order | tojson | forceescape }}" onclick="openPaymentModal(this)">
+                        data-order='{{ order | tojson }}' onclick="openPaymentModal(this)">
                         <i class="fas fa-calculator"></i> คำนวณเงิน / เช็คบิล
                     </button>
                 </div>
@@ -86,9 +119,9 @@
     </div>
 </div>
 
-<!-- Modal คำนวณเงินและชำระเงิน -->
+<!-- Modal คำนวณเงิน ส่วนลด ภาษี และชำระเงิน -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-dark text-white border-0 py-3">
                 <h5 class="modal-title fw-bold">
@@ -98,49 +131,93 @@
             </div>
             <div class="modal-body p-4">
                 <div class="row g-4">
-                    <!-- รายการอาหาร -->
-                    <div class="col-md-6 border-end">
-                        <h6 class="fw-bold text-secondary mb-3">รายการอาหารที่สั่ง</h6>
-                        <div id="modalOrderItems" class="mb-3" style="max-height: 250px; overflow-y: auto;">
+                    <!-- ฝั่งซ้าย: รายการอาหาร และการตั้งค่าส่วนลด/ภาษี/บริการ -->
+                    <div class="col-lg-7 border-end">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-utensils me-1"></i> รายการอาหารที่สั่ง</h6>
+                        <div id="modalOrderItems" class="mb-3 p-2 bg-light rounded-3" style="max-height: 200px; overflow-y: auto;">
                             <!-- Dynamic Content -->
                         </div>
-                        <hr>
-                        <div class="d-flex justify-content-between align-items-center fs-5 fw-bold">
-                            <span>ยอดรวมสุทธิ</span>
-                            <span class="text-success" id="modalTotalAmount">฿0.00</span>
+
+                        <!-- ตัวตั้งค่า ส่วนลด / ค่าบริการ / ภาษี -->
+                        <div class="bg-white p-3 border rounded-3 mb-3">
+                            <h6 class="fw-bold text-primary mb-3"><i class="fas fa-sliders-h me-1"></i> ส่วนลด / ค่าบริการ / ภาษี</h6>
+                            <div class="row g-2">
+                                <!-- ส่วนลด -->
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">ส่วนลด</label>
+                                    <div class="input-group input-group-sm">
+                                        <select id="discountType" class="form-select border-end-0" style="max-width: 80px;" onchange="recalculateBill()">
+                                            <option value="fixed">บาท</option>
+                                            <option value="percent">%</option>
+                                        </select>
+                                        <input type="number" id="discountInput" class="form-control" placeholder="0" min="0" value="0" oninput="recalculateBill()">
+                                    </div>
+                                </div>
+                                <!-- ค่าบริการ Service Charge -->
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">ค่าบริการ (%)</label>
+                                    <input type="number" id="serviceChargeInput" class="form-control form-control-sm" placeholder="0" min="0" value="0" oninput="recalculateBill()">
+                                </div>
+                                <!-- ภาษี VAT -->
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">ภาษี VAT (%)</label>
+                                    <input type="number" id="taxInput" class="form-control form-control-sm" placeholder="0" min="0" value="0" oninput="recalculateBill()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ตารางสรุปยอดเงิน -->
+                        <div class="p-3 bg-light rounded-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">ยอดรวมอาหาร (Subtotal)</span>
+                                <span class="fw-semibold" id="dispSubtotal">฿0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1 text-danger">
+                                <span>ส่วนลด (Discount)</span>
+                                <span class="fw-semibold" id="dispDiscount">-฿0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1 text-secondary">
+                                <span>ค่าบริการ (Service Charge)</span>
+                                <span class="fw-semibold" id="dispServiceCharge">+฿0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 text-secondary">
+                                <span>ภาษีมูลค่าเพิ่ม (VAT)</span>
+                                <span class="fw-semibold" id="dispTax">+฿0.00</span>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center fs-4 fw-bold">
+                                <span>ยอดรวมสุทธิ</span>
+                                <span class="text-success" id="modalTotalAmount">฿0.00</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- ช่องทางการชำระเงิน -->
-                    <div class="col-md-6">
-                        <h6 class="fw-bold text-secondary mb-3">เลือกวิธีชำระเงิน</h6>
+                    <!-- ฝั่งขวา: ช่องทางการชำระเงิน และคำนวณเงินทอน -->
+                    <div class="col-lg-5">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-wallet me-1"></i> เลือกวิธีชำระเงิน</h6>
                         <div class="btn-group w-100 mb-3" role="group">
-                            <input type="radio" class="btn-check" name="paymentMethod" id="payCash" value="เงินสด"
-                                checked onchange="togglePaymentUI()">
-                            <label class="btn btn-outline-primary py-2" for="payCash"><i class="fas fa-money-bill-wave me-1"></i> เงินสด</label>
+                            <input type="radio" class="btn-check" name="paymentMethod" id="payCash" value="เงินสด" checked onchange="togglePaymentUI()">
+                            <label class="btn btn-outline-primary py-2 fw-bold" for="payCash"><i class="fas fa-money-bill-wave me-1"></i> เงินสด</label>
 
-                            <input type="radio" class="btn-check" name="paymentMethod" id="payQR"
-                                value="พร้อมเพย์ / QR Code" onchange="togglePaymentUI()">
-                            <label class="btn btn-outline-primary py-2" for="payQR"><i class="fas fa-qrcode me-1"></i> QR Code</label>
+                            <input type="radio" class="btn-check" name="paymentMethod" id="payQR" value="พร้อมเพย์ / QR Code" onchange="togglePaymentUI()">
+                            <label class="btn btn-outline-primary py-2 fw-bold" for="payQR"><i class="fas fa-qrcode me-1"></i> QR Code</label>
                         </div>
 
                         <!-- คำนวณเงินสด -->
                         <div id="cashCalcArea">
                             <div class="mb-3">
                                 <label class="form-label text-muted small fw-bold">รับเงินมา (บาท)</label>
-                                <input type="number" id="receivedInput"
-                                    class="form-control form-control-lg text-end fw-bold" placeholder="0.00"
-                                    oninput="calculateChange()">
+                                <input type="number" id="receivedInput" class="form-control form-control-lg text-end fw-bold fs-3 text-success" placeholder="0.00" oninput="calculateChange()">
                             </div>
                             <div class="d-flex gap-2 mb-3">
-                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash('exact')">พอดี</button>
-                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(100)">100</button>
-                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(500)">500</button>
-                                <button class="btn btn-sm btn-light border flex-grow-1" onclick="setQuickCash(1000)">1,000</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="setQuickCash('exact')">พอดี</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="setQuickCash(100)">100</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="setQuickCash(500)">500</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="setQuickCash(1000)">1,000</button>
                             </div>
                             <div class="p-3 bg-light rounded-3 text-center mb-3">
                                 <span class="d-block text-muted small mb-1">เงินทอน</span>
-                                <h3 class="fw-bold mb-0 text-primary" id="changeText">฿0.00</h3>
+                                <h2 class="fw-bold mb-0 text-primary" id="changeText">฿0.00</h2>
                             </div>
                         </div>
 
@@ -148,11 +225,11 @@
                         <div id="qrCodeArea" class="d-none text-center py-2">
                             {% if payments %}
                             {% for p in payments %}
-                            <div class="p-2 border rounded-3 mb-2">
-                                <div class="fw-bold">{{ p.bank_name }} - {{ p.account_name }}</div>
-                                <div class="text-muted small">พร้อมเพย์: {{ p.promptpay_no }}</div>
-                                {% if p.qr_image %}
-                                <img src="{{ p.qr_image }}" alt="QR Code" class="img-fluid mt-2 rounded-2" style="max-height: 140px;">
+                            <div class="p-3 border rounded-3 mb-2 bg-light">
+                                <div class="fw-bold fs-6">{{ p.get('bank_name', '') }} - {{ p.get('account_name', '') }}</div>
+                                <div class="text-muted small">พร้อมเพย์: {{ p.get('promptpay_no', '') }}</div>
+                                {% if p.get('qr_image') %}
+                                <img src="{{ p.get('qr_image') }}" alt="QR Code" class="img-fluid mt-2 rounded-2" style="max-height: 160px;">
                                 {% endif %}
                             </div>
                             {% endfor %}
@@ -174,15 +251,44 @@
         </div>
     </div>
 </div>
+
+<!-- Modal แสดงและพิมพ์ใบเสร็จ -->
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-dark text-white border-0 py-3 no-print">
+                <h5 class="modal-title fw-bold"><i class="fas fa-print me-2 text-warning"></i>ใบเสร็จรับเงิน</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="receiptContent">
+                <!-- Receipt Dynamic Output -->
+            </div>
+            <div class="modal-footer border-top-0 p-3 bg-light no-print">
+                <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-primary rounded-3 fw-bold px-4" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i> พิมพ์ใบเสร็จ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let currentOrder = null;
-    let currentTotal = 0;
+    let currentSubtotal = 0;
+    let currentDiscountAmount = 0;
+    let currentServiceChargeAmount = 0;
+    let currentTaxAmount = 0;
+    let currentNetTotal = 0;
+
+    function formatMoney(amount) {
+        return (parseFloat(amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     function filterOrders() {
-        const input = document.getElementById('searchTableInput').value.toLowerCase();
+        const input = document.getElementById('searchTableInput').value.toLowerCase().trim();
         const cards = document.querySelectorAll('.order-card-item');
 
         cards.forEach(card => {
@@ -195,56 +301,119 @@
         });
     }
 
-    function openPaymentModal(element) {
-        let order = element;
-        if (element instanceof HTMLElement) {
-            const rawData = element.dataset.order || element.getAttribute('data-order');
-            try {
-                order = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-            } catch (e) {
-                console.error("Error parsing order JSON:", e);
-                order = {};
-            }
+    function openPaymentModal(btnElement) {
+        let orderData = btnElement.getAttribute('data-order');
+        try {
+            currentOrder = typeof orderData === 'string' ? JSON.parse(orderData) : orderData;
+        } catch (e) {
+            console.error("Parsing order JSON error:", e);
+            currentOrder = {};
         }
-        
-        currentOrder = order;
-        currentTotal = parseFloat(order.total_amount || order.total_price || 0);
 
-        document.getElementById('modalTableNo').innerText = 'โต๊ะ ' + String(order.table_no || 'ไม่ระบุ');
-        document.getElementById('modalTotalAmount').innerText = '฿' + currentTotal.toLocaleString('th-TH', {minimumFractionDigits: 2});
+        document.getElementById('modalTableNo').innerText = 'โต๊ะ ' + String(currentOrder.table_no || 'ไม่ระบุ');
 
-        // Render items
+        // Reset Inputs
+        document.getElementById('discountType').value = 'fixed';
+        document.getElementById('discountInput').value = 0;
+        document.getElementById('serviceChargeInput').value = 0;
+        document.getElementById('taxInput').value = 0;
+        document.getElementById('receivedInput').value = '';
+
+        // Render รายการอาหาร
         const itemsContainer = document.getElementById('modalOrderItems');
         itemsContainer.innerHTML = '';
         
-        const items = order.items || order.order_items || [];
-        if (items.length > 0) {
+        const items = currentOrder.items || currentOrder.order_items || [];
+        if (Array.isArray(items) && items.length > 0) {
             items.forEach(item => {
-                const qty = item.quantity || item.qty || 1;
+                const qty = parseFloat(item.quantity || item.qty || 1);
                 const price = parseFloat(item.price || 0);
                 const itemTotal = price * qty;
 
                 const div = document.createElement('div');
-                div.className = 'd-flex justify-content-between align-items-center py-2 border-bottom';
+                div.className = 'd-flex justify-content-between align-items-center py-1 border-bottom';
                 div.innerHTML = `
                     <div>
-                        <div class="fw-semibold">${item.name}</div>
-                        <small class="text-muted">${qty} x ฿${price.toFixed(2)}</small>
+                        <span class="fw-semibold">${item.name || 'ไม่ระบุชื่อสินค้า'}</span>
+                        <small class="text-muted ms-2">x${qty}</small>
                     </div>
-                    <div class="fw-bold">฿${itemTotal.toFixed(2)}</div>
+                    <div class="fw-bold">฿${formatMoney(itemTotal)}</div>
                 `;
                 itemsContainer.appendChild(div);
             });
+        } else {
+            itemsContainer.innerHTML = '<div class="text-muted text-center py-2">ไม่มีรายการสินค้า</div>';
         }
 
-        // Reset Form
         document.getElementById('payCash').checked = true;
-        document.getElementById('receivedInput').value = '';
-        document.getElementById('changeText').innerText = '฿0.00';
         togglePaymentUI();
+        recalculateBill();
 
         const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
         paymentModal.show();
+    }
+
+    function recalculateBill() {
+        if (!currentOrder) return;
+
+        // 1. ยอดรวมอาหาร
+        const items = currentOrder.items || currentOrder.order_items || [];
+        let subtotal = 0;
+        if (Array.isArray(items) && items.length > 0) {
+            items.forEach(item => {
+                const qty = parseFloat(item.quantity || item.qty || 1);
+                const price = parseFloat(item.price || 0);
+                subtotal += qty * price;
+            });
+        }
+        if (subtotal === 0) {
+            subtotal = parseFloat(currentOrder.total_amount || currentOrder.total_price || 0);
+        }
+        currentSubtotal = subtotal;
+
+        // 2. คำนวณส่วนลด
+        const discountType = document.getElementById('discountType').value;
+        const discountVal = parseFloat(document.getElementById('discountInput').value || 0);
+        let discountAmount = 0;
+        if (discountType === 'percent') {
+            discountAmount = (subtotal * discountVal) / 100;
+        } else {
+            discountAmount = discountVal;
+        }
+        if (discountAmount > subtotal) discountAmount = subtotal;
+        if (discountAmount < 0) discountAmount = 0;
+        currentDiscountAmount = discountAmount;
+
+        const afterDiscount = subtotal - discountAmount;
+
+        // 3. คำนวณค่าบริการ (Service Charge)
+        const scPercent = parseFloat(document.getElementById('serviceChargeInput').value || 0);
+        let scAmount = 0;
+        if (scPercent > 0) {
+            scAmount = (afterDiscount * scPercent) / 100;
+        }
+        currentServiceChargeAmount = scAmount;
+
+        // 4. คำนวณภาษี (VAT)
+        const taxPercent = parseFloat(document.getElementById('taxInput').value || 0);
+        let taxAmount = 0;
+        if (taxPercent > 0) {
+            taxAmount = ((afterDiscount + scAmount) * taxPercent) / 100;
+        }
+        currentTaxAmount = taxAmount;
+
+        // 5. สรุปยอดสุทธิ
+        currentNetTotal = afterDiscount + scAmount + taxAmount;
+        if (currentNetTotal < 0) currentNetTotal = 0;
+
+        // อัปเดตการแสดงผล
+        document.getElementById('dispSubtotal').innerText = '฿' + formatMoney(currentSubtotal);
+        document.getElementById('dispDiscount').innerText = '-฿' + formatMoney(currentDiscountAmount);
+        document.getElementById('dispServiceCharge').innerText = '+฿' + formatMoney(currentServiceChargeAmount);
+        document.getElementById('dispTax').innerText = '+฿' + formatMoney(currentTaxAmount);
+        document.getElementById('modalTotalAmount').innerText = '฿' + formatMoney(currentNetTotal);
+
+        calculateChange();
     }
 
     function togglePaymentUI() {
@@ -263,32 +432,79 @@
 
     function calculateChange() {
         const receivedVal = document.getElementById('receivedInput').value;
+        const changeText = document.getElementById('changeText');
+
         if (receivedVal === '') {
-            document.getElementById('changeText').innerText = '฿0.00';
-            document.getElementById('changeText').className = 'fw-bold mb-0 text-primary fs-3';
+            changeText.innerText = '฿0.00';
+            changeText.className = 'fw-bold mb-0 text-primary fs-3';
             return;
         }
 
         const received = parseFloat(receivedVal || 0);
-        const change = received - currentTotal;
-        const changeText = document.getElementById('changeText');
+        const change = received - currentNetTotal;
 
         if (change < 0) {
             changeText.innerText = 'จำนวนเงินไม่พอ';
             changeText.className = 'fw-bold mb-0 text-danger fs-5';
         } else {
-            changeText.innerText = '฿' + change.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+            changeText.innerText = '฿' + formatMoney(change);
             changeText.className = 'fw-bold mb-0 text-primary fs-3';
         }
     }
 
     function setQuickCash(amount) {
         if (amount === 'exact') {
-            document.getElementById('receivedInput').value = currentTotal;
+            document.getElementById('receivedInput').value = currentNetTotal;
         } else {
             document.getElementById('receivedInput').value = amount;
         }
         calculateChange();
+    }
+
+    function renderReceipt(orderData, paymentData) {
+        const receiptContainer = document.getElementById('receiptContent');
+        const now = new Date().toLocaleString('th-TH');
+        
+        const items = orderData.items || orderData.order_items || [];
+        let itemsHTML = '';
+        items.forEach(item => {
+            const qty = parseFloat(item.quantity || item.qty || 1);
+            const price = parseFloat(item.price || 0);
+            itemsHTML += `
+                <div class="d-flex justify-content-between my-1">
+                    <span>${item.name || 'ไม่ระบุชื่อ'} x${qty}</span>
+                    <span>฿${formatMoney(qty * price)}</span>
+                </div>
+            `;
+        });
+
+        receiptContainer.innerHTML = `
+            <div class="text-center mb-3">
+                <h4 class="fw-bold mb-1">ใบเสร็จรับเงิน / Receipt</h4>
+                <div class="small text-muted">โต๊ะ ${orderData.table_no || '-'} | วันที่: ${now}</div>
+                <div class="small text-muted">รหัสออเดอร์: #${String(orderData.id || orderData.order_id || '').slice(-6)}</div>
+            </div>
+            <hr style="border-top: 1px dashed #000;">
+            <div class="mb-3">
+                ${itemsHTML}
+            </div>
+            <hr style="border-top: 1px dashed #000;">
+            <div class="small">
+                <div class="d-flex justify-content-between"><span>ยอดรวมอาหาร:</span> <span>฿${formatMoney(paymentData.subtotal)}</span></div>
+                ${paymentData.discount_amount > 0 ? `<div class="d-flex justify-content-between text-danger"><span>ส่วนลด:</span> <span>-฿${formatMoney(paymentData.discount_amount)}</span></div>` : ''}
+                ${paymentData.service_charge_amount > 0 ? `<div class="d-flex justify-content-between"><span>ค่าบริการ (${paymentData.service_charge_percent}\%):</span> <span>+฿${formatMoney(paymentData.service_charge_amount)}</span></div>` : ''}
+                ${paymentData.tax_amount > 0 ? `<div class="d-flex justify-content-between"><span>ภาษี (${paymentData.tax_percent}\%):</span> <span>+฿${formatMoney(paymentData.tax_amount)}</span></div>` : ''}
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold fs-5"><span>ยอดสุทธิ:</span> <span>฿${formatMoney(paymentData.total_amount)}</span></div>
+                <div class="d-flex justify-content-between mt-1"><span>วิธีชำระเงิน:</span> <span>${paymentData.payment_method}</span></div>
+                <div class="d-flex justify-content-between"><span>รับเงินมา:</span> <span>฿${formatMoney(paymentData.received_amount)}</span></div>
+                <div class="d-flex justify-content-between"><span>เงินทอน:</span> <span>฿${formatMoney(paymentData.change_amount)}</span></div>
+            </div>
+            <hr style="border-top: 1px dashed #000;">
+            <div class="text-center mt-3 small text-muted">
+                ขอบคุณที่อุดหนุน / Thank you!
+            </div>
+        `;
     }
 
     function submitCheckBill() {
@@ -296,17 +512,35 @@
 
         const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
         const rawReceived = document.getElementById('receivedInput').value;
-        const receivedAmount = (paymentMethod === 'เงินสด') ? (rawReceived === '' ? 0 : parseFloat(rawReceived)) : currentTotal;
-        const changeAmount = receivedAmount - currentTotal;
+        const receivedAmount = (paymentMethod === 'เงินสด') ? (rawReceived === '' ? 0 : parseFloat(rawReceived)) : currentNetTotal;
+        const changeAmount = receivedAmount - currentNetTotal;
 
-        if (paymentMethod === 'เงินสด' && receivedAmount < currentTotal) {
-            Swal.fire('เกิดข้อผิดพลาด', 'จำนวนเงินที่รับมาไม่พอชำระยอดรวม', 'error');
+        if (paymentMethod === 'เงินสด' && receivedAmount < currentNetTotal) {
+            Swal.fire('เกิดข้อผิดพลาด', 'จำนวนเงินที่รับมาไม่เพียงพอต่อยอดรวมสุทธิ', 'error');
             return;
         }
 
+        const payload = {
+            order_id: String(currentOrder.id || currentOrder.order_id || ''),
+            table_id: String(currentOrder.table_id || ''),
+            table_no: String(currentOrder.table_no || ''),
+            payment_method: String(paymentMethod),
+            subtotal: currentSubtotal,
+            discount_type: document.getElementById('discountType').value,
+            discount_value: parseFloat(document.getElementById('discountInput').value || 0),
+            discount_amount: currentDiscountAmount,
+            service_charge_percent: parseFloat(document.getElementById('serviceChargeInput').value || 0),
+            service_charge_amount: currentServiceChargeAmount,
+            tax_percent: parseFloat(document.getElementById('taxInput').value || 0),
+            tax_amount: currentTaxAmount,
+            total_amount: currentNetTotal,
+            received_amount: receivedAmount,
+            change_amount: changeAmount > 0 ? changeAmount : 0
+        };
+
         Swal.fire({
             title: 'ยืนยันการชำระเงิน?',
-            text: `ยอดชำระ ฿${currentTotal.toFixed(2)} (${paymentMethod})`,
+            text: `ยอดสุทธิ ฿${formatMoney(currentNetTotal)} (${paymentMethod})`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#198754',
@@ -318,21 +552,25 @@
                 fetch('/staff/check-bill/process', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        order_id: String(currentOrder.id || currentOrder.order_id || ''),
-                        table_id: String(currentOrder.table_id || ''),
-                        table_no: String(currentOrder.table_no || ''),
-                        payment_method: String(paymentMethod),
-                        received_amount: receivedAmount,
-                        change_amount: changeAmount > 0 ? changeAmount : 0
-                    })
+                    body: JSON.stringify(payload)
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        Swal.fire('สำเร็จ', data.message || 'ชำระเงินเรียบร้อยแล้ว', 'success').then(() => {
+                        // ซ่อน Modal ชำระเงิน
+                        const payModalEl = document.getElementById('paymentModal');
+                        const payModal = bootstrap.Modal.getInstance(payModalEl);
+                        if (payModal) payModal.hide();
+
+                        // สร้างและแสดงใบเสร็จ
+                        renderReceipt(currentOrder, payload);
+                        const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+                        receiptModal.show();
+
+                        // รีโหลดหน้าเมื่อปิด Modal ใบเสร็จ
+                        payModalEl.addEventListener('hidden.bs.modal', function () {
                             location.reload();
-                        });
+                        }, { once: true });
                     } else {
                         Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถทำรายการได้', 'error');
                     }

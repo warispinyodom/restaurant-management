@@ -35,21 +35,18 @@
             padding: 0;
         }
 
-        /* โครงสร้าง Container หลัก */
         .app-container {
             display: flex;
             width: 100%;
             min-height: 100vh;
         }
 
-        /* โครงสร้าง Sidebar พื้นฐาน */
         .sidebar {
             background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             width: var(--sidebar-width);
             flex-shrink: 0;
         }
 
-        /* --- 1. สำหรับจอ Desktop / Tablet ใหญ่ (>= 768px) --- */
         @media (min-width: 768px) {
             .sidebar {
                 position: sticky;
@@ -65,7 +62,6 @@
             }
         }
 
-        /* --- 2. สำหรับจอมือถือ (< 768px) --- */
         @media (max-width: 767.98px) {
             .app-container {
                 flex-direction: column;
@@ -77,7 +73,6 @@
             }
         }
 
-        /* User Profile Box */
         .user-profile-box {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -86,7 +81,6 @@
             margin-bottom: 16px;
         }
 
-        /* Custom Nav Link */
         .nav-link-custom {
             color: #94a3b8;
             border-radius: 10px;
@@ -140,7 +134,6 @@
             padding-left: 10px;
         }
 
-        /* Custom Scrollbar */
         .sidebar::-webkit-scrollbar {
             width: 4px;
         }
@@ -153,7 +146,6 @@
 </head>
 
 <body>
-    <!-- Top Navbar เฉพาะจอมือถือ (< 768px) -->
     <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top"
         style="background-color: #0f172a !important;">
         <span class="navbar-brand fw-bold d-flex align-items-center gap-2 mb-0 fs-6">
@@ -178,22 +170,19 @@
                     </div>
                     <h5 class="fw-bold m-0 text-white">POS System</h5>
                 </a>
-                <!-- ปุ่มปิดเมนูบนจอมือถือ -->
                 <button type="button" class="btn-close btn-close-white d-md-none" data-bs-dismiss="offcanvas"
                     data-bs-target="#sidebarMenu" aria-label="Close"></button>
             </div>
 
             <hr class="border-secondary opacity-25 my-2">
 
-            <!-- Profile Info (แสดงเฉพาะผู้ที่เข้าสู่ระบบแล้ว) -->
+            <!-- Profile Info -->
             {% if session.get('username') %}
             <div class="user-profile-box d-flex align-items-center gap-3">
-                <!-- วงกลม Avatar -->
                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 shadow-sm"
                     style="width: 40px; height: 40px; min-width: 40px; font-size: 1.1rem;">
                     {{ session.get('username')[0] | upper }}
                 </div>
-                <!-- รายละเอียดชื่อและสิทธิ์ -->
                 <div class="d-flex flex-column justify-content-center overflow-hidden">
                     <div class="fw-semibold text-white text-truncate mb-1" style="font-size: 0.9rem; line-height: 1.2;">
                         {{ session.get('username') }}
@@ -270,8 +259,8 @@
                     <i class="fas fa-edit text-info"></i> <span>ปรับสถานะ/สต็อกเมนู</span>
                 </a>
 
-                <a href="{{ url_for('admin.admin_tables_list') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('admin.admin_table') }}">
+                <a href="{{ url_for('staff.staff_tables') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_tables') }}">
                     <i class="fas fa-chair text-warning"></i> <span>ผังและสถานะโต๊ะอาหาร</span>
                 </a>
 
@@ -306,7 +295,6 @@
 
             </div>
 
-            <!-- ปุ่มออกจากระบบด้านล่าง -->
             {% if session.get('username') %}
             <div class="mt-auto pt-2 border-top border-secondary border-opacity-25">
                 <a href="{{ url_for('signout') }}" class="nav-link-custom text-danger">
@@ -319,7 +307,6 @@
 
         <!-- Main Content Area -->
         <div class="main-content p-3 p-md-4">
-            <!-- Alert แจ้งเตือน -->
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
@@ -334,16 +321,13 @@
             {% endif %}
             {% endwith %}
 
-            <!-- Dynamic Page Content -->
             {% block content %}{% endblock %}
         </div>
     </div>
 
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>

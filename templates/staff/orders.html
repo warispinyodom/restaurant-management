@@ -107,7 +107,7 @@
             <i class="fas fa-utensils text-primary me-2 fs-4"></i> รายการออเดอร์หน้าร้าน
         </h3>
         <span class="badge bg-primary text-white rounded-pill px-3 py-2 fs-6 shadow-sm">
-            ออเดอร์ทั้งหมด: {{ orders|length }}
+            ออเดอร์ทั้งหมด: {{ orders|length if orders else 0 }}
         </span>
     </div>
 
@@ -161,12 +161,14 @@
 
 <!-- Grid แสดงการ์ดสไตล์ใบเสร็จรับเงิน -->
 <div class="row g-4" id="orders-grid">
+    {% if orders %}
     {% for order in orders %}
-    <div class="col-12 col-md-6 col-xl-4 order-card-wrapper" data-status="{{ order.status }}">
+    {% set order_status = (order.get('status') or 'pending') | string | lower %}
+    <div class="col-12 col-md-6 col-xl-4 order-card-wrapper" data-status="{{ order_status }}">
         <div class="receipt-card receipt-zigzag rounded-top-3 pb-3">
 
             <!-- แถบสีสถานะด้านบนสุด -->
-            <div class="bg-{{ 'warning' if order.status == 'pending' else ('info' if order.status == 'cooking' else ('success' if order.status == 'ready' else 'secondary')) }} py-1">
+            <div class="bg-{{ 'warning' if order_status == 'pending' else ('info' if order_status == 'cooking' else ('success' if order_status == 'ready' else 'secondary')) }} py-1">
             </div>
 
             <!-- Receipt Header -->
@@ -178,24 +180,26 @@
                 <div class="d-flex justify-content-between align-items-start my-2">
                     <div>
                         <div class="fs-2 fw-bolder text-dark lh-1">
-                            {% if order.table_no and order.table_no != 'ไม่ระบุ' %}
-                            โต๊ะ {{ order.table_no }}
+                            {% set table_no = order.get('table_no') %}
+                            {% if table_no and table_no != 'ไม่ระบุ' %}
+                            โต๊ะ {{ table_no }}
                             {% else %}
                             <span class="fs-5 text-secondary">ไม่ระบุโต๊ะ / กลับบ้าน</span>
                             {% endif %}
                         </div>
                         <div class="text-secondary small fw-bold mt-1">
-                            NO: <span class="order-id-truncate align-bottom" title="#{{ order.id }}">#{{ order.id }}</span>
+                            {% set order_id = (order.get('id') or '') | string %}
+                            NO: <span class="order-id-truncate align-bottom" title="#{{ order_id }}">#{{ order_id }}</span>
                         </div>
                     </div>
 
                     <!-- ตราปั๊มสถานะ -->
                     <div>
-                        {% if order.status == 'pending' %}
+                        {% if order_status == 'pending' %}
                         <span class="status-stamp stamp-pending"><i class="fas fa-hourglass-start me-1"></i>รอดำเนินการ</span>
-                        {% elif order.status == 'cooking' %}
+                        {% elif order_status == 'cooking' %}
                         <span class="status-stamp stamp-cooking"><i class="fas fa-fire me-1"></i>กำลังทำ</span>
-                        {% elif order.status == 'ready' %}
+                        {% elif order_status == 'ready' %}
                         <span class="status-stamp stamp-ready"><i class="fas fa-bell me-1"></i>พร้อมเสิร์ฟ</span>
                         {% else %}
                         <span class="status-stamp stamp-done"><i class="fas fa-check me-1"></i>เสร็จสิ้น</span>
@@ -203,9 +207,10 @@
                     </div>
                 </div>
 
-                {% if order.created_at and order.created_at != '-' %}
+                {% set created_at = order.get('created_at', '') %}
+                {% if created_at and created_at != '-' %}
                 <div class="text-end text-muted small fw-bold">
-                    เวลา: {{ order.created_at.split(' ')[1] if ' ' in (order.created_at | string) else order.created_at }} น.
+                    เวลา: {{ (created_at | string).split(' ')[1] if ' ' in (created_at | string) else created_at }} น.
                 </div>
                 {% endif %}
 
@@ -221,14 +226,20 @@
 
                 <div class="bg-light p-2 rounded border border-secondary-subtle">
                     <ul class="list-unstyled mb-0">
-                        {% for item in (order.order_items or order.items or []) %}
+                        {% set items_list = order.get('items') or order.get('order_items') or [] %}
+                        {% for item in items_list %}
+                        {% set item_qty = (item.get('quantity') or item.get('qty') or 1) | float %}
+                        {% set item_price = (item.get('price') or 0) | float %}
+                        {% set item_subtotal = (item.get('subtotal') or (item_qty * item_price)) | float %}
                         <li class="d-flex justify-content-between align-items-center py-1 border-bottom border-light-subtle">
                             <div class="d-flex align-items-center me-2 text-truncate">
-                                <span class="fw-bolder text-dark me-2">[x{{ item.quantity or item.qty or 1 }}]</span>
-                                <span class="fw-bold text-dark text-truncate" style="max-width: 160px;">{{ item.name }}</span>
+                                <span class="fw-bolder text-dark me-2">[x{{ item_qty | int }}]</span>
+                                <span class="fw-bold text-dark text-truncate" style="max-width: 160px;">{{ item.get('name', 'ไม่ระบุ') }}</span>
                             </div>
-                            <span class="fw-bold text-dark">฿{{ "%.2f"|format(item.subtotal | float) }}</span>
+                            <span class="fw-bold text-dark">฿{{ "{:,.2f}".format(item_subtotal) }}</span>
                         </li>
+                        {% else %}
+                        <li class="text-center text-muted small py-1">ไม่มีรายการอาหาร</li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -236,9 +247,10 @@
                 <div class="receipt-divider"></div>
 
                 <!-- ยอดรวมสุทธิ -->
+                {% set total_amt = (order.get('total_price') or order.get('total_amount') or 0) | float %}
                 <div class="d-flex justify-content-between align-items-center my-2">
                     <span class="fw-bolder text-dark fs-6 text-uppercase">TOTAL / ยอดรวม</span>
-                    <span class="fw-bolder text-danger fs-3">฿{{ "%.2f"|format(order.total_price | float) }}</span>
+                    <span class="fw-bolder text-danger fs-3">฿{{ "{:,.2f}".format(total_amt) }}</span>
                 </div>
 
                 <div class="receipt-divider mb-3"></div>
@@ -247,28 +259,29 @@
             <!-- Receipt Action Buttons -->
             <div class="px-3">
                 <div class="d-flex gap-2">
-                    {% if order.status == 'pending' %}
+                    {% set curr_id = (order.get('id') or '') | string %}
+                    {% if order_status == 'pending' %}
                     <button class="btn btn-warning flex-grow-1 fw-bold text-dark shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ order.id }}', 'cooking', this)">
+                        onclick="changeOrderStatus('{{ curr_id }}', 'cooking', this)">
                         <i class="fas fa-fire me-1"></i> เริ่มทำอาหาร
                     </button>
-                    {% elif order.status == 'cooking' %}
+                    {% elif order_status == 'cooking' %}
                     <button class="btn btn-info text-dark flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ order.id }}', 'ready', this)">
+                        onclick="changeOrderStatus('{{ curr_id }}', 'ready', this)">
                         <i class="fas fa-bell me-1"></i> พร้อมเสิร์ฟ
                     </button>
-                    {% elif order.status == 'ready' %}
+                    {% elif order_status == 'ready' %}
                     <button class="btn btn-success text-white flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ order.id }}', 'completed', this)">
+                        onclick="changeOrderStatus('{{ curr_id }}', 'completed', this)">
                         <i class="fas fa-check-circle me-1"></i> เสิร์ฟสำเร็จ
                     </button>
                     {% else %}
                     <button class="btn btn-secondary flex-grow-1 disabled fw-bold" disabled>เสร็จสิ้นแล้ว</button>
                     {% endif %}
 
-                    {% if order.status != 'completed' and order.status != 'cancelled' %}
+                    {% if order_status != 'completed' and order_status != 'cancelled' %}
                     <button class="btn btn-outline-danger px-3 border-2" title="ยกเลิกออเดอร์"
-                        onclick="changeOrderStatus('{{ order.id }}', 'cancelled', this)">
+                        onclick="changeOrderStatus('{{ curr_id }}', 'cancelled', this)">
                         <i class="fas fa-times fs-5"></i>
                     </button>
                     {% endif %}
@@ -278,6 +291,12 @@
         </div>
     </div>
     {% endfor %}
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <i class="fas fa-inbox text-muted display-4 mb-3"></i>
+        <h5 class="text-muted fw-bold">ไม่มีรายการออเดอร์ในขณะนี้</h5>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Empty State เมื่อไม่พบออเดอร์ -->
