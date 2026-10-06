@@ -23,11 +23,6 @@
         color: #842029;
         border: 1px solid #f5c2c7;
     }
-    .pantry-badge-discount {
-        background-color: #fff3cd;
-        color: #664d03;
-        border: 1px solid #ffecb5;
-    }
     .discount-btn {
         font-size: 0.75rem;
         padding: 2px 8px;
@@ -71,7 +66,6 @@
         transform: translateX(-50%) translateY(0);
     }
 
-    /* Custom Style for Selected Counter Badge */
     .selected-badge {
         background: rgba(13, 110, 253, 0.2);
         color: #6ea8fe;
@@ -81,7 +75,6 @@
         white-space: nowrap;
     }
 
-    /* Responsive Scroll Group for Mobile Action Buttons */
     .bulk-actions-scroll {
         display: flex;
         align-items: center;
@@ -113,7 +106,7 @@
     @media (max-width: 767.98px) {
         .bulk-floating-bar {
             bottom: 16px;
-            padding: 8px 12px;
+            padding: 12px 14px;
             border-radius: 20px;
             flex-direction: column;
             align-items: stretch;
@@ -145,16 +138,42 @@
                 </h2>
                 <p class="text-light opacity-75 mb-0">ตรวจสอบจำนวนเมนูในคลัง ปรับเปลี่ยนราคาตามคำสั่ง หรือเปิด-ปิดสถานะการขายหน้าร้าน</p>
             </div>
-            <!-- ปุ่มเลือกทั้งหมดสำหรับ Mobile -->
             <div class="d-flex gap-2 align-items-center">
-                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="toggleSelectAll()">
+                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3 shadow-sm" onclick="toggleSelectAll()">
                     <i class="fas fa-check-double me-1"></i> เลือกทั้งหมด
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Desktop View: Pantry Table (แสดงเฉพาะหน้าจอกลาง-ใหญ่) -->
+    <!-- Search & Category Filter Bar -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                <span class="input-group-text bg-white border-end-0 ps-3"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="menuSearchInput" class="form-control border-start-0 ps-1 py-2 shadow-none" 
+                       placeholder="ค้นหาชื่อเมนู หรือ ID..." onkeyup="filterMenuGrid()">
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <select id="menuCategoryFilter" class="form-select py-2 shadow-sm rounded-3" onchange="filterMenuGrid()">
+                <option value="all">หมวดหมู่ทั้งหมด</option>
+                {% set categories = [] %}
+                {% if menus %}
+                    {% for m in menus %}
+                        {% if m.category and m.category not in categories %}
+                            {% set _ = categories.append(m.category) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% for cat in categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Desktop View: Pantry Table -->
     <div class="d-none d-md-block card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -175,7 +194,7 @@
                     <tbody>
                         {% if menus %}
                             {% for menu in menus %}
-                            <tr id="menu-row-{{ menu.id }}" class="menu-item-row" data-id="{{ menu.id }}">
+                            <tr id="menu-row-{{ menu.id }}" class="menu-item-row" data-id="{{ menu.id }}" data-name="{{ menu.name | lower }}" data-category="{{ menu.category or '' }}">
                                 <td class="ps-4">
                                     <input type="checkbox" class="form-check-input item-checkbox" id="cb-desktop-{{ menu.id }}" value="{{ menu.id }}" onchange="onCheckboxChange('{{ menu.id }}', this.checked)">
                                 </td>
@@ -192,18 +211,16 @@
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border fw-normal px-2.5 py-1.5 rounded-2">
-                                        {{ menu.category }}
+                                        {{ menu.category or 'ทั่วไป' }}
                                     </span>
                                 </td>
                                 <td>
-                                    <!-- ราคาขายหลัก -->
                                     <div class="input-group input-group-sm mb-1" style="max-width: 150px;">
                                         <span class="input-group-text bg-light text-muted">฿</span>
                                         <input type="number" class="form-control menu-price fw-bold text-dark" 
                                                value="{{ (menu.price|default(0)|float)|abs }}" 
                                                step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-price', this.value); calculateNetPrice('{{ menu.id }}')">
                                     </div>
-                                    <!-- ส่วนลด -->
                                     <div class="d-flex align-items-center gap-1">
                                         <div class="input-group input-group-sm" style="max-width: 110px;">
                                             <span class="input-group-text bg-warning-subtle text-warning-emphasis border-0">-฿</span>
@@ -211,7 +228,6 @@
                                                    value="{{ (menu.discount|default(0)|float)|abs }}" 
                                                    step="0.5" min="0" placeholder="ส่วนลด" onchange="syncInputVal('{{ menu.id }}', '.menu-discount', this.value); calculateNetPrice('{{ menu.id }}')">
                                         </div>
-                                        <!-- ปุ่มทางลัดส่วนลด -->
                                         <div class="btn-group btn-group-sm">
                                             <button type="button" class="btn btn-outline-secondary discount-btn" onclick="applyQuickDiscount('{{ menu.id }}', 10)">10%</button>
                                             <button type="button" class="btn btn-outline-secondary discount-btn" onclick="applyQuickDiscount('{{ menu.id }}', 20)">20%</button>
@@ -263,21 +279,20 @@
         </div>
     </div>
 
-    <!-- Mobile View: Pantry Cards (แสดงเฉพาะหน้าจอมือถือ) -->
+    <!-- Mobile View: Pantry Cards -->
     <div class="d-block d-md-none">
         {% if menus %}
             {% for menu in menus %}
             {% set is_avail = (menu.status == 'available') %}
-            <div class="pantry-card p-3 mb-3 shadow-sm menu-item-card" id="menu-card-{{ menu.id }}" data-id="{{ menu.id }}">
+            <div class="pantry-card p-3 mb-3 shadow-sm menu-item-card" id="menu-card-{{ menu.id }}" data-id="{{ menu.id }}" data-name="{{ menu.name | lower }}" data-category="{{ menu.category or '' }}">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
                         <input type="checkbox" class="form-check-input item-checkbox fs-5" id="cb-mobile-{{ menu.id }}" value="{{ menu.id }}" onchange="onCheckboxChange('{{ menu.id }}', this.checked)">
                         <div>
                             <h5 class="fw-bold mb-0 text-dark">{{ menu.name }}</h5>
-                            <span class="badge bg-light text-dark border me-1">{{ menu.category }}</span>
+                            <span class="badge bg-light text-dark border me-1">{{ menu.category or 'ทั่วไป' }}</span>
                         </div>
                     </div>
-                    <!-- สวิตช์เปิด-ปิดการขายหน้าตู้ -->
                     <div class="text-end">
                         <div class="form-check form-switch d-inline-block">
                             <input class="form-check-input menu-status-toggle fs-4" type="checkbox" role="switch" 
@@ -288,7 +303,6 @@
                     </div>
                 </div>
 
-                <!-- ป้ายสถานะ -->
                 <div class="mb-3">
                     <span id="statusBadgeMobile{{ menu.id }}" class="badge rounded-pill px-3 py-1.5 fs-7 {{ 'pantry-badge-available' if is_avail else 'pantry-badge-out' }}">
                         <i class="fas {{ 'fa-check-circle' if is_avail else 'fa-times-circle' }} me-1"></i>
@@ -296,7 +310,6 @@
                     </span>
                 </div>
 
-                <!-- ปรับราคาและส่วนลด -->
                 <div class="bg-light p-2.5 rounded-3 mb-3 border">
                     <div class="row g-2 align-items-center">
                         <div class="col-6">
@@ -315,7 +328,6 @@
                                        value="{{ (menu.discount|default(0)|float)|abs }}" step="0.5" min="0" onchange="syncInputVal('{{ menu.id }}', '.menu-discount', this.value); calculateNetPrice('{{ menu.id }}')">
                             </div>
                         </div>
-                        <!-- ปุ่มลดราคาทางลัด -->
                         <div class="col-12 d-flex gap-1 justify-content-end mt-1">
                             <span class="small text-muted me-auto" id="net-price-mobile-{{ menu.id }}"></span>
                             <button type="button" class="btn btn-outline-secondary discount-btn" onclick="applyQuickDiscount('{{ menu.id }}', 10)">-10%</button>
@@ -325,7 +337,6 @@
                     </div>
                 </div>
 
-                <!-- สต็อกและปุ่มบันทึก -->
                 <div class="d-flex align-items-center justify-content-between gap-2">
                     <div style="max-width: 150px;">
                         <div class="input-group input-group-sm">
@@ -342,7 +353,7 @@
             </div>
             {% endfor %}
         {% else %}
-            <div class="text-center py-5 text-muted bg-white rounded-4 shadow-sm">
+            <div class="text-center py-5 text-muted bg-white rounded-4 shadow-sm border">
                 <i class="fas fa-box-open fs-1 mb-3 text-secondary opacity-50 d-block"></i>
                 ไม่พบรายการเมนูอาหารในคลัง
             </div>
@@ -381,7 +392,27 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// ซิงค์ค่า Input ระหว่าง Desktop กับ Mobile
+function filterMenuGrid() {
+    const searchText = document.getElementById('menuSearchInput').value.toLowerCase().trim();
+    const catText = document.getElementById('menuCategoryFilter').value;
+
+    const rowsAndCards = document.querySelectorAll('.menu-item-row, .menu-item-card');
+    rowsAndCards.forEach(item => {
+        const name = item.getAttribute('data-name') || '';
+        const id = item.getAttribute('data-id') || '';
+        const category = item.getAttribute('data-category') || '';
+
+        const matchesSearch = name.includes(searchText) || id.toLowerCase().includes(searchText);
+        const matchesCategory = (catText === 'all' || category === catText);
+
+        if (matchesSearch && matchesCategory) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 function syncInputVal(menuId, selector, value) {
     const row = document.getElementById(`menu-row-${menuId}`);
     const card = document.getElementById(`menu-card-${menuId}`);
@@ -395,7 +426,6 @@ function syncInputVal(menuId, selector, value) {
     }
 }
 
-// สลับสถานะและซิงค์ระหว่าง Desktop / Mobile
 function syncStatus(menuId, isChecked) {
     const desktopSwitch = document.getElementById(`statusSwitchDesktop${menuId}`);
     const mobileSwitch = document.getElementById(`statusSwitchMobile${menuId}`);
@@ -416,7 +446,6 @@ function syncStatus(menuId, isChecked) {
     });
 }
 
-// คำนวณราคาสุทธิตามส่วนลด
 function calculateNetPrice(menuId) {
     const row = document.getElementById(`menu-row-${menuId}`) || document.getElementById(`menu-card-${menuId}`);
     if (!row) return;
@@ -436,7 +465,6 @@ function calculateNetPrice(menuId) {
     if (mobileNet) mobileNet.textContent = netText;
 }
 
-// ปุ่มทางลัดส่วนลด %
 function applyQuickDiscount(menuId, percent) {
     const row = document.getElementById(`menu-row-${menuId}`) || document.getElementById(`menu-card-${menuId}`);
     if (row) {
@@ -450,7 +478,6 @@ function applyQuickDiscount(menuId, percent) {
     }
 }
 
-// เมื่อกดเลือก Checkbox รายการใดรายการหนึ่ง (ซิงค์ Desktop & Mobile)
 function onCheckboxChange(menuId, isChecked) {
     const dtCb = document.getElementById(`cb-desktop-${menuId}`);
     const mbCb = document.getElementById(`cb-mobile-${menuId}`);
@@ -465,7 +492,6 @@ function onCheckboxChange(menuId, isChecked) {
     updateBulkBar();
 }
 
-// ดึง ID ของเมนูที่เลือกโดยไม่นับซ้ำ (Unique IDs)
 function getSelectedMenuIds() {
     const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
     const uniqueIds = new Set();
@@ -473,7 +499,6 @@ function getSelectedMenuIds() {
     return Array.from(uniqueIds);
 }
 
-// นับจำนวนเมนูทั้งหมดในหน้าเว็บ (แบบไม่นับซ้ำ)
 function getTotalMenuCount() {
     const ids = new Set();
     document.querySelectorAll('.menu-item-row, .menu-item-card').forEach(el => {
@@ -482,7 +507,6 @@ function getTotalMenuCount() {
     return ids.size;
 }
 
-// เลือกทั้งหมด / ยกเลิกทั้งหมด
 function toggleSelectAll(forceState) {
     const selectedIds = getSelectedMenuIds();
     const totalItems = getTotalMenuCount();
@@ -507,7 +531,6 @@ function toggleSelectAll(forceState) {
     updateBulkBar();
 }
 
-// อัปเดตแถบ Floating Bar
 function updateBulkBar() {
     const selectedIds = getSelectedMenuIds();
     const count = selectedIds.length;
@@ -529,7 +552,6 @@ function updateBulkBar() {
     }
 }
 
-// รวบรวมข้อมูลจากไอเทม
 function getItemData(menuId) {
     const row = document.getElementById(`menu-row-${menuId}`);
     const card = document.getElementById(`menu-card-${menuId}`);
@@ -557,7 +579,6 @@ function getItemData(menuId) {
     };
 }
 
-// บันทึกรายการเดี่ยว
 function saveQuickMenuUpdate(menuId) {
     const itemData = getItemData(menuId);
     if (!itemData) return;
@@ -586,7 +607,6 @@ function saveQuickMenuUpdate(menuId) {
     });
 }
 
-// สั่งเปิด/ปิด ขายทั้งหมดที่เลือกใน Bulk Bar
 function bulkSetStatus(status) {
     const selectedIds = getSelectedMenuIds();
     selectedIds.forEach(id => {
@@ -594,7 +614,6 @@ function bulkSetStatus(status) {
     });
 }
 
-// Modal ใส่ % ส่วนลดแบบกลุ่ม
 function bulkApplyDiscountModal() {
     Swal.fire({
         title: 'ปรับส่วนลดแบบกลุ่ม',
@@ -615,7 +634,6 @@ function bulkApplyDiscountModal() {
     });
 }
 
-// บันทึกทั้งหมดที่เลือกพร้อมกัน (Bulk Save)
 function saveBulkUpdates() {
     const selectedIds = getSelectedMenuIds();
     if (selectedIds.length === 0) return;
@@ -658,7 +676,6 @@ function saveBulkUpdates() {
     });
 }
 
-// คำนวณราคาสุทธิตั้งแต่เริ่มต้น
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.menu-item-row, .menu-item-card').forEach(item => {
         const menuId = item.dataset.id;

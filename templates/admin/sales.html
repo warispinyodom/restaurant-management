@@ -1,3 +1,4 @@
+<!-- templates/admin/sales.html -->
 {% extends 'base.html' %}
 {% block content %}
 <style>
@@ -52,7 +53,7 @@
             <div class="card-body p-3 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-white-50 small fw-bold">ยอดขายรวม (สำเร็จ)</div>
-                    <h3 class="fw-bold mb-0 mt-1">฿<span id="statTotalSales">{{ "%.2f"|format(total_revenue) }}</span></h3>
+                    <h3 class="fw-bold mb-0 mt-1">฿<span id="statTotalSales">{{ "%.2f"|format(total_revenue|float) }}</span></h3>
                 </div>
                 <div class="bg-white bg-opacity-25 rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
                     <i class="fas fa-coins fa-lg text-white"></i>
@@ -140,7 +141,7 @@
                             </td>
                             <td class="fw-bold text-dark">{{ item.name }}</td>
                             <td class="text-center fw-bold text-primary">{{ item.qty }} รายการ</td>
-                            <td class="text-end pe-3 fw-bold text-success">฿{{ "%.2f"|format(item.total_revenue) }}</td>
+                            <td class="text-end pe-3 fw-bold text-success">฿{{ "%.2f"|format(item.total_revenue|float) }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}
@@ -234,12 +235,13 @@
             <tbody id="salesTableBody">
                 {% for order in orders %}
                 {% set st = (order.status or 'completed') | lower %}
-                {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else (order.total if order.total is defined and order.total is not none else 0)) %}
-                {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
-                {% set pay_method = order.payment_method if order.payment_method is defined and order.payment_method else (order.payment_type if order.payment_type is defined and order.payment_type else 'ไม่ระบุ') %}
-                {% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
-                {% set order_id_str = (order.id | string) if order.id is defined and order.id else 'N/A' %}
-                {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
+                {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else 0 %}
+                {% set table_no = order.table_no if order.table_no else '-' %}
+                {% set pay_method = order.payment_method if order.payment_method else 'ไม่ระบุ' %}
+                {% set created_str = (order.created_at | string) if order.created_at else '-' %}
+                {% set order_id_str = (order.id | string) if order.id else 'N/A' %}
+                {% set modal_id_str = order.modal_id if order.modal_id else order_id_str.replace('-', '_').replace(' ', '_') %}
+                {% set items_list = order.get('items') if order.get is defined and order.get('items') else (order.items if order.items is sequence and order.items is not string else []) %}
 
                 <tr class="sales-row" 
                     data-order-id="{{ order_id_str | lower }}" 
@@ -268,7 +270,7 @@
                                     </span>
                                 {% endfor %}
                             {% else %}
-                                <span class="text-muted small">ไม่มีรายละเอียดรายการ</span>
+                                <span class="text-muted small"><i class="fas fa-exclamation-circle me-1"></i>ไม่มีรายละเอียดรายการ</span>
                             {% endif %}
                         </div>
                     </td>
@@ -298,7 +300,7 @@
                     <td class="text-center pe-3">
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" 
-                                    data-bs-toggle="modal" data-bs-target="#orderModal{{ order_id_str }}" title="ดูรายละเอียด">
+                                    data-bs-toggle="modal" data-bs-target="#orderModal{{ modal_id_str }}" title="ดูรายละเอียด">
                                 <i class="fas fa-eye"></i>
                             </button>
                             {% if st not in ['voided', 'cancelled'] %}
@@ -337,14 +339,15 @@
 <!-- Order Details Modals Container -->
 {% for order in orders %}
 {% set st = (order.status or 'completed') | lower %}
-{% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else (order.total if order.total is defined and order.total is not none else 0)) %}
-{% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
-{% set pay_method = order.payment_method if order.payment_method is defined and order.payment_method else (order.payment_type if order.payment_type is defined and order.payment_type else 'ไม่ระบุ') %}
-{% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
-{% set order_id_str = (order.id | string) if order.id is defined and order.id else 'N/A' %}
-{% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
+{% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else 0 %}
+{% set table_no = order.table_no if order.table_no else '-' %}
+{% set pay_method = order.payment_method if order.payment_method else 'ไม่ระบุ' %}
+{% set created_str = (order.created_at | string) if order.created_at else '-' %}
+{% set order_id_str = (order.id | string) if order.id else 'N/A' %}
+{% set modal_id_str = order.modal_id if order.modal_id else order_id_str.replace('-', '_').replace(' ', '_') %}
+{% set items_list = order.get('items') if order.get is defined and order.get('items') else (order.items if order.items is sequence and order.items is not string else []) %}
 
-<div class="modal fade" id="orderModal{{ order_id_str }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="orderModal{{ modal_id_str }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg rounded-3">
             <div class="modal-header bg-light">
@@ -353,7 +356,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4" id="printableArea{{ order_id_str }}">
+            <div class="modal-body p-4" id="printableArea{{ modal_id_str }}">
                 <div class="row g-3 mb-3 p-3 bg-light rounded-3 border">
                     <div class="col-6 col-sm-3">
                         <div class="text-muted small">โต๊ะอาหาร</div>
@@ -402,7 +405,7 @@
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td class="fw-bold">{{ item.name if item.name is defined else item.title }}</td>
-                                    <td class="text-center text-muted small">{{ item.spice_level if item.spice_level is defined else (item.notes if item.notes is defined else '-') }}</td>
+                                    <td class="text-center text-muted small">{{ item.spice_level if item.spice_level is defined and item.spice_level else (item.notes if item.notes is defined else '-') }}</td>
                                     <td class="text-end">฿{{ "%.2f"|format(item_price|float) }}</td>
                                     <td class="text-center fw-bold">{{ item_qty }}</td>
                                     <td class="text-end fw-bold">฿{{ "%.2f"|format((item_price|float) * (item_qty|int)) }}</td>
@@ -410,29 +413,32 @@
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-3">ไม่มีข้อมูลรายการอาหาร</td>
+                                    <td colspan="6" class="text-center py-3 text-muted">
+                                        <i class="fas fa-exclamation-circle me-1"></i>ไม่พบข้อมูลรายละเอียดรายการในออเดอร์นี้
+                                    </td>
                                 </tr>
                             {% endif %}
                         </tbody>
-                        <tfoot>
-                            <tr class="table-light">
-                                <td colspan="5" class="text-end fw-bold fs-6">ราคารวมทั้งสิ้น (Total Amount):</td>
-                                <td class="text-end fw-bold fs-6 text-primary">฿{{ "%.2f"|format(total_amt|float) }}</td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
+
+                <div class="d-flex justify-content-end align-items-center gap-3 pt-2 border-top">
+                    <div class="text-end">
+                        <span class="text-muted small d-block">ยอดรวมสุทธิ (Grand Total)</span>
+                        <span class="fs-4 fw-bold text-primary">฿{{ "%.2f"|format(total_amt|float) }}</span>
+                    </div>
+                </div>
             </div>
-            <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="printReceipt('printableArea{{ order_id_str }}')">
+            <div class="modal-footer bg-white border-top-0 pt-0 pb-3 pe-4">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="printReceipt('printableArea{{ modal_id_str }}')">
                     <i class="fas fa-print me-1"></i> พิมพ์ใบเสร็จ
                 </button>
                 {% if st not in ['voided', 'cancelled'] %}
-                <button type="button" class="btn btn-danger rounded-pill px-3" onclick="confirmVoidOrder('{{ order_id_str }}', '#orderModal{{ order_id_str }}')">
+                <button type="button" class="btn btn-danger rounded-pill px-3" onclick="confirmVoidOrder('{{ order_id_str }}')">
                     <i class="fas fa-ban me-1"></i> ยกเลิกออเดอร์ (Void)
                 </button>
                 {% endif %}
-                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ปิด</button>
             </div>
         </div>
     </div>
@@ -445,8 +451,8 @@
 <script>
     function filterSales() {
         const search = document.getElementById('searchInput').value.toLowerCase().trim();
-        const status = document.getElementById('statusFilter').value;
-        const payment = document.getElementById('paymentFilter').value;
+        const status = document.getElementById('statusFilter').value.toLowerCase();
+        const payment = document.getElementById('paymentFilter').value.toLowerCase();
 
         const rows = document.querySelectorAll('.sales-row');
         let visibleCount = 0;
@@ -456,11 +462,11 @@
             const table = row.getAttribute('data-table') || '';
             const rowStatus = row.getAttribute('data-status') || '';
             const rowPayment = row.getAttribute('data-payment') || '';
-            const textContent = row.textContent.toLowerCase();
+            const rowText = row.innerText.toLowerCase();
 
-            const matchSearch = search === '' || orderId.includes(search) || table.includes(search) || textContent.includes(search);
-            const matchStatus = status === '' || rowStatus === status;
-            const matchPayment = payment === '' || rowPayment.includes(payment);
+            const matchSearch = !search || orderId.includes(search) || table.includes(search) || rowText.includes(search);
+            const matchStatus = !status || rowStatus === status;
+            const matchPayment = !payment || rowPayment.includes(payment);
 
             if (matchSearch && matchStatus && matchPayment) {
                 row.style.display = '';
@@ -487,20 +493,10 @@
         window.location.href = "{{ url_for('admin.admin_sales_history') }}";
     }
 
-    function confirmVoidOrder(orderId, modalId) {
-        if (modalId) {
-            const modalEl = document.querySelector(modalId);
-            if (modalEl) {
-                const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
-            }
-        }
-
+    function confirmVoidOrder(orderId) {
         Swal.fire({
-            title: 'ยืนยันการยกเลิกออเดอร์ (Void)?',
-            text: `คุณต้องการยกเลิกออเดอร์ #${orderId} ใช่หรือไม่? การกระทำนี้จะไม่สามารถย้อนกลับได้`,
+            title: `ยืนยันการยกเลิกออเดอร์ #${orderId}?`,
+            text: 'การยกเลิกออเดอร์ (Void) ไม่สามารถย้อนกลับได้ และยอดขายของออเดอร์นี้จะถูกหักออกจากรายงาน!',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
@@ -510,40 +506,58 @@
             reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                const voidUrl = "{{ url_for('admin.admin_sales_void', id='ORDER_ID') }}".replace('ORDER_ID', orderId);
-                fetch(voidUrl, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            Swal.fire({
-                                title: 'ยกเลิกออเดอร์เรียบร้อย!',
-                                text: data.message || 'ยกเลิกรายการสำเร็จ',
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถยกเลิกออเดอร์ได้', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                    });
+                Swal.fire({
+                    title: 'กำลังประมวลผล...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                fetch(`/admin/sales/void/${orderId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: 'ยกเลิกสำเร็จ!',
+                            text: data.message || 'ยกเลิกออเดอร์เรียบร้อยแล้ว',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถยกเลิกออเดอร์ได้', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+                });
             }
         });
     }
 
-    function printReceipt(containerId) {
-        const printContent = document.getElementById(containerId).innerHTML;
-        const win = window.open('', '', 'height=600,width=800');
+    function printReceipt(elementId) {
+        const printContent = document.getElementById(elementId);
+        if (!printContent) return;
+
+        const win = window.open('', '', 'height=700,width=800');
         win.document.write('<html><head><title>พิมพ์ใบเสร็จ</title>');
         win.document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">');
         win.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">');
-        win.document.write('</head><body class="p-4" onload="window.print(); window.close();">');
-        win.document.write(printContent);
+        win.document.write('</head><body class="p-4">');
+        win.document.write(printContent.innerHTML);
         win.document.write('</body></html>');
         win.document.close();
+        win.focus();
+        setTimeout(() => {
+            win.print();
+            win.close();
+        }, 500);
     }
 </script>
 {% endblock %}

@@ -1,3 +1,5 @@
+# customer_routes.py
+import uuid
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from firebase_utils import (
@@ -10,7 +12,56 @@ from firebase_utils import (
 
 customer_bp = Blueprint('customer', __name__)
 
-# API สำหรับดึงข้อมูลโต๊ะของระบบ
+def get_current_user_key():
+    """ดึง Identifier หรือ รหัสผู้ใช้ปัจจุบันจาก session (พร้อมรองรับ Guest ID เพื่อไม่ให้ข้อมูลหายเมื่อเปลี่ยนโต๊ะ)"""
+    user_key = session.get('user_id') or session.get('username') or session.get('email') or session.get('user') or session.get('guest_id')
+    if not user_key:
+        session['guest_id'] = f"guest_{uuid.uuid4().hex[:8]}"
+        user_key = session['guest_id']
+    return str(user_key).strip()
+
+def sync_user_table_session():
+    """
+    ดึงข้อมูลโต๊ะที่ผู้ใช้ปัจจุบันกำลังใช้งานอยู่จาก Firebase กลับเข้า Session ให้อัตโนมัติ
+    แก้ปัญหา Logout หรือรีเฟรชแล้วจำค่าโต๊ะเดิมไม่ได้
+    """
+    if session.get('selected_table_ids') or session.get('selected_table_id'):
+        return
+
+    user_key = get_current_user_key()
+    if not user_key:
+        return
+
+    try:
+        raw_tables = get_firebase_data('tables')
+        all_tables = parse_firebase_data(raw_tables)
+        
+        user_tables = []
+        for t in all_tables:
+            status = str(t.get('status', '')).lower()
+            occ_by = str(t.get('occupied_by', '')).strip()
+            if status == 'occupied' and occ_by and occ_by == user_key:
+                user_tables.append(t)
+
+        if user_tables:
+            table_ids = [str(t.get('id')) for t in user_tables]
+            selected_nos = [str(t.get('table_no', '')) for t in user_tables]
+            customer_count = user_tables[0].get('customer_count', 1)
+            try:
+                customer_count = int(customer_count)
+                if customer_count < 1:
+                    customer_count = 1
+            except (ValueError, TypeError):
+                customer_count = 1
+
+            session['selected_table_ids'] = table_ids
+            session['selected_table_id'] = table_ids[0]
+            session['selected_table_nos'] = selected_nos
+            session['selected_table_no'] = ", ".join(selected_nos)
+            session['customer_count'] = customer_count
+    except Exception as e:
+        print(f"Error syncing user table session: {e}")
+
 @customer_bp.route('/api/tables')
 def api_get_tables():
     raw_tables = get_firebase_data('tables')
@@ -23,6 +74,14 @@ def customer_dashboard():
         flash("หน้านี้สำหรับลูกค้าเท่านั้น", "error")
         return redirect(url_for('home'))
     
+    sync_user_table_session()
+
+    selected_table_id = session.get('selected_table_id')
+    selected_table_ids = session.get('selected_table_ids')
+    if not selected_table_id and not selected_table_ids:
+        flash("กรุณาเลือกโต๊ะอาหารก่อนทำรายการสั่งซื้อ", "warning")
+        return redirect(url_for('customer.customer_choose_table'))
+
     try:
         raw_menus = get_firebase_data('menus')
         menus = [
@@ -67,25 +126,24 @@ def customer_choose_table():
         flash("หน้านี้สำหรับลูกค้าเท่านั้น", "error")
         return redirect(url_for('home'))
 
+    sync_user_table_session()
+
     if request.method == 'POST':
         action = request.form.get('action', 'select')
 
-        # ----------------------------------------------------
-        # กรณีที่ 1: ยกเลิกการเลือกโต๊ะอาหาร
-        # ----------------------------------------------------
         if action == 'cancel':
             selected_ids = session.get('selected_table_ids', [])
-            
-            # หากมี ID เดียวเดิมที่เก็บเป็น string ให้แปลงเป็น list
             if not selected_ids and session.get('selected_table_id'):
                 selected_ids = [session.get('selected_table_id')]
 
-            # คืนสถานะโต๊ะใน Firebase เป็น available
             for tid in selected_ids:
                 if tid:
-                    patch_firebase_data('tables', tid, {'status': 'available'})
+                    patch_firebase_data('tables', tid, {
+                        'status': 'available',
+                        'occupied_by': '',
+                        'customer_count': 0
+                    })
 
-            # ล้างค่า Session เกี่ยวกับโต๊ะทั้งหมด
             session.pop('selected_table_id', None)
             session.pop('selected_table_ids', None)
             session.pop('selected_table_no', None)
@@ -95,9 +153,6 @@ def customer_choose_table():
             flash("ยกเลิกการเลือกโต๊ะอาหารเรียบร้อยแล้ว", "success")
             return redirect(url_for('customer.customer_choose_table'))
 
-        # ----------------------------------------------------
-        # กรณีที่ 2: ยืนยันเลือกโต๊ะอาหาร (รองรับหลายโต๊ะ)
-        # ----------------------------------------------------
         table_ids = request.form.getlist('table_ids')
         try:
             customer_count = int(request.form.get('customer_count', 1))
@@ -110,18 +165,24 @@ def customer_choose_table():
             flash("กรุณาเลือกโต๊ะอาหารอย่างน้อย 1 โต๊ะ", "error")
             return redirect(url_for('customer.customer_choose_table'))
 
-        # โหลดข้อมูลโต๊ะทั้งหมดเพื่อตรวจสอบความถูกต้อง
         raw_tables = get_firebase_data('tables')
         all_tables = parse_firebase_data(raw_tables)
         tables_map = {str(t.get('id')): t for t in all_tables}
 
-        # หากมีโต๊ะเดิมที่เคยเลือกไว้ ให้คืนสถานะก่อน
+        user_key = get_current_user_key()
+
         old_ids = session.get('selected_table_ids', [])
         if not old_ids and session.get('selected_table_id'):
             old_ids = [session.get('selected_table_id')]
+
+        # คืนสถานะโต๊ะเดิมที่ผู้ใช้ไม่ได้เลือกต่อ
         for old_id in old_ids:
             if old_id and old_id not in table_ids:
-                patch_firebase_data('tables', old_id, {'status': 'available'})
+                patch_firebase_data('tables', old_id, {
+                    'status': 'available',
+                    'occupied_by': '',
+                    'customer_count': 0
+                })
 
         selected_nos = []
         for tid in table_ids:
@@ -130,18 +191,23 @@ def customer_choose_table():
                 flash("พบข้อมูลโต๊ะไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง", "error")
                 return redirect(url_for('customer.customer_choose_table'))
             
-            # ตรวจสอบสถานะ (หากถูกผู้อื่นเลือกไปแล้ว และไม่ใช่โต๊ะที่เราเลือกอยู่เดิม)
-            if table_info.get('status') != 'available' and tid not in old_ids:
+            occ_by = str(table_info.get('occupied_by', '')).strip()
+            is_own_table = (occ_by == user_key) if user_key else False
+
+            if table_info.get('status') != 'available' and tid not in old_ids and not is_own_table:
                 flash(f"ขออภัย โต๊ะ {table_info.get('table_no')} ถูกใช้งานหรือถูกจองแล้ว", "error")
                 return redirect(url_for('customer.customer_choose_table'))
             
             selected_nos.append(str(table_info.get('table_no', '')))
 
-        # อัปเดตสถานะโต๊ะใหม่ใน Firebase เป็น occupied
+        # อัปเดตสถานะโต๊ะใน Firebase และผูก User Key
         for tid in table_ids:
-            patch_firebase_data('tables', tid, {'status': 'occupied'})
+            patch_firebase_data('tables', tid, {
+                'status': 'occupied',
+                'occupied_by': user_key if user_key else '',
+                'customer_count': customer_count
+            })
 
-        # บันทึกลงใน Session
         session['selected_table_ids'] = table_ids
         session['selected_table_id'] = table_ids[0] if table_ids else ''
         session['selected_table_nos'] = selected_nos
@@ -151,12 +217,10 @@ def customer_choose_table():
         flash(f"เลือกโต๊ะ {session['selected_table_no']} (จำนวน {customer_count} ท่าน) เรียบร้อยแล้ว", "success")
         return redirect(url_for('customer.customer_dashboard'))
 
-    # GET Request: แสดงรายการโต๊ะ
     try:
         raw_tables = get_firebase_data('tables')
         tables = parse_firebase_data(raw_tables)
         
-        # เรียงลำดับหมายเลขโต๊ะแบบเป็นระเบียบ
         def sort_key(t):
             no = str(t.get('table_no', ''))
             digits = ''.join(filter(str.isdigit, no))
@@ -168,11 +232,11 @@ def customer_choose_table():
         tables = []
         flash("เกิดข้อผิดพลาดในการโหลดข้อมูลโต๊ะอาหาร", "error")
 
-    # ข้อมูลสถานะเดิมของ Session เพื่อแสดงผลใน UI
     current_selected_ids = session.get('selected_table_ids', [])
     if not current_selected_ids and session.get('selected_table_id'):
         current_selected_ids = [session.get('selected_table_id')]
 
+    current_selected_ids = [str(tid) for tid in current_selected_ids]
     current_selected_no = session.get('selected_table_no', '')
     
     raw_customer_count = session.get('customer_count', 1)
@@ -196,8 +260,15 @@ def customer_checkout():
     if session.get('role') != 'customer':
         return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
 
+    sync_user_table_session()
+
     data = request.get_json() or {}
-    
+
+    table_id = data.get('table_id') or session.get('selected_table_id')
+    table_no = data.get('table_no') or session.get('selected_table_no')
+    if not table_id or not table_no:
+        return jsonify({'status': 'error', 'message': 'กรุณาเลือกโต๊ะอาหารก่อนสั่งซื้อ'}), 400
+
     raw_total = data.get('total_amount') or data.get('total_price')
     try:
         total_amount = float(raw_total) if raw_total is not None else 0.0
@@ -214,22 +285,23 @@ def customer_checkout():
 
     payment_method = data.get('payment_method', 'เงินสด')
     items = data.get('items', []) 
-    table_no = data.get('table_no') or session.get('selected_table_no', 'ไม่ระบุ')
 
     if not items:
         return jsonify({'status': 'error', 'message': 'ไม่มีสินค้าในตะกร้า'}), 400
 
     try:
+        user_key = get_current_user_key()
         payload = {
             "table_no": table_no,
-            "table_id": session.get('selected_table_id', ''),
-            "table_ids": session.get('selected_table_ids', []),
+            "table_id": table_id,
+            "table_ids": session.get('selected_table_ids', [table_id]),
             "customer_count": customer_count,
             "total_amount": total_amount,
             "total_price": total_amount,
             "payment_method": payment_method,
             "status": "pending",
             "items": items,
+            "user_key": user_key or "",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
@@ -243,5 +315,121 @@ def customer_checkout():
         else:
             raise Exception("Firebase Response Error")
 
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@customer_bp.route('/customer/call_staff', methods=['POST'])
+def customer_call_staff():
+    if session.get('role') != 'customer':
+        return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
+
+    sync_user_table_session()
+
+    data = request.get_json() or {}
+    table_no = data.get('table_no') or session.get('selected_table_no')
+    table_id = data.get('table_id') or session.get('selected_table_id')
+
+    if not table_id:
+        selected_ids = session.get('selected_table_ids', [])
+        if selected_ids:
+            table_id = selected_ids[0]
+
+    if not table_no:
+        return jsonify({'status': 'error', 'message': 'กรุณาเลือกโต๊ะก่อนเรียกพนักงาน'}), 400
+
+    request_type = data.get('request_type', 'เรียกพนักงาน')
+
+    try:
+        payload = {
+            "table_no": table_no,
+            "table_id": table_id or "",
+            "request_type": request_type,
+            "status": "pending",
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # บันทึกไปยัง service_requests เพื่อให้หน้าพนักงาน (/staff/service-requests) ดึงไปแสดงผล
+        response = post_firebase_data('service_requests', payload)
+        
+        # บันทึกไปยัง notifications ควบคู่กันเพื่อรองรับโมดูลอื่น
+        try:
+            post_firebase_data('notifications', payload)
+        except Exception:
+            pass
+
+        if response and 'name' in response:
+            return jsonify({'status': 'success', 'message': 'แจ้งพนักงานเรียบร้อยแล้ว', 'id': response.get('name')})
+        else:
+            raise Exception("Firebase Response Error")
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@customer_bp.route('/customer/api/orders')
+def customer_api_orders():
+    """ดึงข้อมูลออเดอร์ของลูกค้ารายนี้จาก Firebase (รองรับการย้ายโต๊ะ + Order IDs สะสม + User Key)"""
+    if session.get('role') != 'customer':
+        return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
+
+    sync_user_table_session()
+
+    user_key = get_current_user_key()
+
+    # รับค่าจาก Query Parameter ที่ส่งมาจาก JavaScript
+    req_table_no = request.args.get('table_no', '').strip()
+    req_order_ids = request.args.get('order_ids', '').strip()
+
+    param_order_ids = set()
+    if req_order_ids:
+        param_order_ids = set(x.strip() for x in req_order_ids.split(',') if x.strip())
+
+    current_table_id = str(session.get('selected_table_id', ''))
+    current_table_no = str(session.get('selected_table_no', ''))
+    current_table_ids = [str(x) for x in session.get('selected_table_ids', [])]
+
+    # รวบรวมเลขโต๊ะทั้งหมดที่เกี่ยวข้อง
+    table_nos_set = set()
+    for raw_no in [current_table_no, req_table_no]:
+        if raw_no:
+            for part in str(raw_no).replace('-', ',').split(','):
+                cleaned = part.strip()
+                if cleaned:
+                    table_nos_set.add(cleaned)
+
+    try:
+        raw_orders = get_firebase_data('orders')
+        all_orders = parse_firebase_data(raw_orders)
+
+        matched_orders = []
+        for ord_item in all_orders:
+            ord_id = str(ord_item.get('id', ''))
+            ord_table_id = str(ord_item.get('table_id', ''))
+            ord_table_no = str(ord_item.get('table_no', ''))
+            ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
+            ord_user_key = str(ord_item.get('user_key', '')).strip()
+            ord_prev_table = str(ord_item.get('previous_table', '') or ord_item.get('merged_from', '')).strip()
+
+            # เงื่อนไขการสืบค้น
+            match_order_id = bool(ord_id and ord_id in param_order_ids)
+            match_user_key = bool(user_key and ord_user_key and ord_user_key == user_key)
+            match_table_id = bool(
+                (current_table_id and ord_table_id == current_table_id) or
+                any(tid in current_table_ids for tid in ord_table_ids)
+            )
+
+            match_table_no = False
+            if ord_table_no:
+                ord_nos = [x.strip() for x in str(ord_table_no).replace('-', ',').split(',')]
+                if any(n in table_nos_set for n in ord_nos):
+                    match_table_no = True
+            if ord_prev_table and ord_prev_table in table_nos_set:
+                match_table_no = True
+
+            # แสดงผลออเดอร์ถ้าตรงกับเงื่อนไขใดเงื่อนไขหนึ่ง
+            if match_order_id or match_user_key or match_table_id or match_table_no:
+                matched_orders.append(ord_item)
+
+        # เรียงลำดับจากใหม่ไปเก่า
+        matched_orders.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
+        return jsonify({'status': 'success', 'orders': matched_orders})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

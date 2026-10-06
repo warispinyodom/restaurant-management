@@ -1,0 +1,191 @@
+<!-- templates/staff/service_requests.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold"><i class="fas fa-bell text-danger me-2"></i>รายการเรียกพนักงาน (Service Calls)</h3>
+        <div class="d-flex align-items-center gap-2">
+            <button id="soundToggleBtn" class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="toggleSound()">
+                <i class="fas fa-volume-up me-1"></i>เปิดเสียงแจ้งเตือน
+            </button>
+            <span class="badge bg-danger rounded-pill px-3 py-2 fs-6">
+                ค้างดำเนินการ: <span id="pendingRequestsCnt">0</span> รายการ
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-3" id="requestsGrid">
+        <!-- Rendered via JS Realtime -->
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let soundEnabled = true;
+    let previousPendingCount = 0;
+    let isFirstLoad = true;
+    let audioCtx = null;
+
+    // เล่นเสียงแจ้งเตือนสังเคราะห์ผ่าน Web Audio API (ปลดล็อกข้อจำกัดบนเบราว์เซอร์)
+    function playAlertSound() {
+        if (!soundEnabled) return;
+        try {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.4);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        } catch (e) {
+            console.log('Audio Context Error:', e);
+        }
+    }
+
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        const btn = document.getElementById('soundToggleBtn');
+        if (soundEnabled) {
+            btn.className = "btn btn-outline-success btn-sm rounded-pill px-3";
+            btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>เปิดเสียงแจ้งเตือน';
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        } else {
+            btn.className = "btn btn-outline-secondary btn-sm rounded-pill px-3";
+            btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>ปิดเสียงแจ้งเตือน';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchServiceRequests();
+        setInterval(fetchServiceRequests, 3000); // ดึงข้อมูลทุกๆ 3 วินาที
+    });
+
+    function fetchServiceRequests() {
+        fetch('/staff/api/service-requests')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    renderRequests(data.requests || []);
+                }
+            })
+            .catch(err => console.error('Error fetching service requests:', err));
+    }
+
+    function renderRequests(requests) {
+        const grid = document.getElementById('requestsGrid');
+        let pendingCnt = 0;
+        let html = '';
+
+        if (!Array.isArray(requests)) {
+            requests = [];
+        }
+
+        // จัดเรียง: รายการที่ยังไม่เสร็จสิ้นให้อยู่ด้านบนเสมอ
+        const sortedRequests = [...requests].sort((a, b) => {
+            const stA = (a.status || 'pending').toLowerCase();
+            const stB = (b.status || 'pending').toLowerCase();
+            const isCompletedA = (stA === 'completed' || stA === 'done' || stA === 'resolved' || stA === 'finish');
+            const isCompletedB = (stB === 'completed' || stB === 'done' || stB === 'resolved' || stB === 'finish');
+            
+            if (!isCompletedA && isCompletedB) return -1;
+            if (isCompletedA && !isCompletedB) return 1;
+            return 0;
+        });
+
+        sortedRequests.forEach(req => {
+            const st = (req.status || 'pending').toLowerCase();
+            const isPending = !(st === 'completed' || st === 'done' || st === 'resolved' || st === 'finish' || st === 'success');
+            
+            if (isPending) pendingCnt++;
+
+            // รองรับ คีย์ฟิลด์ จากหลากหลายรูปแบบฝั่งลูกค้า
+            const tableNo = req.table_no || req.table || req.table_number || req.table_id || req.tableno || '-';
+            const reqType = req.request_type || req.type || req.message || req.note || req.service_type || req.title || 'เรียกพนักงาน';
+            const timeStr = req.created_at || req.timestamp || req.time || '';
+            const reqId = req.id || req.key || '';
+
+            html += `
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 ${isPending ? 'border-start border-danger border-4 bg-white' : 'opacity-75 bg-light'}">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="fw-bold mb-0 text-dark">
+                                <i class="fas fa-chair ${isPending ? 'text-danger' : 'text-secondary'} me-2"></i>โต๊ะ ${tableNo}
+                            </h5>
+                            <small class="text-muted"><i class="far fa-clock me-1"></i>${timeStr}</small>
+                        </div>
+                        <p class="text-secondary fw-semibold mb-3">
+                            <i class="fas fa-comment-dots me-1"></i>เรื่อง: ${reqType}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge ${isPending ? 'bg-danger' : 'bg-secondary'} rounded-pill">
+                                ${isPending ? 'รอดำเนินการ' : 'ดำเนินการแล้ว'}
+                            </span>
+                            ${isPending ? `
+                                <button class="btn btn-success btn-sm rounded-pill px-3" onclick="completeRequest('${reqId}')">
+                                    <i class="fas fa-check me-1"></i>เข้าช่วยเหลือเรียบร้อย
+                                </button>
+                            ` : '<span class="text-muted small"><i class="fas fa-check-circle text-success me-1"></i>เสร็จสิ้น</span>'}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        // แจ้งเตือนด้วยเสียง และ Toast เมื่อมีรายการเรียกพนักงานใหม่เข้ามา
+        if (!isFirstLoad && pendingCnt > previousPendingCount) {
+            playAlertSound();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'warning',
+                title: 'มีการเรียกพนักงานใหม่!',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true
+            });
+        }
+
+        previousPendingCount = pendingCnt;
+        isFirstLoad = false;
+
+        document.getElementById('pendingRequestsCnt').innerText = pendingCnt;
+        grid.innerHTML = html || '<div class="col-12 text-center text-muted py-5"><i class="fas fa-bell-slash fa-3x mb-3 d-block text-secondary"></i>ไม่มีการเรียกพนักงานในขณะนี้</div>';
+    }
+
+    function completeRequest(reqId) {
+        if (!reqId) {
+            Swal.fire('ข้อผิดพลาด', 'ไม่พบรหัสรายการ', 'error');
+            return;
+        }
+        fetch('/staff/service-request/update-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ request_id: reqId, status: 'completed' })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                fetchServiceRequests();
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', d.message || 'ไม่สามารถอัปเดตสถานะได้', 'error');
+            }
+        })
+        .catch(() => Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error'));
+    }
+</script>
+{% endblock %}

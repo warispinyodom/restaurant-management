@@ -205,7 +205,6 @@
         to { opacity: 1; transform: translate(-50%, 0); }
     }
 
-    /* ปรับปรุงการเลื่อนเนื้อหาใน Modal */
     .custom-modal-scroll {
         max-height: 68vh;
         overflow-y: auto;
@@ -217,7 +216,7 @@
     <!-- Header & Add Button -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3 gap-2">
         <div>
-            <h3 class="fw-bold mb-1 fs-5 fs-sm-4 fs-md-3 text-dark">จัดการเมนูอาหาร</h3>
+            <h3 class="fw-bold mb-1 fs-5 fs-sm-4 fs-md-3 text-dark"><i class="fas fa-utensils text-primary me-2"></i>จัดการเมนูอาหาร</h3>
             <p class="text-muted mb-0 small">เพิ่ม แก้ไข ค้นหา และกำหนดสถานะเมนูอาหารทั้งหมดในร้าน</p>
         </div>
         <button class="btn btn-primary shadow-sm px-3 px-sm-4 py-2 rounded-pill fw-semibold w-100 w-sm-auto text-nowrap" data-bs-toggle="modal" data-bs-target="#addMenuModal">
@@ -319,12 +318,14 @@
     <!-- Grid Cards แสดงเมนู -->
     <div class="row g-2 g-sm-3 g-md-4 align-items-stretch" id="menuCardsContainer">
         {% for menu in menus %}
+        {% set menu_price = menu.price if menu.price is defined and menu.price is not none else 0 %}
+        {% set menu_status = menu.status if menu.status is defined and menu.status else 'available' %}
         <div class="col-6 col-sm-6 col-md-4 col-lg-3 menu-item-col" 
              data-id="{{ menu.id }}"
              data-name="{{ menu.name|lower }}" 
              data-category="{{ menu.category }}" 
-             data-status="{{ menu.status }}" 
-             data-price="{{ menu.price|abs }}">
+             data-status="{{ menu_status }}" 
+             data-price="{{ menu_price }}">
             <div class="card menu-card shadow-sm position-relative" id="menuCard_{{ menu.id }}">
                 
                 <div class="card-checkbox-wrapper">
@@ -335,7 +336,7 @@
 
                 <div class="menu-img-wrapper">
                     <div class="status-badge-overlay">
-                        {% if menu.status == 'available' %}
+                        {% if menu_status == 'available' %}
                         <span class="badge bg-success shadow-sm px-1.5 px-sm-2 py-1 fs-8 fs-sm-7"><i class="fas fa-circle me-1" style="font-size: 5px;"></i>พร้อมขาย</span>
                         {% else %}
                         <span class="badge bg-danger shadow-sm px-1.5 px-sm-2 py-1 fs-8 fs-sm-7"><i class="fas fa-times-circle me-1"></i>หมด</span>
@@ -343,18 +344,17 @@
                     </div>
 
                     <div class="price-badge-overlay">
-                        ฿{{ menu.price|abs }}
+                        ฿{{ "%.2f"|format(menu_price|float) }}
                     </div>
 
                     {% if menu.image_file %}
-                    <img src="{{ menu.image_file }}" alt="{{ menu.name }}" 
-                         class="menu-img {% if menu.status != 'available' %}out-of-stock-img{% endif %}">
+                        {% set img_src = menu.image_file if (menu.image_file.startswith('http') or menu.image_file.startswith('/')) else url_for('static', filename='uploads/' + menu.image_file) %}
+                        <img src="{{ img_src }}" alt="{{ menu.name }}" class="menu-img {% if menu_status != 'available' %}out-of-stock-img{% endif %}">
                     {% else %}
-                    <img src="{{ url_for('static', filename='images/default-image.png') }}" alt="No Image" 
-                         class="menu-img {% if menu.status != 'available' %}out-of-stock-img{% endif %}">
+                        <img src="{{ url_for('static', filename='images/default-image.png') }}" alt="No Image" class="menu-img {% if menu_status != 'available' %}out-of-stock-img{% endif %}">
                     {% endif %}
 
-                    {% if menu.status != 'available' %}
+                    {% if menu_status != 'available' %}
                     <div class="out-of-stock-overlay">
                         <span><i class="fas fa-ban me-1"></i> หมดชั่วคราว</span>
                     </div>
@@ -470,6 +470,7 @@
 
 <!-- Edit Single Menu Modals -->
 {% for menu in menus %}
+{% set menu_price = menu.price if menu.price is defined and menu.price is not none else 0 %}
 <div class="modal fade" id="editMenuModal{{ menu.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <form action="{{ url_for('admin.admin_menu_edit', id=menu.id) }}" method="POST" enctype="multipart/form-data"
@@ -501,7 +502,7 @@
 
                 <div class="mb-3">
                     <label class="form-label small fw-bold">ราคา (บาท)</label>
-                    <input type="number" name="price" class="form-control rounded-3" value="{{ menu.price|abs }}" step="0.01" min="0" required>
+                    <input type="number" name="price" class="form-control rounded-3" value="{{ menu_price }}" step="0.01" min="0" required>
                 </div>
 
                 <div class="mb-3">
@@ -526,7 +527,7 @@
 </div>
 {% endfor %}
 
-<!-- Add Menu Modal (ปรับปรุงให้รองรับการ Scroll ได้อย่างสมบูรณ์) -->
+<!-- Add Menu Modal -->
 <div class="modal fade" id="addMenuModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
         <form id="multiMenuForm" onsubmit="submitMultiMenu(event)" class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">

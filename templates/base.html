@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant POS System</title>
+    <title>{% block title %}Restaurant POS System{% endblock %}</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -143,9 +143,11 @@
             border-radius: 10px;
         }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
+    <!-- Header บนมือถือ -->
     <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top"
         style="background-color: #0f172a !important;">
         <span class="navbar-brand fw-bold d-flex align-items-center gap-2 mb-0 fs-6">
@@ -240,28 +242,38 @@
                     <i class="fas fa-receipt text-light"></i> <span>ประวัติการขาย</span>
                 </a>
 
-                <!-- 2. STAFF MENU -->
+                <!-- 2. STAFF MENU (6 เมนูหลัก) -->
                 {% elif session.get('role') == 'staff' %}
                 <div class="menu-section-label">พนักงาน (Staff Operations)</div>
 
                 <a href="{{ url_for('staff.staff_orders') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_orders' }}">
-                    <i class="fas fa-utensils text-warning"></i> <span>รายการออเดอร์หน้าร้าน</span>
+                    <i class="fas fa-list-alt text-info"></i> <span>รายการออเดอร์</span>
                 </a>
 
                 <a href="{{ url_for('staff.staff_check_bill') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_check') }}">
-                    <i class="fas fa-file-invoice-dollar text-success"></i> <span>เช็คบิล / ชำระเงิน</span>
-                </a>
-
-                <a href="{{ url_for('staff.staff_menu_manage') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_menu_manage' }}">
-                    <i class="fas fa-edit text-info"></i> <span>ปรับสถานะ/สต็อกเมนู</span>
+                    <i class="fas fa-receipt text-success"></i> <span>เช็คบิล / ชำระเงิน</span>
                 </a>
 
                 <a href="{{ url_for('staff.staff_tables') }}"
                     class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_tables') }}">
-                    <i class="fas fa-chair text-warning"></i> <span>ผังและสถานะโต๊ะอาหาร</span>
+                    <i class="fas fa-chair text-warning"></i> <span>ผังและสถานะโต๊ะ</span>
+                </a>
+
+                <a href="{{ url_for('staff.staff_menu_manage') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_menu_manage' }}">
+                    <i class="fas fa-utensils text-primary"></i> <span>จัดการ/สต็อกเมนู</span>
+                </a>
+
+                <a href="{{ url_for('staff.staff_service_requests_page') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_service_requests_page' }}">
+                    <i class="fas fa-bell text-danger"></i> <span>รายการเรียกพนักงาน</span>
+                </a>
+
+                <a href="{{ url_for('staff.staff_daily_summary') }}"
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_daily_summary' }}">
+                    <i class="fas fa-chart-line text-info"></i> <span>สรุปยอดขายประจำวัน</span>
                 </a>
 
                 <!-- 3. CUSTOMER MENU -->
@@ -310,10 +322,10 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4"
+            <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'danger') }} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4"
                 role="alert">
                 <i
-                    class="fas {{ 'fa-check-circle text-success' if category == 'success' else 'fa-exclamation-circle text-danger' }} me-2 fs-5 align-middle"></i>
+                    class="fas {{ 'fa-check-circle text-success' if category == 'success' else ('fa-exclamation-triangle text-warning' if category == 'warning' else 'fa-exclamation-circle text-danger') }} me-2 fs-5 align-middle"></i>
                 <span class="align-middle fw-medium">{{ message }}</span>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>

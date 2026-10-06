@@ -1,3 +1,5 @@
+# admin_routes.py
+import json
 from datetime import datetime, timedelta
 from collections import Counter, defaultdict
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -19,6 +21,80 @@ from firebase_utils import (
 )
 
 admin_bp = Blueprint('admin', __name__)
+
+def _get_request_ids(request):
+    """ฟังก์ชันช่วยดึงรายการ IDs จาก Request รองรับทั้ง JSON, Form Data และคีย์หลายรูปแบบ"""
+    data = request.get_json(silent=True) or {}
+    
+    ids = data.get('ids') or data.get('table_ids') or data.get('menu_ids') or data.get('ids[]') or data.get('table_ids[]')
+    
+    if not ids:
+        ids = (request.form.getlist('ids[]') or 
+               request.form.getlist('table_ids[]') or 
+               request.form.getlist('menu_ids[]') or 
+               request.form.getlist('ids') or 
+               request.form.getlist('table_ids'))
+        
+    if isinstance(ids, str):
+        ids = [x.strip() for x in ids.split(',') if x.strip()]
+        
+    return ids or []
+
+def _extract_order_items(order):
+    """ดึงรายการสินค้าจากออเดอร์ไม่ว่าจะเก็บในคีย์ items, order_items, cart, ฯลฯ และแปลงเป็น List เสมอ"""
+    if not isinstance(order, dict):
+        return []
+
+    raw_items = order.get('items')
+    if raw_items is None:
+        raw_items = (order.get('order_items') or 
+                     order.get('cart') or 
+                     order.get('cart_items') or 
+                     order.get('details') or 
+                     order.get('menu_items') or [])
+
+    if isinstance(raw_items, str):
+        try:
+            raw_items = json.loads(raw_items)
+        except Exception:
+            raw_items = []
+
+    items_list = []
+    if isinstance(raw_items, dict):
+        items_list = list(raw_items.values())
+    elif isinstance(raw_items, list):
+        items_list = raw_items
+
+    clean_items = []
+    for item in items_list:
+        if isinstance(item, dict):
+            name = item.get('name') or item.get('title') or item.get('menu_name') or 'ไม่ระบุชื่อ'
+            
+            try:
+                price = float(item.get('price') if item.get('price') is not None else item.get('unit_price', 0))
+            except (ValueError, TypeError):
+                price = 0.0
+
+            try:
+                qty = int(item.get('quantity') if item.get('quantity') is not None else (item.get('qty') if item.get('qty') is not None else item.get('amount', 1)))
+            except (ValueError, TypeError):
+                qty = 1
+
+            spice_level = item.get('spice_level') or item.get('spice')
+            notes = item.get('notes') or item.get('note')
+            spice_or_note = str(spice_level) if spice_level else (str(notes) if notes else '-')
+
+            clean_items.append({
+                'name': name,
+                'price': price,
+                'quantity': qty,
+                'qty': qty,
+                'spice_level': spice_or_note,
+                'notes': str(notes or '-'),
+                'total_price': price * qty
+            })
+
+    return clean_items
 
 # ==========================================
 # DASHBOARD & STATS
@@ -43,11 +119,14 @@ def dashboard_stats():
     customers_today = 0
     item_counter = Counter()
     
-    orders_list = get_all_orders() or []
+    raw_orders = get_firebase_data('orders')
+    orders_list = parse_firebase_data(raw_orders)
+    if not orders_list:
+        orders_list = get_all_orders() or []
     
     for order in orders_list:
         if isinstance(order, dict):
-            created_at = str(order.get('created_at') or '')
+            created_at = str(order.get('created_at') or order.get('date') or order.get('timestamp') or '')
             status = str(order.get('status', '')).lower()
             
             if status in ['completed', 'paid', 'success']:
@@ -59,7 +138,7 @@ def dashboard_stats():
                 except (ValueError, TypeError):
                     amount = 0.0
                 
-                clean_date_str = created_at.replace('T', ' ').split(' ')[0]
+                clean_date_str = created_at.replace('T', ' ').split(' ')[0] if created_at else ''
                 
                 if clean_date_str == today_str:
                     sales_today += amount
@@ -68,16 +147,12 @@ def dashboard_stats():
                     except (ValueError, TypeError):
                         pass
 
-                    items = order.get('items') or order.get('order_items') or []
+                    items = _extract_order_items(order)
                     for item in items:
-                        if isinstance(item, dict):
-                            item_name = item.get('name') or item.get('title')
-                            try:
-                                qty = int(item.get('quantity') or item.get('qty', 1))
-                            except (ValueError, TypeError):
-                                qty = 1
-                            if item_name:
-                                item_counter[item_name] += qty
+                        item_name = item.get('name')
+                        qty = item.get('quantity', 1)
+                        if item_name:
+                            item_counter[item_name] += qty
                 
                 if clean_date_str and clean_date_str != '-':
                     try:
@@ -260,9 +335,9 @@ def admin_menu_edit(id):
 @admin_required
 def admin_menu_bulk_status():
     try:
-        data = request.get_json() or {}
-        ids = data.get('ids', [])
-        new_status = data.get('status', 'available')
+        ids = _get_request_ids(request)
+        data = request.get_json(silent=True) or {}
+        new_status = data.get('status') or request.form.get('status', 'available')
 
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกรายการอาหาร'}), 400
@@ -283,11 +358,11 @@ def admin_menu_bulk_status():
 @admin_required
 def admin_menu_batch_edit():
     try:
-        data = request.get_json() or {}
-        ids = data.get('ids', [])
-        category = data.get('category')
-        status = data.get('status')
-        price = data.get('price')
+        ids = _get_request_ids(request)
+        data = request.get_json(silent=True) or {}
+        category = data.get('category') or request.form.get('category')
+        status = data.get('status') or request.form.get('status')
+        price = data.get('price') or request.form.get('price')
 
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกรายการอาหารที่ต้องการแก้ไข'}), 400
@@ -333,8 +408,7 @@ def admin_menu_delete(id):
 @admin_required
 def admin_menu_batch_delete():
     try:
-        data = request.get_json() or {}
-        ids = data.get('ids', [])
+        ids = _get_request_ids(request)
 
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกรายการอาหารที่ต้องการลบ'}), 400
@@ -505,7 +579,7 @@ def admin_payments_add():
 
         payload['qr_image'] = upload_to_firebase_storage(file, folder="payments")
 
-        if post_firebase_data('payments', payload):
+        if post_firebase_data('payment_channels', payload):
             flash("เพิ่มช่องทางชำระเงินสำเร็จ", "success")
         else:
             flash("เกิดข้อผิดพลาดในการเพิ่มช่องทาง", "error")
@@ -601,9 +675,9 @@ def admin_payments_edit(id):
 @admin_required
 def admin_payments_batch_edit():
     try:
-        data = request.get_json() or {}
-        ids = data.get('ids', [])
-        is_active = 1 if data.get('is_active') else 0
+        ids = _get_request_ids(request)
+        data = request.get_json(silent=True) or {}
+        is_active = 1 if data.get('is_active') or request.form.get('is_active') else 0
 
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกช่องทางชำระเงิน'}), 400
@@ -633,8 +707,7 @@ def admin_payments_delete(id):
 @admin_required
 def admin_payments_batch_delete():
     try:
-        data = request.get_json() or {}
-        ids = data.get('ids', [])
+        ids = _get_request_ids(request)
 
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกช่องทางชำระเงิน'}), 400
@@ -650,13 +723,15 @@ def admin_payments_batch_delete():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ==========================================
-# SALES HISTORY & REPORTS (รายงานยอดขายรายวัน + เมนูขายดี)
+# SALES HISTORY & REPORTS
 # ==========================================
 @admin_bp.route('/admin/sales')
 @admin_required
 def admin_sales_history():
     raw_orders = get_firebase_data('orders')
-    orders = parse_firebase_data(raw_orders) or []
+    orders = parse_firebase_data(raw_orders)
+    if not orders:
+        orders = get_all_orders() or []
     
     start_date_str = request.args.get('start_date', '').strip()
     end_date_str = request.args.get('end_date', '').strip()
@@ -675,9 +750,33 @@ def admin_sales_history():
         if not isinstance(order, dict):
             continue
 
-        created_at = str(order.get('created_at') or '')
-        status = str(order.get('status', '')).lower()
-        clean_date_str = created_at.replace('T', ' ').split(' ')[0] if created_at else ''
+        clean_items = _extract_order_items(order)
+        order['items'] = clean_items
+
+        order_id = str(order.get('id') or order.get('order_id') or order.get('_id') or 'N/A')
+        order['id'] = order_id
+        order['modal_id'] = ''.join(c if c.isalnum() else '_' for c in order_id)
+
+        table_no = str(order.get('table_no') or order.get('table') or order.get('table_id') or order.get('tableno') or '-')
+        order['table_no'] = table_no
+
+        payment_method = str(order.get('payment_method') or order.get('payment_type') or order.get('payment') or order.get('pay_method') or 'ไม่ระบุ')
+        order['payment_method'] = payment_method
+
+        try:
+            tot = order.get('total_price') if order.get('total_price') is not None else (order.get('total_amount') if order.get('total_amount') is not None else order.get('total', 0))
+            total_price = float(tot)
+        except (ValueError, TypeError):
+            total_price = 0.0
+        order['total_price'] = total_price
+
+        created_at = str(order.get('created_at') or order.get('date') or order.get('timestamp') or '-')
+        order['created_at'] = created_at
+
+        status = str(order.get('status', 'completed')).lower()
+        order['status'] = status
+
+        clean_date_str = created_at.replace('T', ' ').split(' ')[0] if created_at and created_at != '-' else ''
 
         if start_date_str and clean_date_str and clean_date_str < start_date_str:
             continue
@@ -687,43 +786,23 @@ def admin_sales_history():
         filtered_orders.append(order)
 
         if status in ['completed', 'paid', 'success']:
-            try:
-                tot = order.get('total_price') if order.get('total_price') is not None else order.get('total_amount')
-                if tot is None:
-                    tot = order.get('total', 0)
-                amount = float(tot)
-            except (ValueError, TypeError):
-                amount = 0.0
-
-            total_revenue += amount
+            total_revenue += total_price
             total_completed_orders += 1
 
             if clean_date_str:
-                daily_sales_map[clean_date_str]['total_amount'] += amount
+                daily_sales_map[clean_date_str]['total_amount'] += total_price
                 daily_sales_map[clean_date_str]['order_count'] += 1
 
-            items = order.get('items') or order.get('order_items') or []
-            for item in items:
-                if isinstance(item, dict):
-                    item_name = item.get('name') or item.get('title') or 'ไม่ระบุชื่อ'
-                    try:
-                        qty = int(item.get('quantity') or item.get('qty', 1))
-                    except (ValueError, TypeError):
-                        qty = 1
+            for item in clean_items:
+                item_name = item['name']
+                qty = item['quantity']
+                item_revenue = item['price'] * qty
 
-                    try:
-                        price = float(item.get('price', 0))
-                    except (ValueError, TypeError):
-                        price = 0.0
-
-                    item_revenue = price * qty
-
-                    if item_name:
-                        item_sales_map[item_name]['qty'] += qty
-                        item_sales_map[item_name]['total_revenue'] += item_revenue
-                        total_items_sold += qty
-                        if clean_date_str:
-                            daily_sales_map[clean_date_str]['item_count'] += qty
+                item_sales_map[item_name]['qty'] += qty
+                item_sales_map[item_name]['total_revenue'] += item_revenue
+                total_items_sold += qty
+                if clean_date_str:
+                    daily_sales_map[clean_date_str]['item_count'] += qty
         elif status in ['voided', 'cancelled']:
             total_voided_orders += 1
         else:
@@ -898,8 +977,8 @@ def admin_table_edit(table_id):
 @staff_required
 def admin_table_status(table_id):
     try:
-        data = request.get_json() or {}
-        new_status = data.get('status', 'available')
+        data = request.get_json(silent=True) or {}
+        new_status = data.get('status') or request.form.get('status', 'available')
 
         update_payload = {'status': new_status}
         if new_status == 'available':
@@ -908,6 +987,29 @@ def admin_table_status(table_id):
         if patch_firebase_data('tables', table_id, update_payload):
             return jsonify({'status': 'success', 'message': 'อัปเดตสถานะโต๊ะสำเร็จ'})
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตสถานะได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_bp.route('/admin/tables/bulk-status', methods=['POST'])
+@admin_bp.route('/admin/tables/batch-status', methods=['POST'])
+@staff_required
+def admin_table_bulk_status():
+    try:
+        ids = _get_request_ids(request)
+        data = request.get_json(silent=True) or {}
+        new_status = data.get('status') or request.form.get('status', 'available')
+
+        if not ids:
+            return jsonify({'status': 'error', 'message': 'กรุณาเลือกโต๊ะอาหาร'}), 400
+
+        update_payload = {'status': new_status}
+        if new_status == 'available':
+            update_payload['order'] = {'items': [], 'total_amount': 0.0}
+
+        for table_id in ids:
+            patch_firebase_data('tables', table_id, update_payload)
+
+        return jsonify({'status': 'success', 'message': 'อัปเดตสถานะโต๊ะเรียบร้อยแล้ว'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -932,5 +1034,22 @@ def admin_table_delete(table_id):
         if delete_firebase_data('tables', table_id):
             return jsonify({'status': 'success', 'message': 'ลบข้อมูลโต๊ะเรียบร้อยแล้ว'})
         return jsonify({'status': 'error', 'message': 'เกิดข้อผิดพลาดในการลบ'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_bp.route('/admin/tables/bulk-delete', methods=['POST'])
+@admin_bp.route('/admin/tables/batch-delete', methods=['POST'])
+@admin_required
+def admin_table_bulk_delete():
+    try:
+        ids = _get_request_ids(request)
+
+        if not ids:
+            return jsonify({'status': 'error', 'message': 'กรุณาเลือกโต๊ะอาหารที่ต้องการลบ'}), 400
+
+        for table_id in ids:
+            delete_firebase_data('tables', table_id)
+
+        return jsonify({'status': 'success', 'message': f'ลบโต๊ะอาหารสำเร็จ {len(ids)} รายการ'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

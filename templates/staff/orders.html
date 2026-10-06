@@ -1,403 +1,484 @@
+<!-- templates/staff/orders.html -->
 {% extends 'base.html' %}
 {% block content %}
-
 <style>
-    /* ==========================================
-       Order Page & Thermal Receipt Card Styling
-       ========================================== */
-    .receipt-card {
-        background-color: #ffffff;
-        border: 1px solid #dcdcdc;
-        font-family: 'Courier New', Courier, monospace;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        position: relative;
-        transition: transform 0.2s ease-in-out;
+    .order-card {
+        border-radius: 16px;
+        border: 1px solid #e9ecef;
+        transition: all 0.25s ease;
     }
-
-    .receipt-card:hover {
-        transform: translateY(-4px);
+    .order-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
     }
-
-    /* เส้นปรักั้นส่วนแบบใบเสร็จ */
-    .receipt-divider {
-        border-top: 2px dashed #a0a0a0;
-        margin: 10px 0;
+    .order-card.status-pending {
+        border-left: 5px solid #ffc107;
     }
-
-    /* ชายกระดาษรอยหยักด้านล่างการ์ด (Zigzag Cut) */
-    .receipt-zigzag {
-        position: relative;
-        background: #ffffff;
+    .order-card.status-cooking, .order-card.status-in_progress, .order-card.status-preparing {
+        border-left: 5px solid #0d6efd;
     }
-
-    .receipt-zigzag::after {
-        content: "";
-        position: absolute;
-        bottom: -10px;
-        left: 0;
-        width: 100%;
-        height: 10px;
-        background: linear-gradient(-45deg, transparent 7px, #ffffff 0),
-            linear-gradient(45deg, transparent 7px, #ffffff 0);
-        background-repeat: repeat-x;
-        background-size: 14px 14px;
-        z-index: 2;
+    .order-card.status-served, .order-card.status-cooked, .order-card.status-ready {
+        border-left: 5px solid #17a2b8;
     }
-
-    /* ตราประทับสถานะสไตล์ Stamp บนบิล */
-    .status-stamp {
-        display: inline-block;
-        padding: 2px 8px;
-        font-weight: 900;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        border-radius: 4px;
-        transform: rotate(-6deg);
-        letter-spacing: 1px;
+    .order-card.status-completed, .order-card.status-paid, .order-card.status-success {
+        border-left: 5px solid #198754;
     }
-
-    .stamp-pending {
-        border: 2px dashed #ffc107;
-        color: #856404;
-        background: #fff3cd;
+    .order-card.status-voided, .order-card.status-cancelled {
+        border-left: 5px solid #dc3545;
+        opacity: 0.7;
     }
-
-    .stamp-cooking {
-        border: 2px dashed #0dcaf0;
-        color: #055160;
-        background: #cff4fc;
-    }
-
-    .stamp-ready {
-        border: 2px dashed #198754;
-        color: #0f5132;
-        background: #d1e7dd;
-    }
-
-    .stamp-done {
-        border: 2px dashed #6c757d;
-        color: #1b1e21;
-        background: #e2e3e5;
-    }
-
-    .order-id-truncate {
-        max-width: 90px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: inline-block;
-    }
-
-    /* ปุ่ม Filter */
-    .filter-btn {
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        font-weight: 600;
-    }
-
     .filter-btn.active {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background-color: #212529 !important;
+        color: #ffffff !important;
+        border-color: #212529 !important;
+    }
+    .new-order-pulse {
+        animation: pulse-bg 1.5s infinite;
+    }
+    @keyframes pulse-bg {
+        0% { background-color: rgba(255, 193, 7, 0.15); }
+        50% { background-color: rgba(255, 193, 7, 0.4); }
+        100% { background-color: rgba(255, 193, 7, 0.15); }
     }
 </style>
 
-<!-- Top Bar: หัวข้อ + สถานะพนักงาน -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3 bg-white p-3 p-md-4 rounded-3 shadow-sm border">
-    <div class="d-flex align-items-center gap-3 flex-wrap">
-        <h3 class="fw-bold mb-0 text-dark d-flex align-items-center">
-            <i class="fas fa-utensils text-primary me-2 fs-4"></i> รายการออเดอร์หน้าร้าน
-        </h3>
-        <span class="badge bg-primary text-white rounded-pill px-3 py-2 fs-6 shadow-sm">
-            ออเดอร์ทั้งหมด: {{ orders|length if orders else 0 }}
-        </span>
+<!-- Header & Staff Status Bar -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fas fa-concierge-bell text-warning me-2"></i>รายการสั่งซื้ออาหาร (Staff Kitchen Board)</h3>
+        <p class="text-muted mb-0 small">จัดการสถานะรายการสั่งซื้อ รับออเดอร์จากหน้าบ้าน และเตรียมเสิร์ฟลูกค้าแบบ Real-time</p>
     </div>
+    <div class="d-flex align-items-center gap-2">
+        <!-- Sound Toggle -->
+        <button id="soundToggleBtn" class="btn btn-outline-warning btn-sm rounded-pill px-3 shadow-sm" onclick="toggleSound()">
+            <i class="fas fa-volume-up me-1" id="soundIcon"></i><span id="soundText">เปิดเสียงเตือน</span>
+        </button>
 
-    <!-- ปุ่มสลับสถานะพนักงาน -->
-    <div class="d-flex align-items-center gap-2 border-start-0 border-start-md ps-0 ps-md-3 pt-2 pt-md-0 w-100 w-md-auto justify-content-between justify-content-md-end">
-        <span class="fw-bold text-secondary small">สถานะพนักงาน:</span>
-        <div class="dropdown">
-            <button class="btn btn-sm btn-{{ 'success' if staff_status == 'ready' else 'danger' }} dropdown-toggle fw-bold rounded-pill px-3 shadow-sm"
-                type="button" data-bs-toggle="dropdown" id="staff-status-btn">
-                <i class="fas fa-circle me-1 small"></i> {{ 'พร้อมรับงาน' if staff_status == 'ready' else 'ไม่พร้อม (พัก)' }}
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-1">
-                <li>
-                    <a class="dropdown-item text-success fw-bold py-2" href="#"
-                        onclick="updateStaffStatus('ready'); return false;">
-                        <i class="fas fa-check-circle me-2"></i> พร้อมรับงาน
-                    </a>
-                </li>
-                <li>
-                    <hr class="dropdown-divider my-1">
-                </li>
-                <li>
-                    <a class="dropdown-item text-danger fw-bold py-2" href="#"
-                        onclick="updateStaffStatus('busy'); return false;">
-                        <i class="fas fa-minus-circle me-2"></i> ไม่พร้อม (พัก)
-                    </a>
-                </li>
-            </ul>
-        </div>
+        <label class="small text-muted fw-bold me-1 ms-2">สถานะพนักงาน:</label>
+        <select id="staffStatusSelect" class="form-select form-select-sm fw-bold border-0 shadow-sm rounded-pill px-3" style="width: auto;" onchange="changeStaffStatus(this.value)">
+            <option value="ready" {% if staff_status == 'ready' %}selected{% endif %}>🟢 พร้อมให้บริการ (Ready)</option>
+            <option value="busy" {% if staff_status == 'busy' %}selected{% endif %}>🔴 กำลังยุ่ง (Busy)</option>
+            <option value="break" {% if staff_status == 'break' %}selected{% endif %}>🟡 พักผ่อน (On Break)</option>
+        </select>
+        <button class="btn btn-outline-secondary btn-sm rounded-circle p-2 shadow-sm ms-2" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
+            <i class="fas fa-sync-alt" id="refreshIcon"></i>
+        </button>
     </div>
 </div>
 
-<!-- ปุ่มกรองออเดอร์ (Filter Bar) -->
-<div class="d-flex gap-2 mb-4 overflow-auto pb-2 px-1" id="filter-container">
-    <button class="btn btn-primary filter-btn rounded-pill px-3 py-2 active" onclick="filterOrders(this, 'all')">
-        <i class="fas fa-list me-1"></i> ทั้งหมด
+<!-- Filter Pills -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
+        <i class="fas fa-th-large me-1"></i>ทั้งหมด (<span id="cntAll">0</span>)
     </button>
-    <button class="btn btn-outline-warning text-dark filter-btn rounded-pill px-3 py-2"
-        onclick="filterOrders(this, 'pending')">
-        <i class="fas fa-clock me-1 text-warning"></i> รอดำเนินการ
+    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="pending" onclick="filterOrders('pending', this)">
+        <i class="fas fa-clock text-warning me-1"></i>รอดำเนินการ (<span id="cntPending">0</span>)
     </button>
-    <button class="btn btn-outline-info text-dark filter-btn rounded-pill px-3 py-2"
-        onclick="filterOrders(this, 'cooking')">
-        <i class="fas fa-fire me-1 text-info"></i> กำลังทำ
+    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="cooking" onclick="filterOrders('cooking', this)">
+        <i class="fas fa-fire text-primary me-1"></i>กำลังปรุงอาหาร (<span id="cntCooking">0</span>)
     </button>
-    <button class="btn btn-outline-success text-dark filter-btn rounded-pill px-3 py-2"
-        onclick="filterOrders(this, 'ready')">
-        <i class="fas fa-bell me-1 text-success"></i> พร้อมเสิร์ฟ
+    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="served" onclick="filterOrders('served', this)">
+        <i class="fas fa-utensils text-info me-1"></i>เสิร์ฟแล้ว (<span id="cntServed">0</span>)
+    </button>
+    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="completed" onclick="filterOrders('completed', this)">
+        <i class="fas fa-check-circle text-success me-1"></i>ชำระเงินแล้ว (<span id="cntCompleted">0</span>)
     </button>
 </div>
 
-<!-- Grid แสดงการ์ดสไตล์ใบเสร็จรับเงิน -->
-<div class="row g-4" id="orders-grid">
+<!-- Orders Grid Container -->
+<div class="row g-3" id="ordersGrid">
     {% if orders %}
     {% for order in orders %}
-    {% set order_status = (order.get('status') or 'pending') | string | lower %}
-    <div class="col-12 col-md-6 col-xl-4 order-card-wrapper" data-status="{{ order_status }}">
-        <div class="receipt-card receipt-zigzag rounded-top-3 pb-3">
+    {% set st = (order.status or 'pending') | lower %}
+    {% set order_id_str = (order.id | string) if order.id is defined and order.id else '' %}
+    {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
+    {% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
+    {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
+    {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else 0) %}
 
-            <!-- แถบสีสถานะด้านบนสุด -->
-            <div class="bg-{{ 'warning' if order_status == 'pending' else ('info' if order_status == 'cooking' else ('success' if order_status == 'ready' else 'secondary')) }} py-1">
+    <div class="col-12 col-md-6 col-lg-4 order-item-col" data-status="{{ st }}" id="order-card-{{ order_id_str }}">
+        <div class="card order-card shadow-sm h-100 bg-white status-{{ st }} {% if st == 'pending' %}new-order-pulse{% endif %}">
+            <div class="card-header bg-transparent border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace">#{{ order_id_str[:8] }}</span>
+                    <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
+                        <i class="fas fa-chair me-1"></i>โต๊ะ {{ table_no }}
+                    </span>
+                </div>
+                <div class="text-end">
+                    {% if st == 'pending' %}
+                        <span class="badge bg-warning text-dark rounded-pill"><i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ</span>
+                    {% elif st in ['cooking', 'in_progress', 'preparing'] %}
+                        <span class="badge bg-primary rounded-pill"><i class="fas fa-fire me-1"></i>กำลังปรุงอาหาร</span>
+                    {% elif st in ['cooked', 'served', 'ready'] %}
+                        <span class="badge bg-info text-dark rounded-pill"><i class="fas fa-concierge-bell me-1"></i>เสิร์ฟเรียบร้อย</span>
+                    {% elif st in ['completed', 'paid', 'success'] %}
+                        <span class="badge bg-success rounded-pill"><i class="fas fa-check-circle me-1"></i>ชำระเงินแล้ว</span>
+                    {% elif st in ['voided', 'cancelled'] %}
+                        <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>ยกเลิก</span>
+                    {% endif %}
+                </div>
             </div>
 
-            <!-- Receipt Header -->
-            <div class="p-3 pb-0">
-                <div class="text-center text-uppercase fw-bold text-muted small tracking-wider mb-1">
-                    *** ใบรายการสั่งอาหาร ***
-                </div>
+            <div class="card-body px-3 py-2 d-flex flex-column">
+                <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: {{ created_str.replace('T', ' ')[:16] }}</div>
+                
+                <h6 class="fw-bold mb-2 text-secondary small border-bottom pb-1"><i class="fas fa-list me-1"></i>รายการอาหารที่สั่ง:</h6>
+                <ul class="list-group list-group-flush mb-3 flex-grow-1">
+                    {% if items_list %}
+                        {% for item in items_list %}
+                        <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center border-0">
+                            <div>
+                                <span class="fw-bold text-dark">{{ item.name if item.name is defined else item.title }}</span>
+                                {% if item.spice_level and item.spice_level != 'ไม่เผ็ด' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">{{ item.spice_level }}</span>
+                                {% endif %}
+                                {% if item.notes %}
+                                    <small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>{{ item.notes }}</small>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-secondary rounded-pill fs-6 fw-bold">x{{ item.quantity if item.quantity is defined else (item.qty if item.qty is defined else 1) }}</span>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item px-0 py-2 bg-transparent text-muted small border-0">ไม่มีข้อมูลรายการ</li>
+                    {% endif %}
+                </ul>
 
-                <div class="d-flex justify-content-between align-items-start my-2">
+                <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
                     <div>
-                        <div class="fs-2 fw-bolder text-dark lh-1">
-                            {% set table_no = order.get('table_no') %}
-                            {% if table_no and table_no != 'ไม่ระบุ' %}
-                            โต๊ะ {{ table_no }}
-                            {% else %}
-                            <span class="fs-5 text-secondary">ไม่ระบุโต๊ะ / กลับบ้าน</span>
-                            {% endif %}
-                        </div>
-                        <div class="text-secondary small fw-bold mt-1">
-                            {% set order_id = (order.get('id') or '') | string %}
-                            NO: <span class="order-id-truncate align-bottom" title="#{{ order_id }}">#{{ order_id }}</span>
-                        </div>
+                        <span class="small text-muted d-block">ราคารวม:</span>
+                        <span class="fw-bold fs-5 text-success">฿{{ "%.2f"|format(total_amt|float) }}</span>
                     </div>
 
-                    <!-- ตราปั๊มสถานะ -->
-                    <div>
-                        {% if order_status == 'pending' %}
-                        <span class="status-stamp stamp-pending"><i class="fas fa-hourglass-start me-1"></i>รอดำเนินการ</span>
-                        {% elif order_status == 'cooking' %}
-                        <span class="status-stamp stamp-cooking"><i class="fas fa-fire me-1"></i>กำลังทำ</span>
-                        {% elif order_status == 'ready' %}
-                        <span class="status-stamp stamp-ready"><i class="fas fa-bell me-1"></i>พร้อมเสิร์ฟ</span>
-                        {% else %}
-                        <span class="status-stamp stamp-done"><i class="fas fa-check me-1"></i>เสร็จสิ้น</span>
+                    <!-- Quick Status Change Actions -->
+                    <div class="btn-group btn-group-sm">
+                        {% if st == 'pending' %}
+                            <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('{{ order_id_str }}', 'cooking')">
+                                <i class="fas fa-fire me-1"></i>เริ่มปรุง
+                            </button>
+                            <button type="button" class="btn btn-outline-danger rounded-circle ms-1" onclick="cancelOrder('{{ order_id_str }}')" title="ยกเลิกออเดอร์">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        {% elif st in ['cooking', 'in_progress', 'preparing'] %}
+                            <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('{{ order_id_str }}', 'served')">
+                                <i class="fas fa-concierge-bell me-1"></i>พร้อมเสิร์ฟ
+                            </button>
+                        {% elif st in ['cooked', 'served', 'ready'] %}
+                            <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold" disabled>
+                                <i class="fas fa-check me-1"></i>เสิร์ฟแล้ว
+                            </button>
                         {% endif %}
                     </div>
                 </div>
-
-                {% set created_at = order.get('created_at', '') %}
-                {% if created_at and created_at != '-' %}
-                <div class="text-end text-muted small fw-bold">
-                    เวลา: {{ (created_at | string).split(' ')[1] if ' ' in (created_at | string) else created_at }} น.
-                </div>
-                {% endif %}
-
-                <div class="receipt-divider"></div>
             </div>
-
-            <!-- Receipt Body: รายการสั่งซื้อ -->
-            <div class="px-3">
-                <div class="d-flex justify-content-between text-muted small fw-bold mb-2">
-                    <span>รายการ [QTY]</span>
-                    <span>ราคา</span>
-                </div>
-
-                <div class="bg-light p-2 rounded border border-secondary-subtle">
-                    <ul class="list-unstyled mb-0">
-                        {% set items_list = order.get('items') or order.get('order_items') or [] %}
-                        {% for item in items_list %}
-                        {% set item_qty = (item.get('quantity') or item.get('qty') or 1) | float %}
-                        {% set item_price = (item.get('price') or 0) | float %}
-                        {% set item_subtotal = (item.get('subtotal') or (item_qty * item_price)) | float %}
-                        <li class="d-flex justify-content-between align-items-center py-1 border-bottom border-light-subtle">
-                            <div class="d-flex align-items-center me-2 text-truncate">
-                                <span class="fw-bolder text-dark me-2">[x{{ item_qty | int }}]</span>
-                                <span class="fw-bold text-dark text-truncate" style="max-width: 160px;">{{ item.get('name', 'ไม่ระบุ') }}</span>
-                            </div>
-                            <span class="fw-bold text-dark">฿{{ "{:,.2f}".format(item_subtotal) }}</span>
-                        </li>
-                        {% else %}
-                        <li class="text-center text-muted small py-1">ไม่มีรายการอาหาร</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-
-                <div class="receipt-divider"></div>
-
-                <!-- ยอดรวมสุทธิ -->
-                {% set total_amt = (order.get('total_price') or order.get('total_amount') or 0) | float %}
-                <div class="d-flex justify-content-between align-items-center my-2">
-                    <span class="fw-bolder text-dark fs-6 text-uppercase">TOTAL / ยอดรวม</span>
-                    <span class="fw-bolder text-danger fs-3">฿{{ "{:,.2f}".format(total_amt) }}</span>
-                </div>
-
-                <div class="receipt-divider mb-3"></div>
-            </div>
-
-            <!-- Receipt Action Buttons -->
-            <div class="px-3">
-                <div class="d-flex gap-2">
-                    {% set curr_id = (order.get('id') or '') | string %}
-                    {% if order_status == 'pending' %}
-                    <button class="btn btn-warning flex-grow-1 fw-bold text-dark shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ curr_id }}', 'cooking', this)">
-                        <i class="fas fa-fire me-1"></i> เริ่มทำอาหาร
-                    </button>
-                    {% elif order_status == 'cooking' %}
-                    <button class="btn btn-info text-dark flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ curr_id }}', 'ready', this)">
-                        <i class="fas fa-bell me-1"></i> พร้อมเสิร์ฟ
-                    </button>
-                    {% elif order_status == 'ready' %}
-                    <button class="btn btn-success text-white flex-grow-1 fw-bold shadow-sm border-2 border-dark"
-                        onclick="changeOrderStatus('{{ curr_id }}', 'completed', this)">
-                        <i class="fas fa-check-circle me-1"></i> เสิร์ฟสำเร็จ
-                    </button>
-                    {% else %}
-                    <button class="btn btn-secondary flex-grow-1 disabled fw-bold" disabled>เสร็จสิ้นแล้ว</button>
-                    {% endif %}
-
-                    {% if order_status != 'completed' and order_status != 'cancelled' %}
-                    <button class="btn btn-outline-danger px-3 border-2" title="ยกเลิกออเดอร์"
-                        onclick="changeOrderStatus('{{ curr_id }}', 'cancelled', this)">
-                        <i class="fas fa-times fs-5"></i>
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-
         </div>
     </div>
     {% endfor %}
     {% else %}
-    <div class="col-12 text-center py-5">
-        <i class="fas fa-inbox text-muted display-4 mb-3"></i>
-        <h5 class="text-muted fw-bold">ไม่มีรายการออเดอร์ในขณะนี้</h5>
+    <div class="col-12 text-center py-5" id="noOrdersBox">
+        <div class="p-5 bg-white rounded-4 shadow-sm border">
+            <i class="fas fa-receipt fa-4x text-muted opacity-25 mb-3 d-block"></i>
+            <h5 class="fw-bold text-muted">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
+        </div>
     </div>
     {% endif %}
 </div>
-
-<!-- Empty State เมื่อไม่พบออเดอร์ -->
-<div id="no-orders-msg" class="text-center py-5 d-none">
-    <i class="fas fa-inbox text-muted display-4 mb-3"></i>
-    <h5 class="text-muted fw-bold">ไม่พบรายการออเดอร์ในสถานะนี้</h5>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    async function updateStaffStatus(status) {
-        try {
-            const response = await fetch('/staff/status/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: status })
-            });
+    let currentFilter = 'all';
+    let previousPendingCount = 0;
+    let isSoundEnabled = false;
+    let audioCtx = null;
 
-            const data = await response.json().catch(() => ({}));
-
-            if (response.ok && (data.status === 'success' || data.success)) {
-                location.reload();
-            } else {
-                alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถอัปเดตสถานะพนักงานได้'));
-            }
-        } catch (error) {
-            console.error('Error updating staff status:', error);
-            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    // ปลดล็อก AudioContext อัตโนมัติเมื่อผู้ใช้สัมผัสหน้าจอ
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
         }
     }
 
-    async function changeOrderStatus(orderId, nextStatus, btnElement) {
-        if (btnElement) {
-            btnElement.disabled = true;
-            btnElement.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
-        }
+    document.addEventListener('click', initAudioContext, { once: true });
+    document.addEventListener('keydown', initAudioContext, { once: true });
 
-        try {
-            const cleanOrderId = String(orderId).replace(/^#/, '');
-            const response = await fetch(`/staff/order/update-status/${encodeURIComponent(cleanOrderId)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: nextStatus })
-            });
+    document.addEventListener('DOMContentLoaded', () => {
+        updateCounts();
+        // เริ่มต้นการดึงข้อมูลอัตโนมัติทุกๆ 5 วินาที
+        setInterval(() => fetchOrdersRealtime(false), 5000);
+    });
 
-            const data = await response.json().catch(() => ({}));
+    function toggleSound() {
+        initAudioContext();
+        isSoundEnabled = !isSoundEnabled;
+        const btn = document.getElementById('soundToggleBtn');
+        const icon = document.getElementById('soundIcon');
+        const text = document.getElementById('soundText');
 
-            if (response.ok && (data.status === 'success' || data.success)) {
-                location.reload();
-            } else {
-                alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถอัปเดตสถานะออเดอร์ได้'));
-                if (btnElement) location.reload();
-            }
-        } catch (error) {
-            console.error('Error updating order status:', error);
-            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
-            if (btnElement) location.reload();
-        }
-    }
-
-    function filterOrders(btnElement, status) {
-        const buttons = document.querySelectorAll('.filter-btn');
-        buttons.forEach(btn => {
-            btn.classList.remove('active', 'btn-primary', 'btn-warning', 'btn-info', 'btn-success', 'btn-outline-warning', 'btn-outline-info', 'btn-outline-success', 'text-white');
-            btn.classList.add('btn-outline-secondary', 'text-dark');
-        });
-
-        btnElement.classList.remove('btn-outline-secondary');
-        btnElement.classList.add('active');
-
-        if (status === 'all') {
-            btnElement.classList.add('btn-primary', 'text-white');
-        } else if (status === 'pending') {
-            btnElement.classList.add('btn-warning', 'text-dark');
-        } else if (status === 'cooking') {
-            btnElement.classList.add('btn-info', 'text-dark');
-        } else if (status === 'ready') {
-            btnElement.classList.add('btn-success', 'text-white');
-        }
-
-        const cards = document.querySelectorAll('.order-card-wrapper');
-        let visibleCount = 0;
-
-        cards.forEach(card => {
-            const cardStatus = (card.dataset.status || '').toLowerCase().trim();
-            if (status === 'all' || cardStatus === status) {
-                card.classList.remove('d-none');
-                visibleCount++;
-            } else {
-                card.classList.add('d-none');
-            }
-        });
-
-        const noOrdersMsg = document.getElementById('no-orders-msg');
-        if (visibleCount === 0) {
-            noOrdersMsg.classList.remove('d-none');
+        if (isSoundEnabled) {
+            btn.classList.replace('btn-outline-warning', 'btn-warning');
+            icon.className = 'fas fa-volume-up me-1';
+            text.innerText = 'เปิดเสียงเตือนแล้ว';
+            playBeepSound(); // ทดสอบเสียง
         } else {
-            noOrdersMsg.classList.add('d-none');
+            btn.classList.replace('btn-warning', 'btn-outline-warning');
+            icon.className = 'fas fa-volume-mute me-1';
+            text.innerText = 'ปิดเสียงเตือน';
         }
+    }
+
+    function playBeepSound() {
+        if (!isSoundEnabled) return;
+        try {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.35);
+        } catch (e) {
+            console.log('Audio error:', e);
+        }
+    }
+
+    function filterOrders(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+
+        const items = document.querySelectorAll('.order-item-col');
+        items.forEach(item => {
+            const status = item.getAttribute('data-status') || '';
+            if (filter === 'all' || status === filter || 
+               (filter === 'cooking' && ['cooking', 'in_progress', 'preparing'].includes(status)) || 
+               (filter === 'served' && ['served', 'cooked', 'ready'].includes(status))) {
+                item.classList.remove('d-none');
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+    }
+
+    function updateCounts() {
+        const items = document.querySelectorAll('.order-item-col');
+        let counts = { all: 0, pending: 0, cooking: 0, served: 0, completed: 0 };
+
+        items.forEach(item => {
+            const st = item.getAttribute('data-status') || '';
+            counts.all++;
+            if (st === 'pending') counts.pending++;
+            else if (['cooking', 'in_progress', 'preparing'].includes(st)) counts.cooking++;
+            else if (['served', 'cooked', 'ready'].includes(st)) counts.served++;
+            else if (['completed', 'paid', 'success'].includes(st)) counts.completed++;
+        });
+
+        document.getElementById('cntAll').innerText = counts.all;
+        document.getElementById('cntPending').innerText = counts.pending;
+        document.getElementById('cntCooking').innerText = counts.cooking;
+        document.getElementById('cntServed').innerText = counts.served;
+        document.getElementById('cntCompleted').innerText = counts.completed;
+
+        // แจ้งเตือนเมื่อมีออเดอร์ใหม่จากหน้าบ้านเข้ามา
+        if (counts.pending > previousPendingCount && previousPendingCount !== 0) {
+            playBeepSound();
+        }
+        previousPendingCount = counts.pending;
+    }
+
+    function fetchOrdersRealtime(showLoading = false) {
+        const refreshIcon = document.getElementById('refreshIcon');
+        if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+        fetch('/staff/api/orders')
+            .then(res => res.json())
+            .then(data => {
+                if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+                if (data.status === 'success') {
+                    renderOrdersGrid(data.orders || []);
+                }
+            })
+            .catch(err => {
+                if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+                console.error('Error fetching orders:', err);
+            });
+    }
+
+    function renderOrdersGrid(orders) {
+        const grid = document.getElementById('ordersGrid');
+        if (!orders || orders.length === 0) {
+            grid.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <div class="p-5 bg-white rounded-4 shadow-sm border">
+                        <i class="fas fa-receipt fa-4x text-muted opacity-25 mb-3 d-block"></i>
+                        <h5 class="fw-bold text-muted">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
+                    </div>
+                </div>`;
+            updateCounts();
+            return;
+        }
+
+        let html = '';
+        orders.forEach(order => {
+            const st = (order.status || 'pending').toLowerCase();
+            const orderId = String(order.id || '');
+            const tableNo = order.table_no || order.table || '-';
+            const createdAt = String(order.created_at || '-').replace('T', ' ').substring(0, 16);
+            const items = Array.isArray(order.items) ? order.items : [];
+            const totalAmt = parseFloat(order.total_price || order.total_amount || 0).toFixed(2);
+
+            let statusBadge = '';
+            if (st === 'pending') statusBadge = '<span class="badge bg-warning text-dark rounded-pill"><i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ</span>';
+            else if (['cooking', 'in_progress', 'preparing'].includes(st)) statusBadge = '<span class="badge bg-primary rounded-pill"><i class="fas fa-fire me-1"></i>กำลังปรุงอาหาร</span>';
+            else if (['cooked', 'served', 'ready'].includes(st)) statusBadge = '<span class="badge bg-info text-dark rounded-pill"><i class="fas fa-concierge-bell me-1"></i>เสิร์ฟเรียบร้อย</span>';
+            else if (['completed', 'paid', 'success'].includes(st)) statusBadge = '<span class="badge bg-success rounded-pill"><i class="fas fa-check-circle me-1"></i>ชำระเงินแล้ว</span>';
+            else if (['voided', 'cancelled'].includes(st)) statusBadge = '<span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>ยกเลิก</span>';
+
+            let itemsHtml = '';
+            if (items.length > 0) {
+                items.forEach(item => {
+                    const name = item.name || item.title || 'รายการอาหาร';
+                    const qty = item.quantity || item.qty || 1;
+                    const spice = (item.spice_level && item.spice_level !== 'ไม่เผ็ด') ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">${item.spice_level}</span>` : '';
+                    const notes = item.notes ? `<small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>${item.notes}</small>` : '';
+                    
+                    itemsHtml += `
+                        <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center border-0">
+                            <div>
+                                <span class="fw-bold text-dark">${name}</span>${spice}${notes}
+                            </div>
+                            <span class="badge bg-secondary rounded-pill fs-6 fw-bold">x${qty}</span>
+                        </li>`;
+                });
+            } else {
+                itemsHtml = '<li class="list-group-item px-0 py-2 bg-transparent text-muted small border-0">ไม่มีข้อมูลรายการ</li>';
+            }
+
+            let actionBtnHtml = '';
+            if (st === 'pending') {
+                actionBtnHtml = `
+                    <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('${orderId}', 'cooking')">
+                        <i class="fas fa-fire me-1"></i>เริ่มปรุง
+                    </button>
+                    <button type="button" class="btn btn-outline-danger rounded-circle ms-1" onclick="cancelOrder('${orderId}')" title="ยกเลิกออเดอร์">
+                        <i class="fas fa-times"></i>
+                    </button>`;
+            } else if (['cooking', 'in_progress', 'preparing'].includes(st)) {
+                actionBtnHtml = `
+                    <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('${orderId}', 'served')">
+                        <i class="fas fa-concierge-bell me-1"></i>พร้อมเสิร์ฟ
+                    </button>`;
+            } else if (['cooked', 'served', 'ready'].includes(st)) {
+                actionBtnHtml = `
+                    <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold" disabled>
+                        <i class="fas fa-check me-1"></i>เสิร์ฟแล้ว
+                    </button>`;
+            }
+
+            const pulseClass = st === 'pending' ? 'new-order-pulse' : '';
+
+            html += `
+            <div class="col-12 col-md-6 col-lg-4 order-item-col" data-status="${st}" id="order-card-${orderId}">
+                <div class="card order-card shadow-sm h-100 bg-white status-${st} ${pulseClass}">
+                    <div class="card-header bg-transparent border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace">#${orderId.substring(0, 8)}</span>
+                            <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
+                                <i class="fas fa-chair me-1"></i>โต๊ะ ${tableNo}
+                            </span>
+                        </div>
+                        <div class="text-end">${statusBadge}</div>
+                    </div>
+                    <div class="card-body px-3 py-2 d-flex flex-column">
+                        <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: ${createdAt}</div>
+                        <h6 class="fw-bold mb-2 text-secondary small border-bottom pb-1"><i class="fas fa-list me-1"></i>รายการอาหารที่สั่ง:</h6>
+                        <ul class="list-group list-group-flush mb-3 flex-grow-1">${itemsHtml}</ul>
+                        <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
+                            <div>
+                                <span class="small text-muted d-block">ราคารวม:</span>
+                                <span class="fw-bold fs-5 text-success">฿${totalAmt}</span>
+                            </div>
+                            <div class="btn-group btn-group-sm">${actionBtnHtml}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        grid.innerHTML = html;
+        const activeFilterBtn = document.querySelector(`.filter-btn[data-filter="${currentFilter}"]`);
+        filterOrders(currentFilter, activeFilterBtn);
+        updateCounts();
+    }
+
+    function updateOrderStatus(orderId, newStatus) {
+        fetch('/staff/order/update-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: orderId, status: newStatus })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'อัปเดตสถานะสำเร็จ!',
+                    text: data.message || 'เปลี่ยนสถานะเรียบร้อยแล้ว',
+                    icon: 'success',
+                    timer: 1000,
+                    showConfirmButton: false
+                }).then(() => fetchOrdersRealtime(false));
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถอัปเดตสถานะได้', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+        });
+    }
+
+    function cancelOrder(orderId) {
+        Swal.fire({
+            title: 'ยืนยันการยกเลิกออเดอร์?',
+            text: "คุณต้องการยกเลิกออเดอร์นี้ใช่หรือไม่?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'ยืนยันยกเลิก',
+            cancelButtonText: 'ย้อนกลับ'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                updateOrderStatus(orderId, 'cancelled');
+            }
+        });
+    }
+
+    function changeStaffStatus(newStatus) {
+        fetch('/staff/status/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'อัปเดตสถานะพนักงานเรียบร้อย',
+                    icon: 'success',
+                    timer: 1000,
+                    showConfirmButton: false
+                });
+            }
+        });
     }
 </script>
 {% endblock %}

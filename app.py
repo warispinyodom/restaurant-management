@@ -9,7 +9,7 @@ from auth_utils import (
     check_credentials
 )
 
-# 2. นำเข้า Blueprints จากแต่ละระบบ
+# 2. นำเข้า Blueprints สำหรับแต่ละส่วนของระบบ
 from staff_utils import staff_bp
 from admin_routes import admin_bp
 from customer_routes import customer_bp

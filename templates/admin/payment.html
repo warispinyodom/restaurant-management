@@ -58,7 +58,6 @@
         border: 1px solid #e2e8f0;
     }
 
-    /* Custom Search Input UI Improvements */
     .search-input-wrapper {
         position: relative;
         width: 100%;
@@ -192,7 +191,7 @@
 
             <div class="qr-container">
                 {% if pay.qr_image %}
-                {% set qr_url = pay.qr_image if pay.qr_image.startswith('http') else url_for('static', filename='uploads/' + pay.qr_image) %}
+                {% set qr_url = pay.qr_image if (pay.qr_image.startswith('http') or pay.qr_image.startswith('/')) else url_for('static', filename='uploads/' + pay.qr_image) %}
                 <img src="{{ qr_url }}" class="qr-img" alt="QR Code">
                 {% else %}
                 <div class="text-muted text-center p-3">

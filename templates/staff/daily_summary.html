@@ -1,0 +1,55 @@
+<!-- templates/staff/daily_summary.html -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold"><i class="fas fa-chart-line text-info me-2"></i>สรุปยอดขายประจำวัน (Daily Summary)</h3>
+        <input type="date" id="summaryDateSelect" class="form-control form-control-sm border-0 shadow-sm rounded-pill px-3" style="width: auto;" value="{{ summary.date }}" onchange="location.href='?date='+this.value">
+    </div>
+
+    <!-- Cards ตัวเลขสรุป -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-success text-white p-3">
+                <small class="opacity-75">ยอดขายรวมสุทธิ</small>
+                <div class="fs-2 fw-bold">฿{{ "%.2f"|format(summary.total_sales or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3">
+                <small class="opacity-75">จำนวนออเดอร์ที่ปิดบิล</small>
+                <div class="fs-2 fw-bold">{{ summary.total_orders or 0 }} รายการ</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-dark text-white p-3">
+                <small class="opacity-75">เฉลี่ยต่อออเดอร์</small>
+                <div class="fs-2 fw-bold">
+                    ฿{{ "%.2f"|format((summary.total_sales / summary.total_orders) if summary.total_orders else 0) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- จำแนกตามช่องทางชำระเงิน -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white py-3 fw-bold"><i class="fas fa-wallet me-2 text-warning"></i>แยกตามช่องทางชำระเงิน</div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% if summary.payment_breakdown %}
+                {% for method, amt in summary.payment_breakdown.items() %}
+                <div class="col-6 col-md-3">
+                    <div class="p-3 border rounded-3 bg-light">
+                        <div class="small text-muted mb-1">{{ method }}</div>
+                        <div class="fs-5 fw-bold text-dark">฿{{ "%.2f"|format(amt) }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="col-12 text-muted">ไม่มีข้อมูลการชำระเงิน</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
