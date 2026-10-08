@@ -285,14 +285,16 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- Flash Messages จาก Flask Backend -->
+    <!-- Flash Messages จาก Flask Backend (กรองข้อความเรื่องเลือกโต๊ะออกหากไม่มีโต๊ะเพื่อไม่ให้ซ้ำซ้อน) -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
+                {% if selected_table_no or ('เลือกโต๊ะ' not in message and 'โต๊ะอาหาร' not in message) %}
                 <div class="alert alert-{{ 'danger' if category == 'error' else (category if category in ['warning', 'info', 'success'] else 'primary') }} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
                     <i class="fas fa-info-circle me-2"></i> {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
+                {% endif %}
             {% endfor %}
         {% endif %}
     {% endwith %}
@@ -307,7 +309,7 @@
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <span class="badge bg-primary rounded-pill px-3 py-1 fw-bold">โต๊ะปัจจุบัน</span>
                     <h4 class="fw-bold m-0 text-white fs-5 fs-md-4" id="displayTableNo">
-                        {% if selected_table_no %} โต๊ะ {{ selected_table_no }} {% else %} <span class="text-warning">ไม่ได้เลือกโต๊ะ</span> {% endif %}
+                        {% if selected_table_no %} โต๊ะ {{ selected_table_no }} {% else %} <span class="text-warning">ยังไม่ได้เลือกโต๊ะ</span> {% endif %}
                     </h4>
                 </div>
                 <p class="small text-slate-300 m-0 mt-1">
@@ -335,6 +337,24 @@
         </div>
     </div>
 
+    <!-- กล่องแจ้งเตือนเลือกโต๊ะอาหารเพียงตัวเดียวเมื่อยังไม่ได้เลือกโต๊ะ -->
+    {% if not selected_table_no %}
+    <div class="alert alert-warning rounded-4 shadow-sm mb-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border-0 bg-white p-3" role="alert">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-warning-subtle text-warning p-2.5 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+                <i class="fas fa-exclamation-triangle fs-4"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0 text-slate-800">ยังไม่ได้เลือกโต๊ะอาหาร</h6>
+                <span class="small text-muted">กรุณาเลือกโต๊ะอาหารของคุณก่อนเริ่มเลือกและสั่งซื้อเมนูอาหาร</span>
+            </div>
+        </div>
+        <a href="{{ url_for('customer.customer_choose_table') }}" class="btn btn-warning btn-sm rounded-pill px-4 py-2 fw-bold align-self-stretch align-self-sm-center flex-shrink-0 text-dark shadow-sm">
+            <i class="fas fa-chair me-1"></i> เลือกโต๊ะอาหารตอนนี้
+        </a>
+    </div>
+    {% endif %}
+
     <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
     <div id="serviceCallBanner" class="alert alert-warning rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
@@ -360,18 +380,6 @@
             <i class="fas fa-list-check me-1"></i> ดูออเดอร์ทั้งหมด
         </button>
     </div>
-
-    {% if not selected_table_no %}
-    <div class="alert alert-danger rounded-4 shadow-sm mb-4 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2" role="alert">
-        <div class="d-flex align-items-center">
-            <i class="fas fa-exclamation-triangle me-2 fs-5 flex-shrink-0"></i>
-            <span><strong>ยังไม่ได้เลือกโต๊ะอาหาร:</strong> กรุณาเลือกโต๊ะอาหารก่อนสั่งเมนู</span>
-        </div>
-        <a href="{{ url_for('customer.customer_choose_table') }}" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold align-self-start align-self-sm-center flex-shrink-0">
-            เลือกโต๊ะอาหารตอนนี้
-        </a>
-    </div>
-    {% endif %}
 
     <div class="row g-3 g-md-4">
         <!-- ฝั่งซ้าย: แถบค้นหา หมวดหมู่ และการ์ดรายการเมนู -->
@@ -704,9 +712,7 @@
     function formatOrderId(rawId) {
         if (!rawId) return '';
         const strId = String(rawId).trim();
-        // ลบเครื่องหมาย - หรือ # ด้านหน้าออกก่อน
         const cleanId = strId.replace(/^[-#]+/, '');
-        // หากมีความยาวมากกว่า 8 ตัวอักษร ให้ดึงเฉพาะ 6 ตัวท้ายมาแสดงเป็นตัวพิมพ์ใหญ่
         if (cleanId.length > 8) {
             return cleanId.slice(-6).toUpperCase();
         }

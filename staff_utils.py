@@ -129,13 +129,25 @@ def get_all_tables():
         return []
 
 def get_all_service_requests():
-    """ดึงการเรียกพนักงาน/บริการ"""
+    """ดึงการเรียกพนักงาน/การแจ้งเตือน โดยรวมจาก notifications, service_requests และ service_calls"""
     try:
-        raw_requests = get_firebase_data('service_requests')
-        if not raw_requests:
-            raw_requests = get_firebase_data('service_calls')
+        combined_data = {}
 
-        requests = parse_firebase_data(raw_requests)
+        # 1. ดึงข้อมูลหลักจาก notifications node
+        notif_data = get_firebase_data('notifications')
+        if isinstance(notif_data, dict):
+            combined_data.update(notif_data)
+
+        # 2. ดึงข้อมูลสำรองจาก service_requests และ service_calls
+        sr_data = get_firebase_data('service_requests')
+        if isinstance(sr_data, dict):
+            combined_data.update(sr_data)
+
+        sc_data = get_firebase_data('service_calls')
+        if isinstance(sc_data, dict):
+            combined_data.update(sc_data)
+
+        requests = parse_firebase_data(combined_data)
         requests.sort(key=lambda x: str(x.get('created_at') or x.get('timestamp') or x.get('id') or ''), reverse=True)
         return requests
     except Exception as e:
@@ -168,7 +180,7 @@ def api_staff_service_requests():
     """API ดึงรายการเรียกพนักงานสำหรับ Auto-refresh/AJAX"""
     try:
         requests_list = get_all_service_requests() or []
-        # คัดกรองเฉพาะรายการที่ยังไม่ได้ดำเนินการ (ถ้ามี field status)
+        # คัดกรองเฉพาะรายการที่ยังไม่ได้ดำเนินการ
         active_requests = [
             req for req in requests_list 
             if str(req.get('status', 'pending')).lower() not in ['resolved', 'completed', 'done', 'cancelled']
@@ -185,7 +197,7 @@ def api_staff_service_requests():
 @staff_bp.route('/staff/api/notifications/check')
 @staff_required
 def api_staff_check_notifications():
-    """API พิเศษสำหรับ Polling เช็คการเรียกพนักงาน และออเดอร์ใหม่แบบเบาๆ จากทุกหน้า"""
+    """API พิเศษสำหรับ Polling เช็คการเรียกพนักงาน"""
     try:
         requests_list = get_all_service_requests() or []
         active_requests = [
@@ -205,7 +217,7 @@ def api_staff_check_notifications():
 @staff_bp.route('/staff/service-requests/resolve', methods=['POST'])
 @staff_required
 def staff_update_service_request_status():
-    """อัปเดตสถานะ หรือ ลบรายการเมื่อดำเนินการเสร็จสิ้น"""
+    """อัปเดตสถานะ หรือ ลบรายการออกจากฐานข้อมูลเมื่อพนักงานกดเสร็จสิ้น"""
     try:
         data = request.get_json(silent=True) or request.form.to_dict() or {}
         request_id = data.get('request_id') or data.get('id')
@@ -214,10 +226,14 @@ def staff_update_service_request_status():
         if not request_id:
             return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการ'}), 400
 
-        # หากกดเสร็จสิ้น (resolved/completed) ให้ลบรายการออกจาก Realtime Database ทันที
+        # หากกดเสร็จสิ้น (resolved/completed/delete) ให้ทำการลบออกจาก notifications และโหนดที่เกี่ยวข้องใน Firebase ทันที
         if new_status in ['resolved', 'completed', 'delete']:
-            if delete_firebase_data('service_requests', request_id):
-                return jsonify({'status': 'success', 'message': 'ลบรายการเรียกพนักงานเรียบร้อยแล้ว'})
+            res_notif = delete_firebase_data('notifications', request_id)
+            res_sr = delete_firebase_data('service_requests', request_id)
+            res_sc = delete_firebase_data('service_calls', request_id)
+
+            if res_notif or res_sr or res_sc:
+                return jsonify({'status': 'success', 'message': 'ลบรายการแจ้งเตือนเรียบร้อยแล้ว'})
             return jsonify({'status': 'error', 'message': 'ไม่สามารถลบรายการออกจากระบบได้'}), 500
 
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -226,7 +242,12 @@ def staff_update_service_request_status():
             'updated_at': now_str
         }
 
-        if patch_firebase_data('service_requests', request_id, patch_payload):
+        # กรณีรับเรื่อง (in_progress) ให้ patch สถานะไปยังโหนดต่างๆ
+        res_notif = patch_firebase_data('notifications', request_id, patch_payload)
+        res_sr = patch_firebase_data('service_requests', request_id, patch_payload)
+        res_sc = patch_firebase_data('service_calls', request_id, patch_payload)
+
+        if res_notif or res_sr or res_sc:
             return jsonify({'status': 'success', 'message': 'อัปเดตสถานะเรียบร้อยแล้ว'})
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตรายการในระบบได้'}), 500
     except Exception as e:
