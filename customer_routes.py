@@ -348,6 +348,7 @@ def customer_call_staff():
         return jsonify({'status': 'error', 'message': 'กรุณาเลือกโต๊ะก่อนเรียกพนักงาน'}), 400
 
     request_type = data.get('request_type', 'เรียกพนักงาน')
+    user_key = get_current_user_key()
 
     try:
         payload = {
@@ -355,6 +356,7 @@ def customer_call_staff():
             "table_id": table_id or "",
             "request_type": request_type,
             "status": "pending",
+            "user_key": user_key or "",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -366,9 +368,50 @@ def customer_call_staff():
             pass
 
         if response and 'name' in response:
-            return jsonify({'status': 'success', 'message': 'แจ้งพนักงานเรียบร้อยแล้ว', 'id': response.get('name')})
+            req_id = response.get('name')
+            return jsonify({
+                'status': 'success', 
+                'message': 'แจ้งพนักงานเรียบร้อยแล้ว', 
+                'id': req_id,
+                'request_id': req_id
+            })
         else:
             raise Exception("Firebase Response Error")
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@customer_bp.route('/customer/api/service_requests')
+def customer_api_service_requests():
+    """API ดึงข้อมูลสถานะคำขอเรียกพนักงานของลูกค้าแบบ Real-time"""
+    if session.get('role') != 'customer':
+        return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
+
+    sync_user_table_session()
+
+    user_keys = get_current_user_keys()
+    current_table_no = str(session.get('selected_table_no', '')).strip()
+
+    req_ids_str = request.args.get('request_ids', '').strip()
+    param_req_ids = set(x.strip() for x in req_ids_str.split(',') if x.strip()) if req_ids_str else set()
+
+    try:
+        raw_requests = get_firebase_data('service_requests')
+        all_requests = parse_firebase_data(raw_requests)
+
+        matched_requests = []
+        for req in all_requests:
+            req_id = str(req.get('id', ''))
+            req_user_key = str(req.get('user_key', '')).strip()
+            req_table_no = str(req.get('table_no', '')).strip()
+
+            is_user_match = (req_user_key and req_user_key in user_keys)
+            is_id_match = (req_id and req_id in param_req_ids)
+            is_table_match = (current_table_no and req_table_no == current_table_no)
+
+            if is_user_match or is_id_match or is_table_match:
+                matched_requests.append(req)
+
+        return jsonify({'status': 'success', 'requests': matched_requests})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -379,7 +422,6 @@ def customer_api_orders():
 
     sync_user_table_session()
 
-    # ดึงค่าระบุตัวตนทั้งหมดของลูกค้าใน Session ปัจจุบัน
     user_keys = get_current_user_keys()
 
     req_order_ids = request.args.get('order_ids', '').strip()
@@ -398,14 +440,10 @@ def customer_api_orders():
             ord_user_key = str(ord_item.get('user_key', '')).strip()
             ord_status = str(ord_item.get('status', '')).lower()
 
-            # 1. เช็ค user_key เป็นหลัก
             if ord_user_key:
-                # ต้อง match กับ user_keys ของคนที่กำลังล็อกอินอยู่เท่านั้น
                 if ord_user_key in user_keys:
                     matched_orders.append(ord_item)
-                # หากเป็น user_key ของผู้ใช้อื่น ให้ข้ามทันที แม้จะมี order_id ส่งมาใน URL
             else:
-                # 2. รองรับกรณีออเดอร์เก่าที่ไม่มี user_key (Legacy)
                 match_order_id = bool(ord_id and ord_id in param_order_ids)
                 
                 ord_table_id = str(ord_item.get('table_id', ''))

@@ -269,7 +269,7 @@
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
     <!-- Header Banner สำหรับแสดงสถานะโต๊ะและเมนูลัด -->
-    <div class="table-info-banner mb-4 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
+    <div class="table-info-banner mb-3 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
             <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; min-width: 48px;">
                 <i class="fas fa-chair fs-4 text-primary"></i>
@@ -291,8 +291,11 @@
             <a href="{{ url_for('customer.customer_choose_table') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1.5 fw-medium">
                 <i class="fas fa-exchange-alt me-1"></i> สลับ/เลือกโต๊ะ
             </a>
-            <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1.5 fw-bold text-dark shadow-sm" onclick="openCallStaffModal()">
+            <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1.5 fw-bold text-dark shadow-sm position-relative" onclick="openCallStaffModal()">
                 <i class="fas fa-bell me-1"></i> เรียกพนักงาน / เช็คบิล
+                <span id="activeCallBadge" class="position-absolute top-0 start-100 translate-middle p-1.5 bg-danger border border-light rounded-circle d-none">
+                    <span class="visually-hidden">Active call</span>
+                </span>
             </button>
             <button type="button" class="btn btn-sm btn-info text-white rounded-pill px-3 py-1.5 fw-bold position-relative shadow-sm" onclick="openOrderHistoryModal()">
                 <i class="fas fa-clock-rotate-left me-1"></i> ติดตามออเดอร์
@@ -301,6 +304,18 @@
                 </span>
             </button>
         </div>
+    </div>
+
+    <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
+    <div id="serviceCallBanner" class="alert alert-info rounded-4 shadow-sm mb-4 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="spinner-grow text-primary flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            <div>
+                <h6 class="fw-bold mb-0 text-slate-800" id="serviceCallTitle">สถานะการเรียกพนักงาน</h6>
+                <span class="small text-muted" id="serviceCallDesc">กำลังส่งสัญญาณแจ้งพนักงาน...</span>
+            </div>
+        </div>
+        <span class="badge rounded-pill px-3 py-2 fw-bold flex-shrink-0" id="serviceCallStatusBadge">รอดำเนินการ</span>
     </div>
 
     {% if not selected_table_no %}
@@ -639,15 +654,19 @@
     let cart = [];
     const hasSelectedTable = "{{ selected_table_no or '' }}" !== "";
     const currentTableNo = "{{ selected_table_no or '' }}";
+    let lastCallStatuses = {};
 
     document.addEventListener('DOMContentLoaded', function() {
         syncCartUI();
         togglePaymentQR('desktop');
         togglePaymentQR('mobile');
         fetchLiveOrders();
+        fetchLiveServiceCalls();
         setInterval(fetchLiveOrders, 8000);
+        setInterval(fetchLiveServiceCalls, 4000);
     });
 
+    /* --- LocalStorage Management สำหรับออเดอร์และคำขอเรียกพนักงาน --- */
     function getSavedOrderIds() {
         try {
             const saved = localStorage.getItem('customer_order_ids');
@@ -677,6 +696,40 @@
                 const oid = ord.id || ord.order_id;
                 if (oid) saveOrderId(oid);
             });
+        }
+    }
+
+    function getSavedCallIds() {
+        try {
+            const saved = localStorage.getItem('customer_call_ids');
+            return saved ? JSON.parse(saved) : [];
+        } catch(e) {
+            return [];
+        }
+    }
+
+    function saveCallId(callId) {
+        if (!callId) return;
+        try {
+            let ids = getSavedCallIds();
+            const idStr = String(callId);
+            if (!ids.includes(idStr)) {
+                ids.push(idStr);
+                localStorage.setItem('customer_call_ids', JSON.stringify(ids));
+            }
+        } catch(e) {
+            console.error('Error saving call ID:', e);
+        }
+    }
+
+    function removeCallId(callId) {
+        try {
+            let ids = getSavedCallIds();
+            const idStr = String(callId);
+            ids = ids.filter(id => id !== idStr);
+            localStorage.setItem('customer_call_ids', JSON.stringify(ids));
+        } catch(e) {
+            console.error('Error removing call ID:', e);
         }
     }
 
@@ -979,7 +1032,6 @@
                     saveOrderId(newOrderId);
                 }
 
-                // ปิด Offcanvas บนมือถือถ้าเปิดอยู่
                 const offcanvasElem = document.getElementById('mobileCartOffcanvas');
                 if (offcanvasElem && typeof bootstrap !== 'undefined') {
                     const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasElem);
@@ -1122,6 +1174,155 @@
         }).join('');
     }
 
+    /* --- ระบบตรวจจับและแสดงสถานะการเรียกพนักงานแบบ Real-time --- */
+    function fetchLiveServiceCalls() {
+        const localCallIds = getSavedCallIds();
+        if (localCallIds.length === 0 && !currentTableNo) {
+            renderServiceCallUI([]);
+            return;
+        }
+
+        const queryParams = new URLSearchParams();
+        if (currentTableNo) {
+            queryParams.append('table_no', currentTableNo);
+        }
+        if (localCallIds.length > 0) {
+            queryParams.append('request_ids', localCallIds.join(','));
+        }
+
+        fetch('/customer/api/service_requests?' + queryParams.toString())
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const requests = data.requests || [];
+                    processCallStatusChanges(requests, localCallIds);
+                    renderServiceCallUI(requests);
+                }
+            })
+            .catch(err => console.error('Error fetching service calls:', err));
+    }
+
+    function processCallStatusChanges(requests, localCallIds) {
+        const currentReqMap = {};
+        requests.forEach(req => {
+            if (req.id) {
+                currentReqMap[String(req.id)] = req;
+            }
+        });
+
+        localCallIds.forEach(id => {
+            const req = currentReqMap[id];
+            const oldStatus = lastCallStatuses[id];
+
+            if (!req) {
+                // หาก Staff กดเสร็จสิ้นแล้วลบรายการออกจากฐานข้อมูล
+                if (oldStatus && oldStatus !== 'completed') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'พนักงานให้บริการเรียบร้อยแล้ว',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                }
+                removeCallId(id);
+                delete lastCallStatuses[id];
+            } else {
+                const newStatus = strToLowerCase(req.status);
+
+                // กรณีที่ Staff กดรับเรื่อง (เปลี่ยนสถานะจาก pending -> in_progress หรือ accepted)
+                if (oldStatus === 'pending' && (newStatus === 'in_progress' || newStatus === 'accepted' || newStatus === 'cooking')) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'พนักงานรับเรื่องแล้ว!',
+                        text: `พนักงานกำลังเดินทางมาให้บริการ "${req.request_type || 'เรียกพนักงาน'}" ที่โต๊ะของคุณ`,
+                        confirmButtonText: 'ตกลง',
+                        confirmButtonColor: '#2563eb'
+                    });
+                }
+
+                // กรณีที่ Staff กดเปลี่ยนสถานะเป็น completed
+                if (newStatus === 'completed') {
+                    if (oldStatus && oldStatus !== 'completed') {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'พนักงานให้บริการเรียบร้อยแล้ว',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                    removeCallId(id);
+                    delete lastCallStatuses[id];
+                } else {
+                    lastCallStatuses[id] = newStatus;
+                }
+            }
+        });
+
+        // บันทึกรายการใหม่ที่พบในฐานข้อมูลลงใน Storage
+        requests.forEach(req => {
+            if (req.id) {
+                const st = strToLowerCase(req.status);
+                if (st !== 'completed') {
+                    saveCallId(req.id);
+                    if (!lastCallStatuses[req.id]) {
+                        lastCallStatuses[req.id] = st;
+                    }
+                }
+            }
+        });
+    }
+
+    function renderServiceCallUI(requests) {
+        const activeCalls = requests.filter(r => {
+            const st = strToLowerCase(r.status);
+            return st === 'pending' || st === 'in_progress' || st === 'accepted';
+        });
+
+        const activeBadge = document.getElementById('activeCallBadge');
+        const banner = document.getElementById('serviceCallBanner');
+        const titleElem = document.getElementById('serviceCallTitle');
+        const descElem = document.getElementById('serviceCallDesc');
+        const badgeElem = document.getElementById('serviceCallStatusBadge');
+
+        if (activeCalls.length > 0) {
+            if (activeBadge) activeBadge.classList.remove('d-none');
+
+            if (banner) {
+                banner.classList.remove('d-none');
+                banner.classList.add('d-flex');
+
+                const latest = activeCalls[0];
+                const st = strToLowerCase(latest.status);
+
+                if (st === 'in_progress' || st === 'accepted') {
+                    if (titleElem) titleElem.innerText = `พนักงานรับเรื่องแล้ว: ${latest.request_type || 'บริการ'}`;
+                    if (descElem) descElem.innerText = 'พนักงานกำลังเดินทางมาให้บริการที่โต๊ะของคุณ';
+                    if (badgeElem) {
+                        badgeElem.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold';
+                        badgeElem.innerHTML = '<i class="fas fa-user-check me-1"></i>พนักงานกำลังมา';
+                    }
+                } else {
+                    if (titleElem) titleElem.innerText = `กำลังเรียกพนักงาน: ${latest.request_type || 'บริการ'}`;
+                    if (descElem) descElem.innerText = 'ระบบแจ้งพนักงานเรียบร้อยแล้ว กรุณารอสักครู่...';
+                    if (badgeElem) {
+                        badgeElem.className = 'badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold';
+                        badgeElem.innerHTML = '<i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ';
+                    }
+                }
+            }
+        } else {
+            if (activeBadge) activeBadge.classList.add('d-none');
+            if (banner) {
+                banner.classList.add('d-none');
+                banner.classList.remove('d-flex');
+            }
+        }
+    }
+
     function strToLowerCase(val) {
         return val ? String(val).toLowerCase() : '';
     }
@@ -1170,6 +1371,12 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                const reqId = data.id || data.request_id;
+                if (reqId) {
+                    saveCallId(reqId);
+                    lastCallStatuses[reqId] = 'pending';
+                }
+
                 Swal.fire({
                     title: 'ส่งสัญญาณเรียบร้อย!',
                     text: `ระบบได้แจ้งพนักงานเกี่ยวกับ "${type}" แล้วครับ`,
@@ -1177,6 +1384,8 @@
                     timer: 2000,
                     showConfirmButton: false
                 });
+
+                fetchLiveServiceCalls();
             } else {
                 Swal.fire({
                     title: 'ไม่สามารถส่งสัญญาณได้',

@@ -6,6 +6,7 @@ from firebase_utils import (
     get_firebase_data, 
     post_firebase_data, 
     patch_firebase_data, 
+    delete_firebase_data,
     parse_firebase_data, 
     staff_required
 )
@@ -175,7 +176,7 @@ def api_staff_service_requests():
 @staff_bp.route('/staff/service-requests/resolve', methods=['POST'])
 @staff_required
 def staff_update_service_request_status():
-    """อัปเดตสถานะ/ปิดงานการเรียกพนักงาน (pending -> in_progress -> resolved)"""
+    """อัปเดตสถานะ หรือ ลบรายการเมื่อดำเนินการเสร็จสิ้น"""
     try:
         data = request.get_json(silent=True) or request.form.to_dict() or {}
         request_id = data.get('request_id') or data.get('id')
@@ -184,13 +185,17 @@ def staff_update_service_request_status():
         if not request_id:
             return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการ'}), 400
 
+        # หากกดเสร็จสิ้น (resolved/completed) ให้ลบรายการออกจาก Realtime Database ทันที
+        if new_status in ['resolved', 'completed', 'delete']:
+            if delete_firebase_data('service_requests', request_id):
+                return jsonify({'status': 'success', 'message': 'ลบรายการเรียกพนักงานเรียบร้อยแล้ว'})
+            return jsonify({'status': 'error', 'message': 'ไม่สามารถลบรายการออกจากระบบได้'}), 500
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         patch_payload = {
             'status': new_status,
             'updated_at': now_str
         }
-        if new_status in ['resolved', 'completed']:
-            patch_payload['resolved_at'] = now_str
 
         if patch_firebase_data('service_requests', request_id, patch_payload):
             return jsonify({'status': 'success', 'message': 'อัปเดตสถานะเรียบร้อยแล้ว'})
