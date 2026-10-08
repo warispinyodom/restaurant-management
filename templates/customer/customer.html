@@ -29,7 +29,7 @@
         font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Utility Color Classes Fallbacks */
+    /* Fallback Utility Classes */
     .bg-slate-50 { background-color: #f8fafc !important; }
     .bg-slate-100 { background-color: var(--slate-100) !important; }
     .border-slate-100 { border-color: var(--slate-100) !important; }
@@ -44,14 +44,14 @@
     .text-amber-500 { color: var(--amber-500) !important; }
     .text-amber-600 { color: var(--amber-600) !important; }
 
-    /* ป้องกันปัญหา Floating Bar ทับเนื้อหาด้านล่างบนอุปกรณ์มือถือ */
+    /* ป้องกัน Floating Bar ทับเนื้อหาด้านล่างบนมือถือ */
     .customer-page-wrapper {
-        padding-bottom: 90px;
+        padding-bottom: 110px;
     }
 
     @media (min-width: 992px) {
         .customer-page-wrapper {
-            padding-bottom: 24px;
+            padding-bottom: 30px;
         }
     }
 
@@ -64,19 +64,21 @@
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
     }
 
-    /* กล่องค้นหาและตัวกรองหมวดหมู่ */
+    /* กล่องค้นหาและตัวกรอง Responsive */
     .search-filter-capsule {
         background: #ffffff;
         border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 6px 14px;
+        border-radius: 14px;
+        padding: 6px 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         transition: all 0.2s ease;
+        width: 100%;
     }
 
     @media (min-width: 576px) {
         .search-filter-capsule {
             border-radius: 50rem;
+            max-width: 380px;
         }
     }
 
@@ -98,7 +100,7 @@
         display: flex;
         gap: 8px;
         overflow-x: auto;
-        padding-bottom: 6px;
+        padding: 6px 2px 4px 2px;
         scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
     }
@@ -110,9 +112,9 @@
         border: 1px solid var(--border-color);
         background: #ffffff;
         color: var(--text-muted);
-        font-size: 0.875rem;
+        font-size: 0.85rem;
         font-weight: 500;
-        padding: 8px 18px;
+        padding: 7px 16px;
         border-radius: 50rem;
         transition: all 0.2s ease;
         cursor: pointer;
@@ -125,11 +127,11 @@
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
     }
 
-    /* Menu Cards */
+    /* Menu Cards UI */
     .menu-card {
         border: 1px solid var(--border-color) !important;
         background-color: var(--menu-card-bg) !important;
-        border-radius: 20px !important;
+        border-radius: 18px !important;
         overflow: hidden !important;
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
@@ -145,9 +147,15 @@
     .menu-img-box {
         position: relative;
         width: 100%;
-        aspect-ratio: 16 / 10;
+        aspect-ratio: 4 / 3;
         overflow: hidden;
         background-color: #f1f5f9;
+    }
+
+    @media (min-width: 768px) {
+        .menu-img-box {
+            aspect-ratio: 16 / 10;
+        }
     }
 
     .menu-img-box img {
@@ -163,13 +171,13 @@
 
     .menu-badge-cat {
         position: absolute;
-        top: 10px;
-        left: 10px;
-        background-color: rgba(15, 23, 42, 0.75);
+        top: 8px;
+        left: 8px;
+        background-color: rgba(15, 23, 42, 0.80);
         color: #ffffff;
-        font-size: 0.725rem;
+        font-size: 0.7rem;
         font-weight: 500;
-        padding: 3px 10px;
+        padding: 3px 9px;
         border-radius: 50rem;
         backdrop-filter: blur(6px);
         z-index: 2;
@@ -178,16 +186,25 @@
     .btn-add-menu {
         background-color: #eff6ff;
         color: var(--primary-color);
-        width: 38px;
-        height: 38px;
-        min-width: 38px;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
         border-radius: 50%;
         border: 1px solid #bfdbfe;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+    }
+
+    @media (min-width: 576px) {
+        .btn-add-menu {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            font-size: 0.875rem;
+        }
     }
 
     .btn-add-menu:hover, .btn-add-menu:active {
@@ -237,17 +254,17 @@
         color: #94a3b8 !important;
     }
 
-    /* Mobile Floating Bar */
+    /* Mobile Floating Cart Bar */
     .mobile-cart-bar {
         position: fixed;
-        bottom: 16px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         left: 12px;
         right: 12px;
         background: rgba(15, 23, 42, 0.95);
         backdrop-filter: blur(10px);
         color: #ffffff;
         border-radius: 50rem;
-        padding: 10px 18px;
+        padding: 10px 16px;
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
         z-index: 1030;
         display: flex;
@@ -256,19 +273,19 @@
     }
 
     .cart-item-note {
-        font-size: 0.75rem;
+        font-size: 0.725rem;
         color: #d97706;
         background-color: #fef3c7;
         padding: 2px 8px;
         border-radius: 6px;
         display: inline-block;
-        margin-top: 2px;
+        margin-top: 3px;
     }
 </style>
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- แสดง Flash Messages จาก Flask Backend -->
+    <!-- Flash Messages จาก Flask Backend -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -283,12 +300,12 @@
     <!-- Header Banner สำหรับแสดงสถานะโต๊ะและเมนูลัด -->
     <div class="table-info-banner mb-3 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
-            <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; min-width: 48px;">
+            <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 48px; height: 48px;">
                 <i class="fas fa-chair fs-4 text-primary"></i>
             </div>
             <div>
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="badge bg-primary rounded-pill px-2.5 py-1 fw-bold">โต๊ะปัจจุบัน</span>
+                    <span class="badge bg-primary rounded-pill px-3 py-1 fw-bold">โต๊ะปัจจุบัน</span>
                     <h4 class="fw-bold m-0 text-white fs-5 fs-md-4" id="displayTableNo">
                         {% if selected_table_no %} โต๊ะ {{ selected_table_no }} {% else %} <span class="text-warning">ไม่ได้เลือกโต๊ะ</span> {% endif %}
                     </h4>
@@ -300,16 +317,16 @@
         </div>
 
         <div class="d-flex flex-wrap align-items-center gap-2 justify-content-start justify-content-md-end">
-            <a href="{{ url_for('customer.customer_choose_table') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1.5 fw-medium">
+            <a href="{{ url_for('customer.customer_choose_table') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 py-2 fw-medium">
                 <i class="fas fa-exchange-alt me-1"></i> สลับ/เลือกโต๊ะ
             </a>
-            <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1.5 fw-bold text-dark shadow-sm position-relative" onclick="openCallStaffModal()">
+            <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-2 fw-bold text-dark shadow-sm position-relative" onclick="openCallStaffModal()">
                 <i class="fas fa-bell me-1"></i> เรียกพนักงาน / เช็คบิล
                 <span id="activeCallBadge" class="position-absolute top-0 start-100 translate-middle p-1.5 bg-danger border border-light rounded-circle d-none">
                     <span class="visually-hidden">Active call</span>
                 </span>
             </button>
-            <button type="button" class="btn btn-sm btn-info text-white rounded-pill px-3 py-1.5 fw-bold position-relative shadow-sm" onclick="openOrderHistoryModal()">
+            <button type="button" class="btn btn-sm btn-info text-white rounded-pill px-3 py-2 fw-bold position-relative shadow-sm" onclick="openOrderHistoryModal()">
                 <i class="fas fa-clock-rotate-left me-1"></i> ติดตามออเดอร์
                 <span id="activeOrderBadge" class="position-absolute top-0 start-100 translate-middle p-1.5 bg-danger border border-light rounded-circle d-none">
                     <span class="visually-hidden">New alert</span>
@@ -359,20 +376,20 @@
     <div class="row g-3 g-md-4">
         <!-- ฝั่งซ้าย: แถบค้นหา หมวดหมู่ และการ์ดรายการเมนู -->
         <div class="col-12 col-lg-7 col-xl-8">
-            <div class="bg-white p-3 p-md-4 rounded-4 shadow-sm border border-slate-100 mb-4">
+            <div class="bg-white p-3 p-md-4 rounded-4 shadow-sm border border-slate-100 mb-3 mb-md-4">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3 mb-3">
                     <div>
                         <h5 class="fw-bold m-0 text-slate-900"><i class="fas fa-utensils text-primary me-2"></i>รายการอาหาร & เครื่องดื่ม</h5>
-                        <p class="text-muted small m-0 mt-0.5">เลือกรายการอาหาร แล้วกดปุ่ม + เพื่อสั่งซื้อ</p>
+                        <p class="text-muted small m-0 mt-1">เลือกรายการอาหาร แล้วกดปุ่ม + เพื่อสั่งซื้อ</p>
                     </div>
 
-                    <div class="search-filter-capsule d-flex flex-row align-items-center w-100" style="max-width: 100%; @media (min-width: 576px) { max-width: 380px; }">
+                    <div class="search-filter-capsule d-flex flex-row align-items-center">
                         <i class="fas fa-search text-slate-400 me-2 fs-6 flex-shrink-0"></i>
                         <input type="text" id="search-input" class="form-control form-control-sm py-1 w-100" placeholder="ค้นหาเมนู..." onkeyup="filterMenus()">
                         
                         <div class="vr mx-2 bg-slate-200" style="height: 18px; min-width: 1px;"></div>
                         
-                        <select id="category-filter" class="form-select form-select-sm py-1 fw-medium text-slate-700 flex-shrink-0" style="width: auto; min-width: 110px;" onchange="onCategorySelectChange()">
+                        <select id="category-filter" class="form-select form-select-sm py-1 fw-medium text-slate-700 flex-shrink-0" style="width: auto; min-width: 105px;" onchange="onCategorySelectChange()">
                             <option value="all">ทุกหมวดหมู่</option>
                             {% if categories %}
                                 {% for cat in categories %}
@@ -398,7 +415,7 @@
             </div>
 
             <!-- เมนูอาหาร Responsive Grid -->
-            <div class="row g-2.5 g-sm-3 g-md-4" id="menu-container">
+            <div class="row g-2 g-sm-3 g-md-4" id="menu-container">
                 {% if menus %}
                 {% for menu in menus %}
                 <div class="col-6 col-sm-6 col-md-4 col-xl-4 menu-item-col" 
@@ -427,7 +444,7 @@
 
                             <div class="mt-auto d-flex justify-content-between align-items-center pt-2 border-top border-slate-100">
                                 <div>
-                                    <span class="text-muted d-block" style="font-size: 0.65rem;">ราคา</span>
+                                    <span class="text-muted d-block opacity-75" style="font-size: 0.65rem;">ราคา</span>
                                     <span class="fw-bold fs-6 fs-sm-5 text-primary">฿{{ "{:,.0f}".format(menu['price']|abs) }}</span>
                                 </div>
                                 <button class="btn-add-menu shadow-sm"
@@ -469,7 +486,7 @@
                     <div>
                         <h5 class="fw-bold m-0 text-white fs-6 fs-md-5"><i class="fas fa-cart-shopping me-2 text-warning"></i>ตะกร้าอาหารของคุณ</h5>
                     </div>
-                    <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1 fw-bold">ออเดอร์ใหม่</span>
+                    <span class="badge bg-warning text-dark rounded-pill px-3 py-1 fw-bold">ออเดอร์ใหม่</span>
                 </div>
 
                 <div class="card-body p-0 bg-slate-50">
@@ -533,7 +550,7 @@
             <div class="fw-bold fs-6 text-warning" id="mobileCartTotal">฿0.00</div>
         </div>
     </div>
-    <button type="button" class="btn btn-warning rounded-pill px-3.5 py-1.5 fw-bold text-dark btn-sm shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#mobileCartOffcanvas">
+    <button type="button" class="btn btn-warning rounded-pill px-3 py-1.5 fw-bold text-dark btn-sm shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#mobileCartOffcanvas">
         <i class="fas fa-basket-shopping me-1"></i> ดูตะกร้า
     </button>
 </div>
@@ -574,7 +591,7 @@
                     <i class="fas fa-qrcode me-1"></i> ดู QR Code สแกนจ่ายเงิน
                 </button>
             </div>
-            <button class="btn btn-checkout-primary w-100 shadow-sm py-2.5" id="btn-checkout-mobile" onclick="confirmCheckout()" disabled>
+            <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" onclick="confirmCheckout()" disabled>
                 <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
             </button>
         </div>
@@ -618,25 +635,25 @@
                 <p class="text-muted small mb-3">กรุณาเลือกบริการที่ต้องการแจ้งพนักงานประจำโต๊ะ {{ selected_table_no or '-' }}</p>
                 <div class="row g-2 g-sm-3">
                     <div class="col-6">
-                        <button class="btn btn-outline-primary p-2.5 p-sm-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1.5" onclick="sendServiceRequest('เรียกพนักงานมาที่โต๊ะ')">
+                        <button class="btn btn-outline-primary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('เรียกพนักงานมาที่โต๊ะ')">
                             <i class="fas fa-user-ninja fs-3"></i>
                             <span class="fw-bold small">เรียกพนักงาน</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-success p-2.5 p-sm-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1.5" onclick="sendServiceRequest('ขอเช็คบิล / ชำระเงิน')">
+                        <button class="btn btn-outline-success p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอเช็คบิล / ชำระเงิน')">
                             <i class="fas fa-file-invoice-dollar fs-3"></i>
                             <span class="fw-bold small">ขอเช็คบิล</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-info p-2.5 p-sm-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1.5" onclick="sendServiceRequest('ขอเติมน้ำ / น้ำแข็ง')">
+                        <button class="btn btn-outline-info p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอเติมน้ำ / น้ำแข็ง')">
                             <i class="fas fa-glass-water fs-3"></i>
                             <span class="fw-bold small">เติมน้ำ/น้ำแข็ง</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-secondary p-2.5 p-sm-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1.5" onclick="sendServiceRequest('ขอทิชชู่ / จานแบ่งเพิ่ม')">
+                        <button class="btn btn-outline-secondary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอทิชชู่ / จานแบ่งเพิ่ม')">
                             <i class="fas fa-box-tissue fs-3"></i>
                             <span class="fw-bold small">ขอทิชชู่/อุปกรณ์</span>
                         </button>
@@ -948,15 +965,15 @@
                     <div class="fw-bold small text-slate-800 text-truncate">${item.name}</div>
                     <div class="text-muted" style="font-size: 0.75rem;">฿${item.price.toFixed(2)} x ${item.qty} ${noteHTML}</div>
                 </div>
-                <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <button type="button" class="btn btn-outline-secondary btn-sm p-0 d-flex align-items-center justify-content-center" 
-                        style="width: 26px; height: 26px; border-radius: 50%;" onclick="changeQty('${item.id}', '${item.note}', -1)">
-                        <i class="fas fa-minus" style="font-size: 9px;"></i>
+                        style="width: 28px; height: 28px; border-radius: 50%;" onclick="changeQty('${item.id}', '${item.note}', -1)">
+                        <i class="fas fa-minus" style="font-size: 10px;"></i>
                     </button>
                     <span class="fw-bold small px-1 text-slate-800" style="min-width: 20px; text-align: center;">${item.qty}</span>
                     <button type="button" class="btn btn-primary btn-sm p-0 d-flex align-items-center justify-content-center" 
-                        style="width: 26px; height: 26px; border-radius: 50%;" onclick="changeQty('${item.id}', '${item.note}', 1)">
-                        <i class="fas fa-plus" style="font-size: 9px;"></i>
+                        style="width: 28px; height: 28px; border-radius: 50%;" onclick="changeQty('${item.id}', '${item.note}', 1)">
+                        <i class="fas fa-plus" style="font-size: 10px;"></i>
                     </button>
                 </div>
             `;
