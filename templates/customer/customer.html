@@ -337,26 +337,26 @@
 
     <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
     <div id="serviceCallBanner" class="alert alert-warning rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
             <div class="spinner-grow text-warning flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
-            <div>
-                <h6 class="fw-bold mb-0 text-slate-800" id="serviceCallTitle">สถานะการเรียกพนักงาน</h6>
-                <span class="small text-muted" id="serviceCallDesc">กำลังส่งสัญญาณแจ้งพนักงาน...</span>
+            <div class="overflow-hidden flex-grow-1" style="min-width: 0;">
+                <h6 class="fw-bold mb-0 text-slate-800 text-truncate" id="serviceCallTitle">สถานะการเรียกพนักงาน</h6>
+                <span class="small text-muted text-truncate d-block" id="serviceCallDesc">กำลังส่งสัญญาณแจ้งพนักงาน...</span>
             </div>
         </div>
-        <span class="badge rounded-pill px-3 py-2 fw-bold flex-shrink-0" id="serviceCallStatusBadge">รอดำเนินการ</span>
+        <span class="badge rounded-pill px-3 py-2 fw-bold flex-shrink-0 text-nowrap" id="serviceCallStatusBadge">รอดำเนินการ</span>
     </div>
 
     <!-- Banner แสดงสถานะออเดอร์ล่าสุดแบบ Real-time บนหน้าหลัก -->
     <div id="orderStatusBanner" class="alert alert-primary rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
             <div class="spinner-border text-primary flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
-            <div>
-                <h6 class="fw-bold mb-0 text-slate-800" id="orderStatusTitle">สถานะรายการสั่งอาหาร</h6>
-                <span class="small text-muted" id="orderStatusDesc">กำลังอัปเดตข้อมูลจากห้องครัว...</span>
+            <div class="overflow-hidden flex-grow-1" style="min-width: 0;">
+                <h6 class="fw-bold mb-0 text-slate-800 text-truncate" id="orderStatusTitle">สถานะรายการสั่งอาหาร</h6>
+                <span class="small text-muted text-truncate d-block" id="orderStatusDesc">กำลังอัปเดตข้อมูลจากห้องครัว...</span>
             </div>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold flex-shrink-0" onclick="openOrderHistoryModal()">
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold flex-shrink-0 text-nowrap" onclick="openOrderHistoryModal()">
             <i class="fas fa-list-check me-1"></i> ดูออเดอร์ทั้งหมด
         </button>
     </div>
@@ -699,6 +699,19 @@
     const currentTableNo = "{{ selected_table_no or '' }}";
     let lastCallStatuses = {};
     let lastOrderStatuses = {};
+
+    /* --- Helper ฟังก์ชั่นสำหรับจัดฟอร์แมต Order ID ให้สั้นและสวยงาม --- */
+    function formatOrderId(rawId) {
+        if (!rawId) return '';
+        const strId = String(rawId).trim();
+        // ลบเครื่องหมาย - หรือ # ด้านหน้าออกก่อน
+        const cleanId = strId.replace(/^[-#]+/, '');
+        // หากมีความยาวมากกว่า 8 ตัวอักษร ให้ดึงเฉพาะ 6 ตัวท้ายมาแสดงเป็นตัวพิมพ์ใหญ่
+        if (cleanId.length > 8) {
+            return cleanId.slice(-6).toUpperCase();
+        }
+        return cleanId.toUpperCase();
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         syncCartUI();
@@ -1146,15 +1159,17 @@
         if (!Array.isArray(orders)) return;
 
         orders.forEach(ord => {
-            const oid = String(ord.id || ord.order_id);
+            const rawOid = ord.id || ord.order_id;
+            const oid = String(rawOid || '');
             if (!oid) return;
 
             const newStatus = strToLowerCase(ord.status);
             const oldStatus = lastOrderStatuses[oid];
+            const formattedId = formatOrderId(rawOid);
 
             if (oldStatus && oldStatus !== newStatus) {
                 let title = '';
-                let text = `ออเดอร์ #${oid}: `;
+                let text = `ออเดอร์ #${formattedId}: `;
                 let icon = 'info';
 
                 if (newStatus === 'cooking' || newStatus === 'in_progress') {
@@ -1219,15 +1234,16 @@
 
             const latestOrder = activeOrders[0];
             const st = strToLowerCase(latestOrder.status);
+            const formattedId = formatOrderId(latestOrder.id || latestOrder.order_id);
 
             if (st === 'cooking' || st === 'in_progress') {
-                titleElem.innerHTML = `<i class="fas fa-fire text-danger me-1"></i>กำลังปรุงอาหาร (ออเดอร์ #${latestOrder.id})`;
+                titleElem.innerHTML = `<i class="fas fa-fire text-danger me-1"></i>กำลังปรุงอาหาร (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ห้องครัวกำลังรับและปรุงอาหารของคุณ กรุณารอสักครู่...';
             } else if (st === 'served') {
-                titleElem.innerHTML = `<i class="fas fa-utensils text-success me-1"></i>เสิร์ฟอาหารแล้ว (ออเดอร์ #${latestOrder.id})`;
+                titleElem.innerHTML = `<i class="fas fa-utensils text-success me-1"></i>เสิร์ฟอาหารแล้ว (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'อาหารเสิร์ฟเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
             } else {
-                titleElem.innerHTML = `<i class="fas fa-hourglass-start text-warning me-1"></i>รอดำเนินการ (ออเดอร์ #${latestOrder.id})`;
+                titleElem.innerHTML = `<i class="fas fa-hourglass-start text-warning me-1"></i>รอดำเนินการ (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ส่งออเดอร์เข้าครัวแล้ว กำลังรอห้องครัวเริ่มปรุงอาหาร...';
             }
         } else {
@@ -1278,13 +1294,14 @@
 
             const tableDisplay = ord.table_no ? `<span class="badge bg-light text-dark border me-1"><i class="fas fa-chair me-1 text-primary"></i>โต๊ะ ${ord.table_no}</span>` : '';
             const transferNote = (ord.merged_from || ord.previous_table) ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle me-1"><i class="fas fa-exchange-alt me-1"></i>ย้ายมาจากโต๊ะ ${ord.merged_from || ord.previous_table}</span>` : '';
+            const displayOid = formatOrderId(ord.id || ord.order_id);
 
             return `
                 <div class="card border border-slate-200 rounded-3 p-3 shadow-sm bg-white">
                     <div class="d-flex justify-content-between align-items-start mb-2 pb-2 border-bottom gap-2">
                         <div>
                             <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
-                                <span class="fw-bold text-slate-800">ออเดอร์ #${ord.id || 'N/A'}</span>
+                                <span class="fw-bold text-slate-800" title="Full ID: ${ord.id || ''}">ออเดอร์ #${displayOid}</span>
                                 ${tableDisplay}
                                 ${transferNote}
                             </div>
@@ -1428,14 +1445,14 @@
                     if (titleElem) titleElem.innerText = `พนักงานรับเรื่องแล้ว: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'พนักงานกำลังเดินทางมาให้บริการที่โต๊ะของคุณ';
                     if (badgeElem) {
-                        badgeElem.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold';
+                        badgeElem.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold flex-shrink-0 text-nowrap';
                         badgeElem.innerHTML = '<i class="fas fa-user-check me-1"></i>พนักงานกำลังมา';
                     }
                 } else {
                     if (titleElem) titleElem.innerText = `กำลังเรียกพนักงาน: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'ระบบแจ้งพนักงานเรียบร้อยแล้ว กรุณารอสักครู่...';
                     if (badgeElem) {
-                        badgeElem.className = 'badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold';
+                        badgeElem.className = 'badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold flex-shrink-0 text-nowrap';
                         badgeElem.innerHTML = '<i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ';
                     }
                 }
