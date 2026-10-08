@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash
 
-# 1. นำเข้าฟังก์ชันจาก auth_utils
 from auth_utils import (
     get_all_users, 
     create_user, 
@@ -9,7 +8,6 @@ from auth_utils import (
     check_credentials
 )
 
-# 2. นำเข้า Blueprints สำหรับแต่ละส่วนของระบบ
 from staff_utils import staff_bp
 from admin_routes import admin_bp
 from customer_routes import customer_bp
@@ -17,7 +15,6 @@ from customer_routes import customer_bp
 app = Flask(__name__)
 app.secret_key = 'restaurant_super_secret'
 
-# ลงทะเบียน Blueprints สำหรับ Admin, Staff และ Customer
 app.register_blueprint(admin_bp)
 app.register_blueprint(staff_bp)
 app.register_blueprint(customer_bp)

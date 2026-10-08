@@ -1,55 +1,376 @@
-<!-- templates/staff/daily_summary.html -->
 {% extends 'base.html' %}
+
+{% block title %}สรุปยอดขายประจำวัน - La Bella Vita POS{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold"><i class="fas fa-chart-line text-info me-2"></i>สรุปยอดขายประจำวัน (Daily Summary)</h3>
-        <input type="date" id="summaryDateSelect" class="form-control form-control-sm border-0 shadow-sm rounded-pill px-3" style="width: auto;" value="{{ summary.date }}" onchange="location.href='?date='+this.value">
+<style>
+    /* Custom Styling for POS Daily Summary Dashboard */
+    .summary-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: none;
+    }
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+    }
+    
+    .bg-gradient-sales {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .bg-gradient-orders {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    .bg-gradient-average {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    }
+
+    .kpi-icon-bg {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rank-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .rank-1 { background-color: #fef08a; color: #854d0e; border: 1px solid #facc15; }
+    .rank-2 { background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+    .rank-3 { background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+    .rank-other { background-color: #f1f5f9; color: #64748b; }
+
+    .date-nav-btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    /* Print View Styling */
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        body {
+            background-color: #fff !important;
+            color: #000 !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 py-3">
+    <!-- Header Page Banner & Quick Controls -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-3 py-1 rounded-pill small">
+                    <i class="fas fa-chart-pie me-1"></i> Executive Dashboard
+                </span>
+            </div>
+            <h3 class="fw-bold text-slate-800 mb-1 mt-1">สรุปยอดขายประจำวัน</h3>
+            <p class="text-muted small mb-0">ภาพรวมรายได้ ช่องทางการชำระเงิน และอันดับสินค้าขายดี</p>
+        </div>
+
+        <!-- Date Selector Controller -->
+        <div class="d-flex flex-wrap align-items-center gap-2 bg-white p-2 rounded-4 shadow-sm border no-print">
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-light btn-sm date-nav-btn" title="วันก่อนหน้า" onclick="navigateDate(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <input type="date" id="summaryDateSelect" class="form-control form-control-sm border-0 bg-light fw-bold rounded-pill px-3 text-center" style="width: 145px;" value="{{ summary.date if summary and summary.date else '' }}" onchange="filterByDate(this.value)">
+                <button type="button" class="btn btn-light btn-sm date-nav-btn" title="วันถัดไป" onclick="navigateDate(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="vr mx-1 opacity-25 d-none d-sm-block" style="height: 24px;"></div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" title="แสดงยอดวันนี้" onclick="selectToday()">
+                    <i class="fas fa-calendar-day me-1"></i>วันนี้
+                </button>
+                <button type="button" class="btn btn-sm btn-light border text-secondary rounded-pill px-3" title="พิมพ์รายงาน" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i>พิมพ์
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- Cards ตัวเลขสรุป -->
+    <!-- Summary KPI Cards -->
     <div class="row g-3 mb-4">
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm rounded-4 bg-success text-white p-3">
-                <small class="opacity-75">ยอดขายรวมสุทธิ</small>
-                <div class="fs-2 fw-bold">฿{{ "%.2f"|format(summary.total_sales or 0) }}</div>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm rounded-4 bg-primary text-white p-3">
-                <small class="opacity-75">จำนวนออเดอร์ที่ปิดบิล</small>
-                <div class="fs-2 fw-bold">{{ summary.total_orders or 0 }} รายการ</div>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm rounded-4 bg-dark text-white p-3">
-                <small class="opacity-75">เฉลี่ยต่อออเดอร์</small>
-                <div class="fs-2 fw-bold">
-                    ฿{{ "%.2f"|format((summary.total_sales / summary.total_orders) if summary.total_orders else 0) }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- จำแนกตามช่องทางชำระเงิน -->
-    <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-header bg-white py-3 fw-bold"><i class="fas fa-wallet me-2 text-warning"></i>แยกตามช่องทางชำระเงิน</div>
-        <div class="card-body">
-            <div class="row g-3">
-                {% if summary.payment_breakdown %}
-                {% for method, amt in summary.payment_breakdown.items() %}
-                <div class="col-6 col-md-3">
-                    <div class="p-3 border rounded-3 bg-light">
-                        <div class="small text-muted mb-1">{{ method }}</div>
-                        <div class="fs-5 fw-bold text-dark">฿{{ "%.2f"|format(amt) }}</div>
+        <!-- Total Sales -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card summary-card rounded-4 bg-gradient-sales text-white p-3 p-md-4 h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="opacity-90 fw-semibold small text-uppercase tracking-wider">ยอดขายรวมสุทธิ</span>
+                        <div class="fs-2 fw-bolder mt-1">฿{{ "{:,.2f}".format(summary.total_sales or 0) if summary else "0.00" }}</div>
+                    </div>
+                    <div class="kpi-icon-bg">
+                        <i class="fas fa-coins fs-4 text-white"></i>
                     </div>
                 </div>
-                {% endfor %}
-                {% else %}
-                <div class="col-12 text-muted">ไม่มีข้อมูลการชำระเงิน</div>
-                {% endif %}
+                <div class="d-flex align-items-center opacity-85 small mt-3 pt-2 border-top border-white border-opacity-10">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span>ประจำวันที่ {{ summary.date if summary else '-' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Bills/Orders -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="card summary-card rounded-4 bg-gradient-orders text-white p-3 p-md-4 h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="opacity-90 fw-semibold small text-uppercase tracking-wider">จำนวนออเดอร์ที่ปิดบิล</span>
+                        <div class="fs-2 fw-bolder mt-1">{{ (summary.total_orders or summary.total_bills or 0) if summary else 0 }} <span class="fs-6 fw-normal opacity-85">รายการ</span></div>
+                    </div>
+                    <div class="kpi-icon-bg">
+                        <i class="fas fa-receipt fs-4 text-white"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center opacity-85 small mt-3 pt-2 border-top border-white border-opacity-10">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span>ชำระเงินเสร็จสมบูรณ์</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Average Ticket Size -->
+        <div class="col-12 col-sm-12 col-lg-4">
+            <div class="card summary-card rounded-4 bg-gradient-average text-white p-3 p-md-4 h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    {% set total_sales = (summary.total_sales or 0) if summary else 0 %}
+                    {% set total_orders = (summary.total_orders or summary.total_bills or 0) if summary else 0 %}
+                    <div>
+                        <span class="opacity-90 fw-semibold small text-uppercase tracking-wider">เฉลี่ยต่อออเดอร์ (Average Ticket)</span>
+                        <div class="fs-2 fw-bolder mt-1">
+                            ฿{{ "{:,.2f}".format((total_sales / total_orders) if total_orders > 0 else 0) }}
+                        </div>
+                    </div>
+                    <div class="kpi-icon-bg">
+                        <i class="fas fa-calculator fs-4 text-white"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center opacity-85 small mt-3 pt-2 border-top border-white border-opacity-10">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    <span>คำนวณจาก ยอดขาย / จำนวนออเดอร์</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakdown By Payment Method & Top Selling Items -->
+    <div class="row g-3">
+        <!-- Breakdown By Payment Method -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 bg-white">
+                <div class="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
+                    <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                        <div class="p-2 bg-warning bg-opacity-10 text-warning rounded-3 fs-6">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <span>แยกตามช่องทางชำระเงิน</span>
+                    </div>
+                    <span class="badge bg-light text-secondary border rounded-pill px-3 py-2 font-monospace fw-normal">
+                        {{ summary.date if summary else '-' }}
+                    </span>
+                </div>
+                
+                <div class="card-body p-3 p-md-4">
+                    {% if summary and summary.payment_breakdown and summary.payment_breakdown|length > 0 %}
+                        <div class="row g-3">
+                            {% for method, amt in summary.payment_breakdown.items() %}
+                            {% set pct = ((amt / summary.total_sales) * 100) if (summary.total_sales and summary.total_sales > 0) else 0 %}
+                            <div class="col-12 col-sm-6">
+                                <div class="p-3 border rounded-4 bg-light h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold text-slate-800 small d-flex align-items-center gap-2">
+                                                {% if 'เงินสด' in method %}
+                                                    <i class="fas fa-money-bill-wave text-success fs-6"></i>
+                                                {% elif 'โอน' in method or 'QR' in method or 'PromptPay' in method %}
+                                                    <i class="fas fa-qrcode text-primary fs-6"></i>
+                                                {% elif 'บัตร' in method or 'Credit' in method %}
+                                                    <i class="fas fa-credit-card text-info fs-6"></i>
+                                                {% else %}
+                                                    <i class="fas fa-wallet text-secondary fs-6"></i>
+                                                {% endif %}
+                                                {{ method }}
+                                            </span>
+                                            <span class="badge bg-white text-dark border rounded-pill px-2 py-1 small font-monospace">
+                                                {{ pct|round(1) }}%
+                                            </span>
+                                        </div>
+                                        <div class="fs-4 fw-bolder text-dark mb-2">฿{{ "{:,.2f}".format(amt or 0) }}</div>
+                                    </div>
+
+                                    <!-- Progress Bar (ใช้ data-width เพื่อหลีกเลี่ยง VS Code CSS Linter Error) -->
+                                    <div class="progress rounded-pill bg-secondary bg-opacity-25" style="height: 6px;">
+                                        <div class="progress-bar {% if 'เงินสด' in method %}bg-success{% elif 'โอน' in method or 'QR' in method %}bg-primary{% elif 'บัตร' in method %}bg-info{% else %}bg-dark{% endif %} rounded-pill" 
+                                             role="progressbar" 
+                                             data-width="{{ pct|round(1) }}%" 
+                                             aria-valuenow="{{ pct|round(1) }}" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5 my-2">
+                            <div class="mb-3">
+                                <i class="fas fa-receipt text-secondary opacity-25 display-4"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1">ไม่มีข้อมูลการชำระเงินในวันที่เลือก</h6>
+                            <p class="small text-muted mb-0">เลือกวันที่อื่น หรือรอการบันทึกรายการชำระเงินใหม่</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Selling Items -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 bg-white">
+                <div class="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
+                    <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                        <div class="p-2 bg-danger bg-opacity-10 text-danger rounded-3 fs-6">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <span>5 อันดับเมนูขายดี</span>
+                    </div>
+                    <span class="small text-muted"><i class="fas fa-utensils me-1"></i>จำนวนยอดสั่งซื้อ</span>
+                </div>
+                
+                <div class="card-body p-0">
+                    {% if summary and summary.top_items and summary.top_items|length > 0 %}
+                        {% set max_qty = (summary.top_items | map(attribute='qty') | max) if summary.top_items else 1 %}
+                        {% set max_qty = max_qty if (max_qty and max_qty > 0) else 1 %}
+                        
+                        <div class="list-group list-group-flush">
+                            {% for item in summary.top_items %}
+                            {% set item_pct = ((item.qty or 0) / max_qty) * 100 %}
+                            <div class="list-group-item py-3 px-3 px-md-4 border-0 border-bottom">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="rank-badge {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% else %}rank-other{% endif %}">
+                                            {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+                                        </span>
+                                        <span class="fw-bold text-slate-800 text-truncate" style="max-width: 180px;">
+                                            {{ item.name }}
+                                        </span>
+                                    </div>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-3 py-1 rounded-pill font-monospace">
+                                        {{ "{:,}".format(item.qty or 0) }} <span class="fw-normal">จาน/แก้ว</span>
+                                    </span>
+                                </div>
+                                <!-- Relative Sales Progress Bar (ใช้ data-width เพื่อหลีกเลี่ยง VS Code CSS Linter Error) -->
+                                <div class="progress rounded-pill bg-light ms-4" style="height: 5px;">
+                                    <div class="progress-bar {% if loop.index == 1 %}bg-warning{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-danger{% else %}bg-info{% endif %} rounded-pill" 
+                                         role="progressbar" 
+                                         data-width="{{ item_pct|round(1) }}%" 
+                                         aria-valuenow="{{ item_pct|round(1) }}" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5 my-2">
+                            <div class="mb-3">
+                                <i class="fas fa-utensils text-secondary opacity-25 display-4"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1">ไม่มีข้อมูลเมนูขายดี</h6>
+                            <p class="small text-muted mb-0">ยังไม่มีรายการอาหารที่ปิดบิลในวันที่เลือก</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * กรองข้อมูลสรุปตามวันที่เลือก
+ */
+function filterByDate(dateVal) {
+    if (dateVal) {
+        window.location.href = '?date=' + encodeURIComponent(dateVal);
+    }
+}
+
+/**
+ * เลือกแสดงผลยอดขายของวันนี้
+ */
+function selectToday() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    window.location.href = '?date=' + todayStr;
+}
+
+/**
+ * ปุ่มเลื่อนวันที่ ถัดไป / ย้อนหลัง
+ */
+function navigateDate(daysOffset) {
+    const input = document.getElementById('summaryDateSelect');
+    let currentDateVal = input ? input.value : '';
+    
+    if (!currentDateVal) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        currentDateVal = `${yyyy}-${mm}-${dd}`;
+    }
+
+    const parts = currentDateVal.split('-');
+    if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        
+        const dt = new Date(year, month, day);
+        dt.setDate(dt.getDate() + daysOffset);
+
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        filterByDate(`${yyyy}-${mm}-${dd}`);
+    }
+}
+
+/**
+ * ปรับความกว้าง Progress Bar จาก data-width เมื่อหน้าเว็บโหลดเสร็จ
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
+        bar.style.width = bar.getAttribute('data-width');
+    });
+});
+</script>
 {% endblock %}

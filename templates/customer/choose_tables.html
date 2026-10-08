@@ -2,6 +2,14 @@
 
 {% block content %}
 <style>
+    :root {
+        --primary-color: #2563eb;
+        --primary-dark: #1e40af;
+        --border-color: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+    }
+
     /* CSS สำหรับหน้าเลือกโต๊ะแบบ Responsive & Modern UI */
     .table-card {
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -18,7 +26,7 @@
 
     /* สไตล์โต๊ะที่ถูกเลือก */
     .table-card.selected {
-        border-color: #2563eb !important;
+        border-color: var(--primary-color) !important;
         background-color: #eff6ff !important;
     }
 
@@ -45,7 +53,7 @@
         right: 12px;
         width: 28px;
         height: 28px;
-        background-color: #2563eb;
+        background-color: var(--primary-color);
         color: white;
         border-radius: 50%;
         align-items: center;
@@ -74,18 +82,18 @@
         border-radius: 50rem;
         font-size: 0.875rem;
         font-weight: 500;
-        color: #64748b;
+        color: var(--text-muted);
         transition: all 0.2s ease;
         white-space: nowrap;
     }
 
     .segmented-btn:hover {
-        color: #1e293b;
+        color: var(--text-main);
     }
 
     .segmented-btn.active {
         background-color: #ffffff;
-        color: #2563eb;
+        color: var(--primary-color);
         font-weight: 600;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
@@ -158,7 +166,7 @@
                     <span class="badge bg-white text-primary fw-bold px-2 py-1 rounded-pill mb-1">โต๊ะที่กำลังใช้งาน</span>
                     <h4 class="fw-bold m-0 text-white">โต๊ะ {{ current_selected_no }}</h4>
                     <p class="small text-white-50 m-0 mt-1">
-                        <i class="fas fa-users me-1"></i> ระบุจำนวนลูกค้าไว้: <strong>{{ current_customer_count }} ท่าน</strong>
+                        <i class="fas fa-users me-1"></i> ระบุจำนวนลูกค้าไว้: <strong>{{ current_customer_count or 1 }} ท่าน</strong>
                     </p>
                     <p class="small text-warning m-0 mt-1 fw-medium">
                         <i class="fas fa-shield-halved me-1"></i> หากสลับหรือเพิ่มโต๊ะ ระบบจะเชื่อมโยงประวัติออเดอร์ให้อัตโนมัติ ข้อมูลจะไม่สูญหาย
@@ -225,7 +233,7 @@
     <!-- Form หลักสำหรับการเลือกหลายโต๊ะ -->
     <form id="selectTableForm" action="{{ url_for('customer.customer_choose_table') }}" method="POST">
         <input type="hidden" name="action" value="select">
-        <input type="hidden" name="customer_count" id="hiddenCustomerCount" value="1">
+        <input type="hidden" name="customer_count" id="hiddenCustomerCount" value="{{ current_customer_count or 1 }}">
         <input type="hidden" name="previous_table_no" id="hiddenPreviousTableNo" value="{{ current_selected_no or '' }}">
         <input type="hidden" name="customer_order_ids" id="hiddenCustomerOrderIds" value="">
 
@@ -233,7 +241,7 @@
         <div class="row g-3" id="tableGrid">
             {% if tables and tables|length > 0 %}
                 {% for table in tables %}
-                {% set is_selected = (table.id|string in current_selected_ids) %}
+                {% set is_selected = (table.id|string in current_selected_ids or table.table_no|string == current_selected_no|string) %}
                 {% set is_available = (table.status == 'available' or is_selected) %}
                 
                 <div class="col-6 col-md-4 col-lg-3 table-item-wrapper" 

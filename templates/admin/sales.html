@@ -431,42 +431,38 @@
             </div>
             <div class="modal-footer bg-white border-top-0 pt-0 pb-3 pe-4">
                 <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">ปิด</button>
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="printReceipt('printableArea{{ modal_id_str }}')">
+                <button type="button" class="btn btn-outline-primary rounded-pill px-3" onclick="printReceipt('printableArea{{ modal_id_str }}')">
                     <i class="fas fa-print me-1"></i> พิมพ์ใบเสร็จ
                 </button>
-                {% if st not in ['voided', 'cancelled'] %}
-                <button type="button" class="btn btn-danger rounded-pill px-3" onclick="confirmVoidOrder('{{ order_id_str }}')">
-                    <i class="fas fa-ban me-1"></i> ยกเลิกออเดอร์ (Void)
-                </button>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 {% endfor %}
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function filterSales() {
-        const search = document.getElementById('searchInput').value.toLowerCase().trim();
-        const status = document.getElementById('statusFilter').value.toLowerCase();
-        const payment = document.getElementById('paymentFilter').value.toLowerCase();
+        const searchVal = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+        const statusVal = (document.getElementById('statusFilter').value || '').toLowerCase();
+        const paymentVal = (document.getElementById('paymentFilter').value || '').toLowerCase();
 
         const rows = document.querySelectorAll('.sales-row');
         let visibleCount = 0;
 
         rows.forEach(row => {
             const orderId = row.getAttribute('data-order-id') || '';
-            const table = row.getAttribute('data-table') || '';
-            const rowStatus = row.getAttribute('data-status') || '';
-            const rowPayment = row.getAttribute('data-payment') || '';
+            const tableNo = row.getAttribute('data-table') || '';
+            const status = row.getAttribute('data-status') || '';
+            const payment = row.getAttribute('data-payment') || '';
             const rowText = row.innerText.toLowerCase();
 
-            const matchSearch = !search || orderId.includes(search) || table.includes(search) || rowText.includes(search);
-            const matchStatus = !status || rowStatus === status;
-            const matchPayment = !payment || rowPayment.includes(payment);
+            const matchSearch = !searchVal || orderId.includes(searchVal) || tableNo.includes(searchVal) || rowText.includes(searchVal);
+            const matchStatus = !statusVal || status === statusVal;
+            const matchPayment = !paymentVal || payment.includes(paymentVal);
 
             if (matchSearch && matchStatus && matchPayment) {
                 row.style.display = '';
@@ -495,8 +491,8 @@
 
     function confirmVoidOrder(orderId) {
         Swal.fire({
-            title: `ยืนยันการยกเลิกออเดอร์ #${orderId}?`,
-            text: 'การยกเลิกออเดอร์ (Void) ไม่สามารถย้อนกลับได้ และยอดขายของออเดอร์นี้จะถูกหักออกจากรายงาน!',
+            title: 'ยืนยันการยกเลิกรายการ (Void)?',
+            text: `คุณต้องการยกเลิกออเดอร์ #${orderId.substring(0, 8)} ใช่หรือไม่? (การกระทำนี้ไม่สามารถย้อนกลับได้)`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
@@ -507,7 +503,7 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
-                    title: 'กำลังประมวลผล...',
+                    title: 'กำลังดำเนินการ...',
                     allowOutsideClick: false,
                     didOpen: () => Swal.showLoading()
                 });
@@ -523,8 +519,8 @@
                 .then(data => {
                     if (data.status === 'success') {
                         Swal.fire({
-                            title: 'ยกเลิกสำเร็จ!',
-                            text: data.message || 'ยกเลิกออเดอร์เรียบร้อยแล้ว',
+                            title: 'ยกเลิกออเดอร์สำเร็จ!',
+                            text: data.message || 'รายการสั่งซื้อถูกยกเลิกเรียบร้อยแล้ว',
                             icon: 'success',
                             timer: 1500,
                             showConfirmButton: false
@@ -541,23 +537,18 @@
         });
     }
 
-    function printReceipt(elementId) {
-        const printContent = document.getElementById(elementId);
-        if (!printContent) return;
+    function printReceipt(divId) {
+        const printContents = document.getElementById(divId).innerHTML;
+        const originalContents = document.body.innerHTML;
 
-        const win = window.open('', '', 'height=700,width=800');
-        win.document.write('<html><head><title>พิมพ์ใบเสร็จ</title>');
-        win.document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">');
-        win.document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">');
-        win.document.write('</head><body class="p-4">');
-        win.document.write(printContent.innerHTML);
-        win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
-        setTimeout(() => {
-            win.print();
-            win.close();
-        }, 500);
+        document.body.innerHTML = `
+            <div style="padding: 20px; font-family: sans-serif;">
+                ${printContents}
+            </div>
+        `;
+        window.print();
+        document.body.innerHTML = originalContents;
+        location.reload();
     }
 </script>
 {% endblock %}

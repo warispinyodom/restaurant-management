@@ -1,4 +1,3 @@
-# admin_routes.py
 import json
 from datetime import datetime, timedelta
 from collections import Counter, defaultdict
@@ -21,6 +20,13 @@ from firebase_utils import (
 )
 
 admin_bp = Blueprint('admin', __name__)
+
+RESET_TABLE_PAYLOAD = {
+    'status': 'available',
+    'occupied_by': '',
+    'customer_count': 0,
+    'order': {'items': [], 'total_amount': 0.0}
+}
 
 def _get_request_ids(request):
     """ฟังก์ชันช่วยดึงรายการ IDs จาก Request รองรับทั้ง JSON, Form Data และคีย์หลายรูปแบบ"""
@@ -422,8 +428,6 @@ def admin_menu_batch_delete():
         return jsonify({'status': 'success', 'message': f'ลบรายการอาหารสำเร็จ {len(ids)} รายการ'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-admin_menu_bulk_delete = admin_menu_batch_delete
 
 # ==========================================
 # STAFF MANAGEMENT
@@ -858,9 +862,8 @@ def admin_sales_void(id):
 # ==========================================
 def _table_sort_key(table):
     val = str(table.get('table_no', ''))
-    if val.isdigit():
-        return (0, int(val), val)
-    return (1, 0, val)
+    digits = ''.join(filter(str.isdigit, val))
+    return (0, int(digits), val) if digits else (1, 0, val)
 
 @admin_bp.route('/admin/tables')
 @staff_required
@@ -906,6 +909,8 @@ def admin_table_add():
                     'table_no': table_no,
                     'capacity': capacity,
                     'status': 'available',
+                    'occupied_by': '',
+                    'customer_count': 0,
                     'order': {'items': [], 'total_amount': 0.0}
                 }
                 if post_firebase_data('tables', payload):
@@ -928,6 +933,8 @@ def admin_table_add():
                 'table_no': table_no,
                 'capacity': capacity,
                 'status': 'available',
+                'occupied_by': '',
+                'customer_count': 0,
                 'order': {'items': [], 'total_amount': 0.0}
             }
 
@@ -962,6 +969,8 @@ def admin_table_edit(table_id):
             'capacity': capacity,
             'status': status
         }
+        if status == 'available':
+            payload.update(RESET_TABLE_PAYLOAD)
 
         if patch_firebase_data('tables', table_id, payload):
             flash("แก้ไขข้อมูลโต๊ะเรียบร้อยแล้ว", "success")
@@ -982,7 +991,7 @@ def admin_table_status(table_id):
 
         update_payload = {'status': new_status}
         if new_status == 'available':
-            update_payload['order'] = {'items': [], 'total_amount': 0.0}
+            update_payload.update(RESET_TABLE_PAYLOAD)
 
         if patch_firebase_data('tables', table_id, update_payload):
             return jsonify({'status': 'success', 'message': 'อัปเดตสถานะโต๊ะสำเร็จ'})
@@ -1004,7 +1013,7 @@ def admin_table_bulk_status():
 
         update_payload = {'status': new_status}
         if new_status == 'available':
-            update_payload['order'] = {'items': [], 'total_amount': 0.0}
+            update_payload.update(RESET_TABLE_PAYLOAD)
 
         for table_id in ids:
             patch_firebase_data('tables', table_id, update_payload)
@@ -1017,11 +1026,7 @@ def admin_table_bulk_status():
 @staff_required
 def admin_table_clear(table_id):
     try:
-        payload = {
-            'status': 'available',
-            'order': {'items': [], 'total_amount': 0.0}
-        }
-        if patch_firebase_data('tables', table_id, payload):
+        if patch_firebase_data('tables', table_id, RESET_TABLE_PAYLOAD):
             return jsonify({'status': 'success', 'message': 'เคลียร์โต๊ะเรียบร้อยแล้ว'})
         return jsonify({'status': 'error', 'message': 'ไม่สามารถเคลียร์โต๊ะได้'}), 500
     except Exception as e:

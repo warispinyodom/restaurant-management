@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block content %}
 <style>
@@ -42,14 +42,14 @@
 </style>
 
 <div class="container-fluid px-0">
-    <!-- Header Page -->
+    <!-- Header Page Banner -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h3 class="fw-bold mb-1"><i class="fas fa-file-invoice-dollar text-success me-2"></i>ระบบเช็คบิล / รับชำระเงิน</h3>
-            <p class="text-muted mb-0">เลือกโต๊ะหรือออเดอร์ คำนวณส่วนลด ภาษี ค่าบริการ และพิมพ์ใบเสร็จ</p>
+            <p class="text-muted mb-0 small">เลือกโต๊ะหรือออเดอร์ คำนวณส่วนลด ภาษี ค่าบริการ และพิมพ์ใบเสร็จ</p>
         </div>
         <div class="d-flex gap-2">
-            <button onclick="location.reload()" class="btn btn-outline-secondary rounded-3 shadow-sm">
+            <button type="button" onclick="location.reload()" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
                 <i class="fas fa-sync-alt me-1"></i> รีเฟรชข้อมูล
             </button>
         </div>
@@ -159,7 +159,6 @@
                         <div class="bg-white p-3 border rounded-3 mb-3 shadow-sm">
                             <h6 class="fw-bold text-primary mb-3"><i class="fas fa-sliders-h me-1"></i> ส่วนลด / ค่าบริการ / ภาษี</h6>
                             <div class="row g-2">
-                                <!-- ส่วนลด -->
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-muted mb-1">ส่วนลด</label>
                                     <div class="input-group input-group-sm">
@@ -170,12 +169,10 @@
                                         <input type="number" id="discountInput" class="form-control" placeholder="0" min="0" value="0" oninput="recalculateBill()">
                                     </div>
                                 </div>
-                                <!-- ค่าบริการ Service Charge -->
                                 <div class="col-md-3">
                                     <label class="form-label small fw-bold text-muted mb-1">ค่าบริการ (%)</label>
                                     <input type="number" id="serviceChargeInput" class="form-control form-control-sm" placeholder="0" min="0" value="0" oninput="recalculateBill()">
                                 </div>
-                                <!-- ภาษี VAT -->
                                 <div class="col-md-3">
                                     <label class="form-label small fw-bold text-muted mb-1">ภาษี VAT (%)</label>
                                     <input type="number" id="taxInput" class="form-control form-control-sm" placeholder="0" min="0" value="0" oninput="recalculateBill()">

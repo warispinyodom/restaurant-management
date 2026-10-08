@@ -1,5 +1,5 @@
-<!-- templates/staff/orders.html -->
 {% extends 'base.html' %}
+
 {% block content %}
 <style>
     .order-card {
@@ -49,7 +49,6 @@
         <p class="text-muted mb-0 small">จัดการสถานะรายการสั่งซื้อ รับออเดอร์จากหน้าบ้าน และเตรียมเสิร์ฟลูกค้าแบบ Real-time</p>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <!-- Sound Toggle -->
         <button id="soundToggleBtn" class="btn btn-outline-warning btn-sm rounded-pill px-3 shadow-sm" onclick="toggleSound()">
             <i class="fas fa-volume-up me-1" id="soundIcon"></i><span id="soundText">เปิดเสียงเตือน</span>
         </button>
@@ -60,7 +59,7 @@
             <option value="busy" {% if staff_status == 'busy' %}selected{% endif %}>🔴 กำลังยุ่ง (Busy)</option>
             <option value="break" {% if staff_status == 'break' %}selected{% endif %}>🟡 พักผ่อน (On Break)</option>
         </select>
-        <button class="btn btn-outline-secondary btn-sm rounded-circle p-2 shadow-sm ms-2" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle p-2 shadow-sm ms-2" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
             <i class="fas fa-sync-alt" id="refreshIcon"></i>
         </button>
     </div>
@@ -68,19 +67,19 @@
 
 <!-- Filter Pills -->
 <div class="d-flex flex-wrap gap-2 mb-4">
-    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
+    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
         <i class="fas fa-th-large me-1"></i>ทั้งหมด (<span id="cntAll">0</span>)
     </button>
-    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="pending" onclick="filterOrders('pending', this)">
+    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="pending" onclick="filterOrders('pending', this)">
         <i class="fas fa-clock text-warning me-1"></i>รอดำเนินการ (<span id="cntPending">0</span>)
     </button>
-    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="cooking" onclick="filterOrders('cooking', this)">
+    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="cooking" onclick="filterOrders('cooking', this)">
         <i class="fas fa-fire text-primary me-1"></i>กำลังปรุงอาหาร (<span id="cntCooking">0</span>)
     </button>
-    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="served" onclick="filterOrders('served', this)">
+    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="served" onclick="filterOrders('served', this)">
         <i class="fas fa-utensils text-info me-1"></i>เสิร์ฟแล้ว (<span id="cntServed">0</span>)
     </button>
-    <button class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="completed" onclick="filterOrders('completed', this)">
+    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="completed" onclick="filterOrders('completed', this)">
         <i class="fas fa-check-circle text-success me-1"></i>ชำระเงินแล้ว (<span id="cntCompleted">0</span>)
     </button>
 </div>
@@ -151,7 +150,6 @@
                         <span class="fw-bold fs-5 text-success">฿{{ "%.2f"|format(total_amt|float) }}</span>
                     </div>
 
-                    <!-- Quick Status Change Actions -->
                     <div class="btn-group btn-group-sm">
                         {% if st == 'pending' %}
                             <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('{{ order_id_str }}', 'cooking')">
@@ -194,7 +192,6 @@
     let isSoundEnabled = false;
     let audioCtx = null;
 
-    // ปลดล็อก AudioContext อัตโนมัติเมื่อผู้ใช้สัมผัสหน้าจอ
     function initAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -209,7 +206,6 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateCounts();
-        // เริ่มต้นการดึงข้อมูลอัตโนมัติทุกๆ 5 วินาที
         setInterval(() => fetchOrdersRealtime(false), 5000);
     });
 
@@ -224,7 +220,7 @@
             btn.classList.replace('btn-outline-warning', 'btn-warning');
             icon.className = 'fas fa-volume-up me-1';
             text.innerText = 'เปิดเสียงเตือนแล้ว';
-            playBeepSound(); // ทดสอบเสียง
+            playBeepSound();
         } else {
             btn.classList.replace('btn-warning', 'btn-outline-warning');
             icon.className = 'fas fa-volume-mute me-1';
@@ -239,7 +235,7 @@
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -287,7 +283,6 @@
         document.getElementById('cntServed').innerText = counts.served;
         document.getElementById('cntCompleted').innerText = counts.completed;
 
-        // แจ้งเตือนเมื่อมีออเดอร์ใหม่จากหน้าบ้านเข้ามา
         if (counts.pending > previousPendingCount && previousPendingCount !== 0) {
             playBeepSound();
         }

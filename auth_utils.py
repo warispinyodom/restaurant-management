@@ -1,63 +1,29 @@
-import json
-import urllib.request
-import urllib.error
-import ssl
 from werkzeug.security import check_password_hash
-
-# URL ฐานข้อมูล Firebase Realtime Database
-FIREBASE_URL = "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app"
-
-# สร้าง SSL Context รองรับการเชื่อมต่อ REST API ป้องกัน SSL Certificate Error
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+from firebase_utils import get_firebase_data, post_firebase_data
 
 def get_all_users():
-    """ดึงข้อมูลผู้ใช้ทั้งหมดจาก Firebase REST API"""
-    url = f"{FIREBASE_URL}/users.json"
+    """ดึงข้อมูลผู้ใช้ทั้งหมดจาก Firebase Realtime Database"""
     try:
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0'}, 
-            method='GET'
-        )
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            if response.status == 200:
-                data = response.read().decode('utf-8')
-                parsed_data = json.loads(data)
-                return parsed_data if isinstance(parsed_data, dict) else {}
+        users = get_firebase_data('users')
+        if isinstance(users, dict):
+            return users
+        elif isinstance(users, list):
+            return {str(i): v for i, v in enumerate(users) if v is not None}
+        return {}
     except Exception as e:
         print(f"System Error (get_all_users): {e}")
         return {}
-    return {}
 
 def create_user(username, password, role):
     """บันทึกข้อมูลผู้ใช้ใหม่ลง Firebase"""
-    url = f"{FIREBASE_URL}/users.json"
     payload = {
         "username": username,
         "password": password,
         "role": role,
         "is_active": True
     }
-    data = json.dumps(payload).encode('utf-8')
-    try:
-        req = urllib.request.Request(
-            url, 
-            data=data, 
-            headers={
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0'
-            }, 
-            method='POST'
-        )
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            if response.status in [200, 201]:
-                return True
-    except Exception as e:
-        print(f"System Error (create_user): {e}")
-        return False
-    return False
+    res = post_firebase_data('users', payload)
+    return bool(res and 'name' in res)
 
 def validate_registration(username, password, role):
     if not isinstance(username, str) or not isinstance(password, str):
@@ -83,7 +49,6 @@ def check_credentials(username, password):
             if not stored_password:
                 continue
             
-            # รองรับทั้งรหัสผ่านที่ Hashed (scrypt/pbkdf2) และแบบ Plain-text
             is_match = False
             try:
                 is_match = check_password_hash(stored_password, password)
@@ -91,5 +56,7 @@ def check_credentials(username, password):
                 is_match = (stored_password == password)
 
             if is_match:
-                return True, info
+                user_info = dict(info)
+                user_info['id'] = uid
+                return True, user_info
     return False, None

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+
 {% block content %}
 <style>
     /* Pantry Shelf Theme & Card Styling */
@@ -126,7 +127,7 @@
 </style>
 
 <div class="container-fluid p-0 mb-5 pb-5">
-    <!-- Header Page / Banner คลังอาหาร -->
+    <!-- Header Page Banner -->
     <div class="card border-0 rounded-4 p-4 mb-4 shadow-sm pantry-header-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
@@ -385,12 +386,10 @@
         </button>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
 function filterMenuGrid() {
     const searchText = document.getElementById('menuSearchInput').value.toLowerCase().trim();

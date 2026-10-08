@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Restaurant POS System{% endblock %}</title>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}La Bella Vita - POS System{% endblock %}</title>
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -148,10 +149,9 @@
 
 <body>
     <!-- Header บนมือถือ -->
-    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top"
-        style="background-color: #0f172a !important;">
+    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm sticky-top" style="background-color: #0f172a !important;">
         <span class="navbar-brand fw-bold d-flex align-items-center gap-2 mb-0 fs-6">
-            <i class="fas fa-utensils text-warning"></i> POS System
+            <i class="fas fa-utensils text-warning"></i> La Bella Vita POS
         </span>
         <button class="navbar-toggler border-0 shadow-none px-2" type="button" data-bs-toggle="offcanvas"
             data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
@@ -161,16 +161,18 @@
 
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        <div class="offcanvas-md offcanvas-start sidebar text-white p-3 d-flex flex-column" id="sidebarMenu"
-            tabindex="-1">
+        <div class="offcanvas-md offcanvas-start sidebar text-white p-3 d-flex flex-column" id="sidebarMenu" tabindex="-1">
 
             <!-- Header โลโก้ -->
             <div class="d-flex align-items-center justify-content-between mb-3 px-1 pt-1">
                 <a href="/" class="d-flex align-items-center gap-2 text-white text-decoration-none">
-                    <div class="bg-warning text-dark rounded-3 px-2 py-1 fs-5 fw-bold">
+                    <div class="bg-primary text-white rounded-3 px-2 py-1 fs-5 fw-bold shadow-sm">
                         <i class="fas fa-utensils"></i>
                     </div>
-                    <h5 class="fw-bold m-0 text-white">POS System</h5>
+                    <div>
+                        <h6 class="fw-bold m-0 text-white leading-tight">La Bella Vita</h6>
+                        <span class="text-muted small" style="font-size: 0.7rem;">POS & Restaurant System</span>
+                    </div>
                 </a>
                 <button type="button" class="btn-close btn-close-white d-md-none" data-bs-dismiss="offcanvas"
                     data-bs-target="#sidebarMenu" aria-label="Close"></button>
@@ -191,14 +193,11 @@
                     </div>
                     <div>
                         {% if session.get('role') == 'admin' %}
-                        <span class="badge bg-danger text-white rounded-pill px-2 py-1"
-                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
+                        <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
                         {% elif session.get('role') == 'staff' %}
-                        <span class="badge bg-info text-dark rounded-pill px-2 py-1"
-                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
+                        <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
                         {% else %}
-                        <span class="badge bg-success text-white rounded-pill px-2 py-1"
-                            style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
+                        <span class="badge bg-success text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
                         {% endif %}
                     </div>
                 </div>
@@ -242,7 +241,7 @@
                     <i class="fas fa-receipt text-light"></i> <span>ประวัติการขาย</span>
                 </a>
 
-                <!-- 2. STAFF MENU (6 เมนูหลัก) -->
+                <!-- 2. STAFF MENU -->
                 {% elif session.get('role') == 'staff' %}
                 <div class="menu-section-label">พนักงาน (Staff Operations)</div>
 
@@ -322,10 +321,9 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'danger') }} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4"
+            <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4"
                 role="alert">
-                <i
-                    class="fas {{ 'fa-check-circle text-success' if category == 'success' else ('fa-exclamation-triangle text-warning' if category == 'warning' else 'fa-exclamation-circle text-danger') }} me-2 fs-5 align-middle"></i>
+                <i class="fas {{ 'fa-exclamation-circle text-danger' if category in ['error', 'danger'] else ('fa-exclamation-triangle text-warning' if category == 'warning' else 'fa-check-circle text-success') }} me-2 fs-5 align-middle"></i>
                 <span class="align-middle fw-medium">{{ message }}</span>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>

@@ -5,3 +5,4 @@ seed_db.py
 restaurant.db
 database_mockup.json
 database
+.env

@@ -1,4 +1,3 @@
-# customer_routes.py
 import uuid
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -13,7 +12,6 @@ from firebase_utils import (
 customer_bp = Blueprint('customer', __name__)
 
 def get_current_user_key():
-    """ดึง Identifier หรือ รหัสผู้ใช้ปัจจุบันจาก session (พร้อมรองรับ Guest ID เพื่อไม่ให้ข้อมูลหายเมื่อเปลี่ยนโต๊ะ)"""
     user_key = session.get('user_id') or session.get('username') or session.get('email') or session.get('user') or session.get('guest_id')
     if not user_key:
         session['guest_id'] = f"guest_{uuid.uuid4().hex[:8]}"
@@ -21,10 +19,6 @@ def get_current_user_key():
     return str(user_key).strip()
 
 def sync_user_table_session():
-    """
-    ดึงข้อมูลโต๊ะที่ผู้ใช้ปัจจุบันกำลังใช้งานอยู่จาก Firebase กลับเข้า Session ให้อัตโนมัติ
-    แก้ปัญหา Logout หรือรีเฟรชแล้วจำค่าโต๊ะเดิมไม่ได้
-    """
     if session.get('selected_table_ids') or session.get('selected_table_id'):
         return
 
@@ -141,7 +135,8 @@ def customer_choose_table():
                     patch_firebase_data('tables', tid, {
                         'status': 'available',
                         'occupied_by': '',
-                        'customer_count': 0
+                        'customer_count': 0,
+                        'order': {'items': [], 'total_amount': 0.0}
                     })
 
             session.pop('selected_table_id', None)
@@ -175,13 +170,13 @@ def customer_choose_table():
         if not old_ids and session.get('selected_table_id'):
             old_ids = [session.get('selected_table_id')]
 
-        # คืนสถานะโต๊ะเดิมที่ผู้ใช้ไม่ได้เลือกต่อ
         for old_id in old_ids:
             if old_id and old_id not in table_ids:
                 patch_firebase_data('tables', old_id, {
                     'status': 'available',
                     'occupied_by': '',
-                    'customer_count': 0
+                    'customer_count': 0,
+                    'order': {'items': [], 'total_amount': 0.0}
                 })
 
         selected_nos = []
@@ -200,7 +195,6 @@ def customer_choose_table():
             
             selected_nos.append(str(table_info.get('table_no', '')))
 
-        # อัปเดตสถานะโต๊ะใน Firebase และผูก User Key
         for tid in table_ids:
             patch_firebase_data('tables', tid, {
                 'status': 'occupied',
@@ -348,10 +342,8 @@ def customer_call_staff():
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # บันทึกไปยัง service_requests เพื่อให้หน้าพนักงาน (/staff/service-requests) ดึงไปแสดงผล
         response = post_firebase_data('service_requests', payload)
         
-        # บันทึกไปยัง notifications ควบคู่กันเพื่อรองรับโมดูลอื่น
         try:
             post_firebase_data('notifications', payload)
         except Exception:
@@ -366,7 +358,6 @@ def customer_call_staff():
 
 @customer_bp.route('/customer/api/orders')
 def customer_api_orders():
-    """ดึงข้อมูลออเดอร์ของลูกค้ารายนี้จาก Firebase (รองรับการย้ายโต๊ะ + Order IDs สะสม + User Key)"""
     if session.get('role') != 'customer':
         return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
 
@@ -374,7 +365,6 @@ def customer_api_orders():
 
     user_key = get_current_user_key()
 
-    # รับค่าจาก Query Parameter ที่ส่งมาจาก JavaScript
     req_table_no = request.args.get('table_no', '').strip()
     req_order_ids = request.args.get('order_ids', '').strip()
 
@@ -386,7 +376,6 @@ def customer_api_orders():
     current_table_no = str(session.get('selected_table_no', ''))
     current_table_ids = [str(x) for x in session.get('selected_table_ids', [])]
 
-    # รวบรวมเลขโต๊ะทั้งหมดที่เกี่ยวข้อง
     table_nos_set = set()
     for raw_no in [current_table_no, req_table_no]:
         if raw_no:
@@ -408,7 +397,6 @@ def customer_api_orders():
             ord_user_key = str(ord_item.get('user_key', '')).strip()
             ord_prev_table = str(ord_item.get('previous_table', '') or ord_item.get('merged_from', '')).strip()
 
-            # เงื่อนไขการสืบค้น
             match_order_id = bool(ord_id and ord_id in param_order_ids)
             match_user_key = bool(user_key and ord_user_key and ord_user_key == user_key)
             match_table_id = bool(
@@ -424,11 +412,9 @@ def customer_api_orders():
             if ord_prev_table and ord_prev_table in table_nos_set:
                 match_table_no = True
 
-            # แสดงผลออเดอร์ถ้าตรงกับเงื่อนไขใดเงื่อนไขหนึ่ง
             if match_order_id or match_user_key or match_table_id or match_table_no:
                 matched_orders.append(ord_item)
 
-        # เรียงลำดับจากใหม่ไปเก่า
         matched_orders.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
         return jsonify({'status': 'success', 'orders': matched_orders})
     except Exception as e:

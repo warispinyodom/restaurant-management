@@ -77,14 +77,16 @@
     }
 </style>
 
-<!-- Header & Real-time Badge -->
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<!-- Header & Real-time Badge (แนบ data-role ไว้สำหรับดึงไปใช้ใน JS) -->
+<div id="dashboard-header" 
+     class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2" 
+     data-role="{{ role or session.get('role', 'admin') }}">
     <div>
         <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
             <i class="fas fa-chart-pie text-primary"></i> แผงควบคุมระบบ (Dashboard)
-            <span class="badge bg-primary fs-6 fw-normal rounded-pill px-3">{{ role }}</span>
+            <span class="badge bg-primary fs-6 fw-normal rounded-pill px-3">{{ role or session.get('role', 'admin') }}</span>
         </h3>
-        <p class="text-muted mb-0 small">ยินดีต้อนรับกลับมา, <strong>{{ username }}</strong></p>
+        <p class="text-muted mb-0 small">ยินดีต้อนรับกลับมา, <strong>{{ username or session.get('username', 'ผู้ใช้งาน') }}</strong></p>
     </div>
     
     <div class="d-flex align-items-center gap-2 bg-white px-3 py-1.5 rounded-pill border shadow-sm small">
@@ -247,7 +249,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const userRole = "{{ role }}";
+    // ดึงค่า role จาก data attribute ของ HTML (สะอาด ปลอดภัย และไม่ติด Syntax Error ใน Editor)
+    const headerElem = document.getElementById('dashboard-header');
+    const userRole = headerElem ? headerElem.dataset.role : 'admin';
     let salesChart = null;
 
     // 1. สร้างกราฟแท่ง (Bar Chart)
@@ -261,7 +265,7 @@
     const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 
     salesChart = new Chart(ctx, {
-        type: 'bar', // ปรับเป็น Bar Chart ตามต้องการ
+        type: 'bar',
         data: {
             labels: dayNames,
             datasets: [{
@@ -271,7 +275,7 @@
                 hoverBackgroundColor: '#0b5ed7',
                 borderColor: '#0d6efd',
                 borderWidth: 1,
-                borderRadius: 8, // ความโค้งมนของมุมแท่ง
+                borderRadius: 8,
                 borderSkipped: false,
                 maxBarThickness: 42
             }]
@@ -308,7 +312,6 @@
                     },
                     ticks: {
                         font: { size: 11 },
-                        // รูปแบบแสดงหน่วยบาทบนแกน Y (รองรับตั้งเเต่หลัก 10 ถึงหลักล้าน+)
                         callback: function(value) {
                             if (value >= 1000000) {
                                 return '฿' + (value / 1000000).toFixed(1) + 'M';

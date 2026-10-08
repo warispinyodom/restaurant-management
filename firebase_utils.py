@@ -1,6 +1,4 @@
 import os
-import ssl
-import urllib.request
 import urllib.parse
 import json
 import uuid
@@ -8,10 +6,10 @@ from functools import wraps
 from datetime import datetime
 from flask import session, flash, redirect, url_for
 import firebase_admin
-from firebase_admin import credentials, storage
+from firebase_admin import credentials, storage, db
 
 # ----------------------------------------------------
-# Firebase Admin SDK Setup (สำหรับจัดการ Storage)
+# Firebase Admin SDK Setup (สำหรับ Realtime Database & Storage)
 # ----------------------------------------------------
 FIREBASE_BUCKET = "webapplication-e7922.firebasestorage.app"
 FIREBASE_URL = "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -33,14 +31,15 @@ if not firebase_admin._apps:
         if os.path.exists(cred_path):
             cred = credentials.Certificate(cred_path)
 
-    if cred:
-        firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_BUCKET})
-    else:
-        firebase_admin.initialize_app(options={'storageBucket': FIREBASE_BUCKET})
+    options = {
+        'storageBucket': FIREBASE_BUCKET,
+        'databaseURL': FIREBASE_URL
+    }
 
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+    if cred:
+        firebase_admin.initialize_app(cred, options)
+    else:
+        firebase_admin.initialize_app(options=options)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
@@ -57,11 +56,16 @@ DEFAULT_CATEGORIES = [
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==========================================
+# Firebase Storage Helper Functions
+# ==========================================
 def upload_to_firebase_storage(file, folder="uploads"):
+    """อัปโหลดไฟล์รูปภาพไปยัง Firebase Storage ผ่าน Firebase Admin SDK"""
     try:
         if not file or not file.filename:
             return None
             
+        file.seek(0)  # รีเซ็ตตำแหน่งการอ่านไฟล์ใน Flask
         extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
         unique_filename = f"{folder}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.{extension}"
         storage_path = f"{folder}/{unique_filename}"
@@ -72,22 +76,31 @@ def upload_to_firebase_storage(file, folder="uploads"):
         content_type = file.content_type or 'image/jpeg'
         blob.upload_from_string(file.read(), content_type=content_type)
         
-        encoded_path = urllib.parse.quote(storage_path, safe='')
-        return f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
+        try:
+            blob.make_public()
+            return blob.public_url
+        except Exception:
+            encoded_path = urllib.parse.quote(storage_path, safe='')
+            return f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
     except Exception as e:
         print(f"Firebase Storage Upload Error: {e}")
         return None
 
 def delete_from_firebase_storage(image_url):
+    """ลบไฟล์ออกจาก Firebase Storage ตาม URL ที่กำหนด"""
     try:
         if not image_url or not isinstance(image_url, str):
             return False
             
-        if "/o/" in image_url:
-            path_part = image_url.split("/o/")[1].split("?")[0]
-            storage_path = urllib.parse.unquote(path_part)
+        bucket = storage.bucket()
+        
+        if "firebasestorage.googleapis.com" in image_url or "storage.googleapis.com" in image_url:
+            if "/o/" in image_url:
+                path_part = image_url.split("/o/")[1].split("?")[0]
+                storage_path = urllib.parse.unquote(path_part)
+            else:
+                storage_path = urllib.parse.unquote(image_url.split(f"{bucket.name}/")[-1])
             
-            bucket = storage.bucket()
             blob = bucket.blob(storage_path)
             if blob.exists():
                 blob.delete()
@@ -97,62 +110,92 @@ def delete_from_firebase_storage(image_url):
     return False
 
 # ==========================================
-# Firebase RTDB Helper Functions
+# Firebase RTDB Helper Functions (Firebase Admin SDK)
 # ==========================================
 def get_firebase_data(path):
+    """ดึงข้อมูลจาก Firebase Realtime Database ตาม path ที่กำหนด"""
     try:
-        url = f"{FIREBASE_URL}/{path}.json"
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data if data is not None else {}
+        clean_path = path.strip('/')
+        ref = db.reference(clean_path)
+        data = ref.get()
+        return data if data is not None else {}
     except Exception as e:
         print(f"Error fetching {path}: {e}")
         return {}
 
 def post_firebase_data(path, payload):
+    """เพิ่มข้อมูลใหม่ลงใน path (push) ผ่าน Firebase Admin SDK"""
     try:
-        url = f"{FIREBASE_URL}/{path}.json"
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), 
-                                     headers={'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            return json.loads(response.read().decode('utf-8'))
+        clean_path = path.strip('/')
+        ref = db.reference(clean_path)
+        new_ref = ref.push(payload)
+        return {'name': new_ref.key}
     except Exception as e:
         print(f"Error posting {path}: {e}")
         return None
 
-def patch_firebase_data(path, item_id, payload):
+def patch_firebase_data(path, item_id=None, payload=None):
+    """อัปเดตข้อมูลบางส่วน (Update) ใน RTDB"""
     try:
-        safe_item_id = urllib.parse.quote(str(item_id), safe='')
-        url = f"{FIREBASE_URL}/{path}/{safe_item_id}.json"
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), 
-                                     headers={'Content-Type': 'application/json'}, method='PATCH')
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            return response.status == 200
+        if payload is None:
+            payload = item_id
+            target_path = path.strip('/')
+        else:
+            target_path = f"{path.strip('/')}/{str(item_id).strip('/')}"
+
+        ref = db.reference(target_path)
+        if isinstance(payload, dict):
+            ref.update(payload)
+        else:
+            ref.set(payload)
+        return True
     except Exception as e:
         print(f"Error patching {path}/{item_id}: {e}")
         return False
 
-def delete_firebase_data(path, item_id):
+def delete_firebase_data(path, item_id=None):
+    """ลบข้อมูลจาก RTDB ผ่าน Firebase Admin SDK"""
     try:
-        safe_item_id = urllib.parse.quote(str(item_id), safe='')
-        url = f"{FIREBASE_URL}/{path}/{safe_item_id}.json"
-        req = urllib.request.Request(url, method='DELETE')
-        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
-            return response.status == 200
+        if item_id:
+            target_path = f"{path.strip('/')}/{str(item_id).strip('/')}"
+        else:
+            target_path = path.strip('/')
+            
+        ref = db.reference(target_path)
+        ref.delete()
+        return True
     except Exception as e:
         print(f"Error deleting {path}/{item_id}: {e}")
         return False
 
 def parse_firebase_data(data):
+    """แปลงโครงสร้างข้อมูล Dict/List จาก RTDB ให้อยู่ในรูปแบบ List of Dicts มี id ในตัว"""
+    if not data:
+        return []
     if isinstance(data, dict):
-        return [{'id': str(k), **v} for k, v in data.items() if isinstance(v, dict)]
+        result = []
+        for k, v in data.items():
+            if isinstance(v, dict):
+                item = dict(v)
+                item['id'] = str(k)
+                result.append(item)
+            else:
+                result.append({'id': str(k), 'value': v})
+        return result
     elif isinstance(data, list):
-        return [{'id': str(i), **v} for i, v in enumerate(data) if v and isinstance(v, dict)]
+        result = []
+        for i, v in enumerate(data):
+            if isinstance(v, dict):
+                item = dict(v)
+                item['id'] = str(i)
+                result.append(item)
+            elif v is not None:
+                result.append({'id': str(i), 'value': v})
+        return result
     return []
 
 # ==========================================
-# Guards
+# Guards / Decorators
 # ==========================================
 def admin_required(func_route):
     @wraps(func_route)

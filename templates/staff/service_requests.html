@@ -1,24 +1,31 @@
-<!-- templates/staff/service_requests.html -->
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold"><i class="fas fa-bell text-danger me-2"></i>รายการเรียกพนักงาน (Service Calls)</h3>
+<div class="container-fluid px-0 py-3">
+    <!-- Header Page Banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="fas fa-bell text-danger me-2"></i>รายการเรียกพนักงาน (Service Calls)</h3>
+            <p class="text-muted mb-0 small">ติดตามและกดตอบรับการร้องขอจากลูกค้าหน้าร้านแบบ Real-time</p>
+        </div>
         <div class="d-flex align-items-center gap-2">
-            <button id="soundToggleBtn" class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="toggleSound()">
+            <button id="soundToggleBtn" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm" onclick="toggleSound()">
                 <i class="fas fa-volume-up me-1"></i>เปิดเสียงแจ้งเตือน
             </button>
-            <span class="badge bg-danger rounded-pill px-3 py-2 fs-6">
+            <span class="badge bg-danger rounded-pill px-3 py-2 fs-6 shadow-sm">
                 ค้างดำเนินการ: <span id="pendingRequestsCnt">0</span> รายการ
             </span>
         </div>
     </div>
 
+    <!-- Dynamic Service Requests Grid -->
     <div class="row g-3" id="requestsGrid">
-        <!-- Rendered via JS Realtime -->
+        <!-- Rendered via Realtime JS -->
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     let soundEnabled = true;
@@ -26,7 +33,6 @@
     let isFirstLoad = true;
     let audioCtx = null;
 
-    // เล่นเสียงแจ้งเตือนสังเคราะห์ผ่าน Web Audio API (ปลดล็อกข้อจำกัดบนเบราว์เซอร์)
     function playAlertSound() {
         if (!soundEnabled) return;
         try {
@@ -40,7 +46,7 @@
             const gain = audioCtx.createGain();
             
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // โน้ต A5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.4);
             
             gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
@@ -60,18 +66,18 @@
         soundEnabled = !soundEnabled;
         const btn = document.getElementById('soundToggleBtn');
         if (soundEnabled) {
-            btn.className = "btn btn-outline-success btn-sm rounded-pill px-3";
+            btn.className = "btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm";
             btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>เปิดเสียงแจ้งเตือน';
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         } else {
-            btn.className = "btn btn-outline-secondary btn-sm rounded-pill px-3";
+            btn.className = "btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm";
             btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>ปิดเสียงแจ้งเตือน';
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchServiceRequests();
-        setInterval(fetchServiceRequests, 3000); // ดึงข้อมูลทุกๆ 3 วินาที
+        setInterval(fetchServiceRequests, 3000);
     });
 
     function fetchServiceRequests() {
@@ -94,7 +100,6 @@
             requests = [];
         }
 
-        // จัดเรียง: รายการที่ยังไม่เสร็จสิ้นให้อยู่ด้านบนเสมอ
         const sortedRequests = [...requests].sort((a, b) => {
             const stA = (a.status || 'pending').toLowerCase();
             const stB = (b.status || 'pending').toLowerCase();
@@ -112,7 +117,6 @@
             
             if (isPending) pendingCnt++;
 
-            // รองรับ คีย์ฟิลด์ จากหลากหลายรูปแบบฝั่งลูกค้า
             const tableNo = req.table_no || req.table || req.table_number || req.table_id || req.tableno || '-';
             const reqType = req.request_type || req.type || req.message || req.note || req.service_type || req.title || 'เรียกพนักงาน';
             const timeStr = req.created_at || req.timestamp || req.time || '';
@@ -136,7 +140,7 @@
                                 ${isPending ? 'รอดำเนินการ' : 'ดำเนินการแล้ว'}
                             </span>
                             ${isPending ? `
-                                <button class="btn btn-success btn-sm rounded-pill px-3" onclick="completeRequest('${reqId}')">
+                                <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" onclick="completeRequest('${reqId}')">
                                     <i class="fas fa-check me-1"></i>เข้าช่วยเหลือเรียบร้อย
                                 </button>
                             ` : '<span class="text-muted small"><i class="fas fa-check-circle text-success me-1"></i>เสร็จสิ้น</span>'}
@@ -146,7 +150,6 @@
             </div>`;
         });
 
-        // แจ้งเตือนด้วยเสียง และ Toast เมื่อมีรายการเรียกพนักงานใหม่เข้ามา
         if (!isFirstLoad && pendingCnt > previousPendingCount) {
             playAlertSound();
             Swal.fire({

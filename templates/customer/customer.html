@@ -11,12 +11,38 @@
         --border-color: #e2e8f0;
         --text-main: #0f172a;
         --text-muted: #64748b;
+        --slate-100: #f1f5f9;
+        --slate-200: #e2e8f0;
+        --slate-300: #cbd5e1;
+        --slate-400: #94a3b8;
+        --slate-500: #64748b;
+        --slate-600: #475569;
+        --slate-700: #334155;
+        --slate-800: #1e293b;
+        --slate-900: #0f172a;
+        --amber-500: #f59e0b;
+        --amber-600: #d97706;
     }
 
     body {
         background-color: var(--menu-bg) !important;
         font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
     }
+
+    /* Utility Color Classes Fallbacks */
+    .bg-slate-50 { background-color: #f8fafc !important; }
+    .bg-slate-100 { background-color: var(--slate-100) !important; }
+    .border-slate-100 { border-color: var(--slate-100) !important; }
+    .border-slate-200 { border-color: var(--slate-200) !important; }
+    .text-slate-300 { color: var(--slate-300) !important; }
+    .text-slate-400 { color: var(--slate-400) !important; }
+    .text-slate-500 { color: var(--slate-500) !important; }
+    .text-slate-600 { color: var(--slate-600) !important; }
+    .text-slate-700 { color: var(--slate-700) !important; }
+    .text-slate-800 { color: var(--slate-800) !important; }
+    .text-slate-900 { color: var(--slate-900) !important; }
+    .text-amber-500 { color: var(--amber-500) !important; }
+    .text-amber-600 { color: var(--amber-600) !important; }
 
     /* ป้องกันปัญหา Floating Bar ทับเนื้อหาด้านล่างบนอุปกรณ์มือถือ */
     .customer-page-wrapper {
@@ -256,7 +282,7 @@
                     </h4>
                 </div>
                 <p class="small text-slate-300 m-0 mt-1">
-                    <i class="fas fa-users me-1"></i> ลูกค้า: <strong>{{ customer_count }} ท่าน</strong>
+                    <i class="fas fa-users me-1"></i> ลูกค้า: <strong>{{ customer_count or 1 }} ท่าน</strong>
                 </p>
             </div>
         </div>
@@ -296,7 +322,7 @@
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3 mb-3">
                     <div>
                         <h5 class="fw-bold m-0 text-slate-900"><i class="fas fa-utensils text-primary me-2"></i>รายการอาหาร & เครื่องดื่ม</h5>
-                        <p class="text-muted small m-0 mt-0.5">เลือกรายการอาหาร แล้วกดกดปุ่ม + เพื่อสั่งซื้อ</p>
+                        <p class="text-muted small m-0 mt-0.5">เลือกรายการอาหาร แล้วกดปุ่ม + เพื่อสั่งซื้อ</p>
                     </div>
 
                     <div class="search-filter-capsule d-flex flex-row align-items-center w-100" style="max-width: 100%; @media (min-width: 576px) { max-width: 380px; }">
@@ -418,7 +444,7 @@
                 <div class="card-footer bg-white border-top border-slate-100 p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-slate-100">
                         <label for="customer-count" class="text-muted small fw-medium m-0"><i class="fas fa-users me-1 text-slate-500"></i>จำนวนผู้ใช้บริการ</label>
-                        <input type="number" id="customer-count" class="form-control form-control-sm w-25 text-center fw-bold border-slate-200" value="{{ customer_count }}" min="1" oninput="validateCustomerCount(this)">
+                        <input type="number" id="customer-count" class="form-control form-control-sm w-25 text-center fw-bold border-slate-200" value="{{ customer_count or 1 }}" min="1" max="50" oninput="validateCustomerCount(this)">
                     </div>
 
                     <div class="d-flex justify-content-between align-items-baseline mb-3">
@@ -655,15 +681,21 @@
     }
 
     function validateCustomerCount(input) {
+        if (!input) return 1;
         let val = parseInt(input.value);
         if (isNaN(val) || val < 1) {
             input.value = 1;
+            return 1;
+        } else if (val > 50) {
+            input.value = 50;
+            return 50;
         }
+        return val;
     }
 
     function filterMenus() {
-        const keyword = document.getElementById('search-input').value.toLowerCase().trim();
-        const selectedCategory = document.getElementById('category-filter').value;
+        const keyword = document.getElementById('search-input')?.value.toLowerCase().trim() || '';
+        const selectedCategory = document.getElementById('category-filter')?.value || 'all';
         const menuItems = document.querySelectorAll('.menu-item-col');
         let visibleCount = 0;
 
@@ -683,21 +715,24 @@
         });
 
         const noResults = document.getElementById('no-results-msg');
-        if (visibleCount === 0) {
-            noResults.classList.remove('d-none');
-        } else {
-            noResults.classList.add('d-none');
+        if (noResults) {
+            if (visibleCount === 0) {
+                noResults.classList.remove('d-none');
+            } else {
+                noResults.classList.add('d-none');
+            }
         }
     }
 
     function onCategorySelectChange() {
-        const val = document.getElementById('category-filter').value;
+        const val = document.getElementById('category-filter')?.value || 'all';
         updateActivePill(val);
         filterMenus();
     }
 
     function selectCategoryPill(catName, btn) {
-        document.getElementById('category-filter').value = catName;
+        const selectElem = document.getElementById('category-filter');
+        if (selectElem) selectElem.value = catName;
         updateActivePill(catName);
         filterMenus();
     }
@@ -919,8 +954,8 @@
 
     function checkout() {
         const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        let inputCount = parseInt(document.getElementById('customer-count')?.value);
-        const customerCount = (isNaN(inputCount) || inputCount < 1) ? 1 : inputCount;
+        let countInput = document.getElementById('customer-count');
+        const customerCount = validateCustomerCount(countInput);
         const paymentMethod = document.getElementById('payment-method-desktop')?.value || document.getElementById('payment-method-mobile')?.value || 'เงินสด';
 
         const payload = {
@@ -946,8 +981,10 @@
 
                 // ปิด Offcanvas บนมือถือถ้าเปิดอยู่
                 const offcanvasElem = document.getElementById('mobileCartOffcanvas');
-                const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasElem);
-                if (offcanvasInstance) offcanvasInstance.hide();
+                if (offcanvasElem && typeof bootstrap !== 'undefined') {
+                    const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasElem);
+                    if (offcanvasInstance) offcanvasInstance.hide();
+                }
 
                 Swal.fire({
                     title: 'ส่งออเดอร์เรียบร้อย!',
@@ -1090,9 +1127,12 @@
     }
 
     function openOrderHistoryModal() {
-        const modal = new bootstrap.Modal(document.getElementById('orderHistoryModal'));
-        fetchLiveOrders();
-        modal.show();
+        const modalElem = document.getElementById('orderHistoryModal');
+        if (modalElem && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElem);
+            fetchLiveOrders();
+            modal.show();
+        }
     }
 
     function openCallStaffModal() {
@@ -1105,14 +1145,19 @@
             });
             return;
         }
-        const modal = new bootstrap.Modal(document.getElementById('callStaffModal'));
-        modal.show();
+        const modalElem = document.getElementById('callStaffModal');
+        if (modalElem && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElem);
+            modal.show();
+        }
     }
 
     function sendServiceRequest(type) {
         const modalElement = document.getElementById('callStaffModal');
-        const modalInstance = bootstrap.Modal.getInstance(modalElement);
-        if (modalInstance) modalInstance.hide();
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) modalInstance.hide();
+        }
 
         fetch('/customer/call_staff', {
             method: 'POST',
