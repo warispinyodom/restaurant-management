@@ -110,7 +110,10 @@
 
     function fetchServiceRequests() {
         fetch('/staff/api/service-requests')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     renderRequests(data.requests || []);
@@ -144,7 +147,7 @@
             const tableNo = req.table_no || req.table || '-';
             const callType = req.request_type || req.title || req.type || 'เรียกพนักงาน';
             const note = req.note || req.message || '';
-            const timeStr = String(req.created_at || '-').replace('T', ' ').substring(0, 16);
+            const timeStr = String(req.created_at || req.timestamp || '-').replace('T', ' ').substring(0, 16);
 
             if (st === 'pending') {
                 pendingCnt++;

@@ -146,6 +146,59 @@ def get_all_service_requests():
 # ==========================================
 
 # ------------------------------------------
+# SERVICE REQUESTS (เรียกพนักงาน) ROUTES
+# ------------------------------------------
+
+@staff_bp.route('/staff/service-requests')
+@staff_required
+def staff_service_requests_page():
+    """หน้ารายการแจ้งเรียกพนักงาน"""
+    try:
+        requests_list = get_all_service_requests()
+        return render_template('staff/service_requests.html', service_requests=requests_list)
+    except Exception as e:
+        flash(f"เกิดข้อผิดพลาดในการโหลดรายการเรียกพนักงาน: {str(e)}", "error")
+        return render_template('staff/service_requests.html', service_requests=[])
+
+@staff_bp.route('/staff/api/service-requests')
+@staff_bp.route('/api/staff/service-requests')
+@staff_required
+def api_staff_service_requests():
+    """API ดึงรายการเรียกพนักงานสำหรับ Auto-refresh/AJAX"""
+    try:
+        requests_list = get_all_service_requests() or []
+        return jsonify({'status': 'success', 'requests': requests_list})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@staff_bp.route('/staff/service-request/update-status', methods=['POST'])
+@staff_bp.route('/staff/service-requests/resolve', methods=['POST'])
+@staff_required
+def staff_update_service_request_status():
+    """อัปเดตสถานะ/ปิดงานการเรียกพนักงาน (pending -> in_progress -> resolved)"""
+    try:
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
+        request_id = data.get('request_id') or data.get('id')
+        new_status = data.get('status', 'resolved')
+
+        if not request_id:
+            return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการ'}), 400
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        patch_payload = {
+            'status': new_status,
+            'updated_at': now_str
+        }
+        if new_status in ['resolved', 'completed']:
+            patch_payload['resolved_at'] = now_str
+
+        if patch_firebase_data('service_requests', request_id, patch_payload):
+            return jsonify({'status': 'success', 'message': 'อัปเดตสถานะเรียบร้อยแล้ว'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตรายการในระบบได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ------------------------------------------
 # TABLES MANAGEMENT ROUTES
 # ------------------------------------------
 
@@ -445,7 +498,7 @@ def staff_process_check_bill():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ------------------------------------------
-# OTHER STAFF UTILITIES (STATUS, MENU, SERVICE, SUMMARY)
+# OTHER STAFF UTILITIES & MENU MANAGEMENT
 # ------------------------------------------
 
 @staff_bp.route('/staff/status/update', methods=['POST'])
@@ -496,10 +549,6 @@ def staff_toggle_menu_status():
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตเมนูได้'}), 500
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ==========================================
-# NEW ROUTES FOR QUICK & BULK MENU UPDATES
-# ==========================================
 
 @staff_bp.route('/staff/menu/quick-update/<menu_id>', methods=['POST'])
 @staff_required
@@ -575,40 +624,11 @@ def staff_bulk_update_menus():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@staff_bp.route('/staff/service-requests')
-@staff_required
-def staff_service_requests_page():
-    """หน้ารายการแจ้งเรียกพนักงาน"""
-    try:
-        requests_list = get_all_service_requests()
-        return render_template('staff/service_requests.html', service_requests=requests_list)
-    except Exception as e:
-        flash(f"เกิดข้อผิดพลาดในการโหลดรายการเรียกพนักงาน: {str(e)}", "error")
-        return render_template('staff/service_requests.html', service_requests=[])
-
-@staff_bp.route('/staff/service-requests/resolve', methods=['POST'])
-@staff_required
-def staff_resolve_service_request():
-    """ปิดงาน/เคลียร์รายการเรียกพนักงาน"""
-    try:
-        data = request.get_json(silent=True) or request.form.to_dict() or {}
-        request_id = data.get('request_id')
-
-        if not request_id:
-            return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการ'}), 400
-
-        if patch_firebase_data('service_requests', request_id, {'status': 'resolved', 'resolved_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")}):
-            return jsonify({'status': 'success', 'message': 'ดำเนินการเรียบร้อยแล้ว'})
-        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตรายการได้'}), 500
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @staff_bp.route('/staff/daily-summary')
 @staff_required
 def staff_daily_summary():
-    """สรุปยอดขายประจำวันพนักงาน (รองรับการเลือกวันที่)"""
+    """สรุปยอดขายประจำวันพนักงาน"""
     try:
-        # 1. รับค่า Parameter date จาก Query String (ถ้าไม่ระบุให้ใช้วันนี้)
         selected_date = request.args.get('date', '').strip()
         
         try:
@@ -621,8 +641,6 @@ def staff_daily_summary():
             target_date_str = datetime.now().strftime("%Y-%m-%d")
 
         orders = get_all_orders()
-        
-        # 2. กรองออเดอร์ตามวันที่เลือก และสถานะเป็น completed หรือ paid
         target_orders = []
         for o in orders:
             if not isinstance(o, dict):
@@ -631,7 +649,6 @@ def staff_daily_summary():
             paid_at = str(o.get('paid_at', ''))
             status = str(o.get('status', '')).lower()
             
-            # ตรวจสอบวันที่ตรงกันจาก created_at หรือ paid_at
             is_date_match = created_at.startswith(target_date_str) or paid_at.startswith(target_date_str)
             is_paid = status in ['completed', 'paid']
             
@@ -641,7 +658,6 @@ def staff_daily_summary():
         total_sales = sum(to_float(o.get('total_price') if o.get('total_price') is not None else o.get('total_amount', 0)) for o in target_orders)
         total_orders = len(target_orders)
         
-        # 3. คำนวณแยกตามช่องทางชำระเงิน และสินค้าขายดี
         payment_breakdown = {}
         item_counter = Counter()
 
