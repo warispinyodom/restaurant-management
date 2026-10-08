@@ -143,6 +143,22 @@
             background: rgba(255, 255, 255, 0.15);
             border-radius: 10px;
         }
+
+        .staff-status-select {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .staff-status-select option {
+            background-color: #0f172a;
+            color: #ffffff;
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -182,25 +198,39 @@
 
             <!-- Profile Info -->
             {% if session.get('username') %}
-            <div class="user-profile-box d-flex align-items-center gap-3">
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 shadow-sm"
-                    style="width: 40px; height: 40px; min-width: 40px; font-size: 1.1rem;">
-                    {{ session.get('username')[0] | upper }}
-                </div>
-                <div class="d-flex flex-column justify-content-center overflow-hidden">
-                    <div class="fw-semibold text-white text-truncate mb-1" style="font-size: 0.9rem; line-height: 1.2;">
-                        {{ session.get('username') }}
+            <div class="user-profile-box">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 shadow-sm"
+                        style="width: 40px; height: 40px; min-width: 40px; font-size: 1.1rem;">
+                        {{ session.get('username')[0] | upper }}
                     </div>
-                    <div>
-                        {% if session.get('role') == 'admin' %}
-                        <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
-                        {% elif session.get('role') == 'staff' %}
-                        <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
-                        {% else %}
-                        <span class="badge bg-success text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
-                        {% endif %}
+                    <div class="d-flex flex-column justify-content-center overflow-hidden w-100">
+                        <div class="fw-semibold text-white text-truncate mb-1" style="font-size: 0.9rem; line-height: 1.2;">
+                            {{ session.get('username') }}
+                        </div>
+                        <div>
+                            {% if session.get('role') == 'admin' %}
+                            <span class="badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ADMIN</span>
+                            {% elif session.get('role') == 'staff' %}
+                            <span class="badge bg-info text-dark rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">STAFF</span>
+                            {% else %}
+                            <span class="badge bg-success text-white rounded-pill px-2 py-1" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">CUSTOMER</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
+
+                <!-- ตัวเลือกเปลี่ยนสถานะพนักงาน (แสดงทั้ง role staff และ admin) -->
+                {% if session.get('role') in ['staff', 'admin'] %}
+                <div class="mt-2 pt-2 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between">
+                    <small class="text-white-50" style="font-size: 0.725rem;">สถานะทำงาน:</small>
+                    <select id="staffStatusSelect" class="staff-status-select" onchange="updateStaffStatus(this.value)">
+                        <option value="ready" {% if session.get('staff_status', 'ready') == 'ready' %}selected{% endif %}>🟢 พร้อมทำงาน</option>
+                        <option value="busy" {% if session.get('staff_status') == 'busy' %}selected{% endif %}>🟡 ไม่ว่าง</option>
+                        <option value="break" {% if session.get('staff_status') == 'break' %}selected{% endif %}>🔴 พักผ่อน</option>
+                    </select>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
@@ -261,13 +291,16 @@
                 </a>
 
                 <a href="{{ url_for('staff.staff_menu_manage') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_menu_manage' }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_menu') }}">
                     <i class="fas fa-utensils text-primary"></i> <span>จัดการ/สต็อกเมนู</span>
                 </a>
 
                 <a href="{{ url_for('staff.staff_service_requests_page') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_service_requests_page' }}">
-                    <i class="fas fa-bell text-danger"></i> <span>รายการเรียกพนักงาน</span>
+                    class="nav-link-custom d-flex align-items-center justify-content-between {{ 'active' if request.endpoint and request.endpoint.startswith('staff.staff_service') }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-bell text-danger"></i> <span>รายการเรียกพนักงาน</span>
+                    </div>
+                    <span id="sidebar-service-badge" class="badge bg-danger rounded-pill d-none" style="font-size: 0.7rem;">0</span>
                 </a>
 
                 <a href="{{ url_for('staff.staff_daily_summary') }}"
@@ -365,6 +398,94 @@
                     onConfirmCallback();
                 }
             });
+        }
+
+        // ดึงค่า role จาก session ส่งเข้ามาเป็น String ใน JavaScript
+        const userRole = "{{ session.get('role', '') }}";
+
+        // ใช้ JavaScript เงื่อนไขแทนแท็ก Jinja2 ในแท็ก script เพื่อไม่ให้ VS Code แจ้งเตือน Syntax Error
+        if (['staff', 'admin'].includes(userRole)) {
+            let previousStaffStatus = document.getElementById('staffStatusSelect')?.value || 'ready';
+
+            // ฟังก์ชันอัปเดตสถานะการทำงานของพนักงาน
+            window.updateStaffStatus = function(statusValue) {
+                const selectElem = document.getElementById('staffStatusSelect');
+
+                fetch("{{ url_for('staff.update_staff_status') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ status: statusValue })
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP Error Status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        previousStaffStatus = statusValue;
+                        const Toast = Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message || 'อัปเดตสถานะสำเร็จ'
+                        });
+                    } else {
+                        if (selectElem) selectElem.value = previousStaffStatus;
+                        showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถเปลี่ยนสถานะได้');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error updating staff status:', err);
+                    if (selectElem) selectElem.value = previousStaffStatus;
+                    showNotification('error', 'เชื่อมต่อล้มเหลว', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+                });
+            };
+
+            // ระบบ Polling ตรวจสอบรายการเรียกพนักงานในภูมิหลัง
+            function checkStaffNotifications() {
+                fetch("{{ url_for('staff.api_staff_check_notifications') }}")
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP Error Status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        const badge = document.getElementById('sidebar-service-badge');
+                        if (badge) {
+                            if (data.call_count > 0) {
+                                badge.textContent = data.call_count;
+                                badge.classList.remove('d-none');
+                            } else {
+                                badge.classList.add('d-none');
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.error('Error checking notifications:', err));
+            }
+
+            // เริ่ม Polling อย่างปลอดภัย
+            function initStaffPolling() {
+                checkStaffNotifications();
+                setInterval(checkStaffNotifications, 10000);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initStaffPolling);
+            } else {
+                initStaffPolling();
+            }
         }
     </script>
 

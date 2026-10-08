@@ -168,7 +168,36 @@ def api_staff_service_requests():
     """API ดึงรายการเรียกพนักงานสำหรับ Auto-refresh/AJAX"""
     try:
         requests_list = get_all_service_requests() or []
-        return jsonify({'status': 'success', 'requests': requests_list})
+        # คัดกรองเฉพาะรายการที่ยังไม่ได้ดำเนินการ (ถ้ามี field status)
+        active_requests = [
+            req for req in requests_list 
+            if str(req.get('status', 'pending')).lower() not in ['resolved', 'completed', 'done', 'cancelled']
+        ]
+        return jsonify({
+            'status': 'success', 
+            'count': len(active_requests),
+            'requests': active_requests,
+            'all_requests': requests_list
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@staff_bp.route('/staff/api/notifications/check')
+@staff_required
+def api_staff_check_notifications():
+    """API พิเศษสำหรับ Polling เช็คการเรียกพนักงาน และออเดอร์ใหม่แบบเบาๆ จากทุกหน้า"""
+    try:
+        requests_list = get_all_service_requests() or []
+        active_requests = [
+            req for req in requests_list 
+            if str(req.get('status', 'pending')).lower() not in ['resolved', 'completed', 'done', 'cancelled']
+        ]
+        return jsonify({
+            'status': 'success',
+            'has_active_calls': len(active_requests) > 0,
+            'call_count': len(active_requests),
+            'latest_requests': active_requests[:5]
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
