@@ -260,6 +260,22 @@ def customer_choose_table():
             'select'
         )
 
+        client_request_id = str(
+            request.form.get('client_request_id', '')
+        ).strip()
+
+        if client_request_id and len(client_request_id) > 120:
+            flash('รหัสคำขอไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง', 'error')
+            return redirect(url_for('customer.customer_choose_table'))
+
+        processed_table_requests = session.get(
+            'customer_processed_table_requests', []
+        )
+        if client_request_id and client_request_id in processed_table_requests:
+            if action == 'cancel':
+                return redirect(url_for('customer.customer_choose_table'))
+            return redirect(url_for('customer.customer_dashboard'))
+
         # ---------------------------------------------------------
         # ยกเลิกโต๊ะ
         # ---------------------------------------------------------
@@ -324,6 +340,11 @@ def customer_choose_table():
                 "ยกเลิกการเลือกโต๊ะอาหารเรียบร้อยแล้ว",
                 "success"
             )
+
+            if client_request_id:
+                processed = session.get('customer_processed_table_requests', [])
+                processed = (processed + [client_request_id])[-20:]
+                session['customer_processed_table_requests'] = processed
 
             return redirect(
                 url_for(
@@ -527,6 +548,11 @@ def customer_choose_table():
             "success"
         )
 
+        if client_request_id:
+            processed = session.get('customer_processed_table_requests', [])
+            processed = (processed + [client_request_id])[-20:]
+            session['customer_processed_table_requests'] = processed
+
         return redirect(
             url_for(
                 'customer.customer_dashboard'
@@ -651,6 +677,13 @@ def customer_checkout():
 
     data = request.get_json() or {}
 
+    client_request_id = str(data.get('client_request_id') or '').strip()
+    if client_request_id and len(client_request_id) > 120:
+        return jsonify({
+            'status': 'error',
+            'message': 'รหัสคำขอไม่ถูกต้อง'
+        }), 400
+
     table_id = (
         data.get('table_id')
         or session.get('selected_table_id')
@@ -727,6 +760,25 @@ def customer_checkout():
 
         user_key = get_current_user_key()
 
+        # Idempotency: ถ้า browser ส่งคำขอเดิมซ้ำ ให้คืน order เดิม
+        # แม้คำขอเดิมถูกบันทึกสำเร็จแล้วแต่ response ครั้งแรกหายไป
+        if client_request_id:
+            raw_existing_orders = get_firebase_data('orders')
+            existing_orders = parse_firebase_data(raw_existing_orders)
+            for existing in reversed(existing_orders):
+                if (
+                    str(existing.get('client_request_id', '')).strip() == client_request_id
+                    and str(existing.get('user_key', '')).strip() == str(user_key).strip()
+                ):
+                    existing_id = existing.get('id') or existing.get('order_id')
+                    if existing_id:
+                        return jsonify({
+                            'status': 'success',
+                            'message': 'ออเดอร์นี้ถูกส่งไปแล้ว',
+                            'order_id': existing_id,
+                            'duplicate': True
+                        })
+
         payload = {
             "table_no": table_no,
             "table_id": table_id,
@@ -741,6 +793,7 @@ def customer_checkout():
             "status": "pending",
             "items": items,
             "user_key": user_key or "",
+            "client_request_id": client_request_id or "",
             "created_at": datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
@@ -787,6 +840,13 @@ def customer_call_staff():
     sync_user_table_session()
 
     data = request.get_json() or {}
+
+    client_request_id = str(data.get('client_request_id') or '').strip()
+    if client_request_id and len(client_request_id) > 120:
+        return jsonify({
+            'status': 'error',
+            'message': 'รหัสคำขอไม่ถูกต้อง'
+        }), 400
 
     table_no = (
         data.get('table_no')
@@ -846,6 +906,23 @@ def customer_call_staff():
         existing_requests = parse_firebase_data(
             raw_existing
         )
+
+        # Idempotency: request_id เดิมต้องได้คำขอเดิมกลับมาเสมอ
+        if client_request_id:
+            for existing in reversed(existing_requests):
+                if (
+                    str(existing.get('client_request_id', '')).strip() == client_request_id
+                    and str(existing.get('user_key', '')).strip() == str(user_key).strip()
+                ):
+                    existing_id = existing.get('id') or existing.get('request_id')
+                    if existing_id:
+                        return jsonify({
+                            'status': 'success',
+                            'message': 'คำขอนี้ถูกส่งไปแล้ว',
+                            'id': existing_id,
+                            'request_id': existing_id,
+                            'duplicate': True
+                        })
 
         active_statuses = {
             'pending',
@@ -924,6 +1001,7 @@ def customer_call_staff():
             "request_type": request_type,
             "status": "pending",
             "user_key": user_key or "",
+            "client_request_id": client_request_id or "",
             "created_at": datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             )

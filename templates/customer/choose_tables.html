@@ -179,7 +179,7 @@
                 </a>
                 <form action="{{ url_for('customer.customer_choose_table') }}" method="POST" class="d-inline" id="cancelTableForm">
                     <input type="hidden" name="action" value="cancel">
-                    <button type="button" onclick="confirmCancelTable()" class="btn btn-outline-light rounded-pill px-3">
+                    <button type="button" onclick="confirmCancelTable()" data-customer-mutation class="btn btn-outline-light rounded-pill px-3">
                         <i class="fas fa-times me-1"></i> ยกเลิกเลือกโต๊ะ
                     </button>
                 </form>
@@ -236,6 +236,7 @@
         <input type="hidden" name="customer_count" id="hiddenCustomerCount" value="{{ current_customer_count or 1 }}">
         <input type="hidden" name="previous_table_no" id="hiddenPreviousTableNo" value="{{ current_selected_no or '' }}">
         <input type="hidden" name="customer_order_ids" id="hiddenCustomerOrderIds" value="">
+        <input type="hidden" name="client_request_id" id="selectTableRequestId" value="">
 
         <!-- 4. รายการโต๊ะอาหาร -->
         <div class="row g-3" id="tableGrid">
@@ -316,7 +317,7 @@
             <button type="button" class="btn btn-outline-secondary rounded-pill px-3 d-none d-sm-inline-block" onclick="clearAllSelections()">
                 ล้างการเลือก
             </button>
-            <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="submitTableSelection()">
+            <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="submitTableSelection()" data-customer-mutation>
                 <i class="fas fa-check me-1"></i> ยืนยันเลือกโต๊ะ
             </button>
         </div>
@@ -474,7 +475,16 @@
         });
     }
 
+    function getTableMutationRequestId(prefix, inputId) {
+        const input = document.getElementById(inputId);
+        if (input && input.value) return input.value;
+        const id = (crypto.randomUUID ? crypto.randomUUID() : (prefix + '_' + Date.now() + '_' + Math.random().toString(16).slice(2)));
+        if (input) input.value = id;
+        return id;
+    }
+
     function submitTableSelection() {
+        if (window.__customerTableMutationBusy) return;
         const selectedCards = document.querySelectorAll('.table-card.selected');
         if (selectedCards.length === 0) {
             Swal.fire({
@@ -512,6 +522,11 @@
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
+                if (window.__customerTableMutationBusy) return;
+                window.__customerTableMutationBusy = true;
+                getTableMutationRequestId('select_table', 'selectTableRequestId');
+                const btn = document.querySelector('[onclick="submitTableSelection()"]');
+                if (btn) { btn.disabled = true; btn.classList.add('customer-request-busy'); }
                 try {
                     localStorage.setItem('customer_current_tables', JSON.stringify(tableNames));
                 } catch(e) {}
@@ -532,9 +547,28 @@
             cancelButtonText: 'ย้อนกลับ'
         }).then((result) => {
             if (result.isConfirmed) {
+                if (window.__customerTableMutationBusy) return;
+                window.__customerTableMutationBusy = true;
+                getTableMutationRequestId('cancel_table', 'cancelTableRequestId');
+                const btn = document.querySelector('[onclick="confirmCancelTable()"]');
+                if (btn) { btn.disabled = true; btn.classList.add('customer-request-busy'); }
                 document.getElementById('cancelTableForm').submit();
             }
         });
     }
+</script>
+<style>
+    .customer-request-busy {
+        pointer-events: none !important;
+        opacity: 0.65 !important;
+        cursor: wait !important;
+    }
+</style>
+<script>
+(function installCustomerTableRequestGuard() {
+    if (window.__customerTableRequestGuardInstalled) return;
+    window.__customerTableRequestGuardInstalled = true;
+    window.__customerTableMutationBusy = false;
+})();
 </script>
 {% endblock %}

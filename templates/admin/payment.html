@@ -676,4 +676,126 @@
         });
     }
 </script>
+
+<script>
+/* ============================================================
+   ADMIN REQUEST GUARD
+   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
+   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
+   - ป้องกัน double-submit ของ form POST
+   ============================================================ */
+(function () {
+    if (window.__adminRequestGuardInstalled) return;
+    window.__adminRequestGuardInstalled = true;
+
+    let requestBusy = false;
+    const originalFetch = window.fetch.bind(window);
+
+    function isMutation(method) {
+        return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || 'GET').toUpperCase());
+    }
+
+    function getActionButtons() {
+        return Array.from(document.querySelectorAll(
+            'button[type="submit"], button[onclick], input[type="submit"], button[data-bs-toggle="modal"]'
+        ));
+    }
+
+    function setBusy(busy, sourceButton) {
+        requestBusy = busy;
+        document.documentElement.classList.toggle('admin-request-busy', busy);
+
+        getActionButtons().forEach(function (btn) {
+            if (!btn) return;
+            if (busy) {
+                if (!btn.dataset.adminOriginalDisabled) {
+                    btn.dataset.adminOriginalDisabled = btn.disabled ? '1' : '0';
+                }
+                btn.disabled = true;
+                btn.classList.add('admin-request-disabled');
+                if (btn.tagName === 'BUTTON' && !btn.dataset.adminOriginalHtml) {
+                    btn.dataset.adminOriginalHtml = btn.innerHTML;
+                }
+            } else {
+                if (btn.dataset.adminOriginalDisabled === '0') btn.disabled = false;
+                delete btn.dataset.adminOriginalDisabled;
+                btn.classList.remove('admin-request-disabled');
+            }
+        });
+
+        if (sourceButton && busy) {
+            sourceButton.dataset.adminRequestSource = '1';
+        }
+    }
+
+    window.__adminSetRequestBusy = setBusy;
+
+    window.fetch = function (input, init) {
+        const method = (init && init.method) || (input && input.method) || 'GET';
+        if (!isMutation(method)) {
+            return originalFetch(input, init);
+        }
+
+        if (requestBusy) {
+            return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า กรุณารอให้เสร็จสิ้น'));
+        }
+
+        setBusy(true);
+        return originalFetch(input, init).finally(function () {
+            setBusy(false);
+        });
+    };
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.dataset.adminSubmitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
+        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
+        if (form.getAttribute('onsubmit')) return;
+
+        const method = String(form.getAttribute('method') || 'GET').toUpperCase();
+        if (!isMutation(method)) return;
+
+        if (requestBusy) {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.adminSubmitting = '1';
+        setBusy(true, event.submitter || form.querySelector('[type="submit"]'));
+
+        const submitter = event.submitter || form.querySelector('[type="submit"]');
+        if (submitter) {
+            submitter.dataset.adminSubmitOriginalHtml = submitter.innerHTML;
+            submitter.disabled = true;
+            submitter.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
+        }
+    }, true);
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.type === 'button' && button.dataset.bsDismiss === 'modal') return;
+        if (button.disabled) return;
+        if (requestBusy && button.dataset.adminRequestSource !== '1') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+    }, true);
+
+    const style = document.createElement('style');
+    style.textContent = `
+        .admin-request-disabled { opacity: .65 !important; cursor: wait !important; }
+        .admin-request-busy { cursor: wait; }
+        .admin-request-busy .admin-request-disabled { pointer-events: none !important; }
+    `;
+    document.head.appendChild(style);
+})();
+</script>
+
 {% endblock %}

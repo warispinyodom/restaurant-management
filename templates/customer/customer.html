@@ -281,6 +281,11 @@
         display: inline-block;
         margin-top: 3px;
     }
+.customer-request-busy {
+        pointer-events: none !important;
+        opacity: 0.65 !important;
+        cursor: wait !important;
+    }
 </style>
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
@@ -539,7 +544,7 @@
                         </button>
                     </div>
 
-                    <button class="btn btn-checkout-primary w-100 shadow-sm" id="btn-checkout-desktop" onclick="confirmCheckout()" disabled>
+                    <button class="btn btn-checkout-primary w-100 shadow-sm" id="btn-checkout-desktop" data-customer-mutation data-customer-mutation onclick="confirmCheckout()" disabled>
                         <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
                     </button>
                 </div>
@@ -599,7 +604,7 @@
                     <i class="fas fa-qrcode me-1"></i> ดู QR Code สแกนจ่ายเงิน
                 </button>
             </div>
-            <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" onclick="confirmCheckout()" disabled>
+            <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" data-customer-mutation data-customer-mutation onclick="confirmCheckout()" disabled>
                 <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
             </button>
         </div>
@@ -643,25 +648,25 @@
                 <p class="text-muted small mb-3">กรุณาเลือกบริการที่ต้องการแจ้งพนักงานประจำโต๊ะ {{ selected_table_no or '-' }}</p>
                 <div class="row g-2 g-sm-3">
                     <div class="col-6">
-                        <button class="btn btn-outline-primary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('เรียกพนักงานมาที่โต๊ะ')">
+                        <button class="btn btn-outline-primary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" data-customer-mutation onclick="sendServiceRequest('เรียกพนักงานมาที่โต๊ะ')">
                             <i class="fas fa-user-ninja fs-3"></i>
                             <span class="fw-bold small">เรียกพนักงาน</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-success p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอเช็คบิล / ชำระเงิน')">
+                        <button class="btn btn-outline-success p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" data-customer-mutation onclick="sendServiceRequest('ขอเช็คบิล / ชำระเงิน')">
                             <i class="fas fa-file-invoice-dollar fs-3"></i>
                             <span class="fw-bold small">ขอเช็คบิล</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-info p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอเติมน้ำ / น้ำแข็ง')">
+                        <button class="btn btn-outline-info p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" data-customer-mutation onclick="sendServiceRequest('ขอเติมน้ำ / น้ำแข็ง')">
                             <i class="fas fa-glass-water fs-3"></i>
                             <span class="fw-bold small">เติมน้ำ/น้ำแข็ง</span>
                         </button>
                     </div>
                     <div class="col-6">
-                        <button class="btn btn-outline-secondary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" onclick="sendServiceRequest('ขอทิชชู่ / จานแบ่งเพิ่ม')">
+                        <button class="btn btn-outline-secondary p-3 w-100 rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-2" data-customer-mutation onclick="sendServiceRequest('ขอทิชชู่ / จานแบ่งเพิ่ม')">
                             <i class="fas fa-box-tissue fs-3"></i>
                             <span class="fw-bold small">ขอทิชชู่/อุปกรณ์</span>
                         </button>
@@ -1068,7 +1073,17 @@
         });
     }
 
-    function checkout() {
+    async function checkout() {
+        // ป้องกันการส่งออเดอร์ซ้ำ: ล็อกทันทีตั้งแต่ก่อนเริ่ม fetch
+        if (window.__customerMutationBusy) {
+            return;
+        }
+
+        window.__customerMutationBusy = true;
+        const requestId = window.__customerCheckoutRequestId || (crypto.randomUUID ? crypto.randomUUID() : ('checkout_' + Date.now() + '_' + Math.random().toString(16).slice(2)));
+        window.__customerCheckoutRequestId = requestId;
+        document.querySelectorAll('[data-customer-mutation]').forEach(btn => { btn.disabled = true; btn.classList.add('customer-request-busy'); });
+
         const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         let countInput = document.getElementById('customer-count');
         const customerCount = validateCustomerCount(countInput);
@@ -1079,9 +1094,11 @@
             total_amount: totalAmount,
             customer_count: customerCount,
             payment_method: paymentMethod,
-            table_no: currentTableNo
+            table_no: currentTableNo,
+            client_request_id: requestId
         };
 
+        window.__customerMutationFetchAllowed = true;
         fetch('/customer/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1090,6 +1107,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
+                window.__customerCheckoutRequestId = null;
                 const newOrderId = data.order_id || data.id || (data.data && data.data.id);
                 if (newOrderId) {
                     saveOrderId(newOrderId);
@@ -1130,6 +1148,12 @@
                 icon: 'error',
                 confirmButtonColor: '#dc2626'
             });
+        })
+        .finally(() => {
+            window.__customerMutationFetchAllowed = false;
+            // ปลดล็อกเมื่อ fetch ได้ response แล้วเท่านั้น
+            window.__customerMutationBusy = false;
+            document.querySelectorAll('.customer-request-busy').forEach(btn => { btn.disabled = false; btn.classList.remove('customer-request-busy'); });
         });
     }
 
@@ -1503,23 +1527,36 @@
     }
 
     function sendServiceRequest(type) {
+        // ล็อกทันที ไม่ให้กดปุ่มเรียกพนักงานซ้ำจนกว่า response จะกลับมา
+        if (window.__customerMutationBusy) {
+            return;
+        }
+
+        window.__customerMutationBusy = true;
+        const requestId = window.__customerServiceRequestId || (crypto.randomUUID ? crypto.randomUUID() : ('service_' + Date.now() + '_' + Math.random().toString(16).slice(2)));
+        window.__customerServiceRequestId = requestId;
+        document.querySelectorAll('[data-customer-mutation]').forEach(btn => { btn.disabled = true; btn.classList.add('customer-request-busy'); });
+
         const modalElement = document.getElementById('callStaffModal');
         if (modalElement && typeof bootstrap !== 'undefined') {
             const modalInstance = bootstrap.Modal.getInstance(modalElement);
             if (modalInstance) modalInstance.hide();
         }
 
+        window.__customerMutationFetchAllowed = true;
         fetch('/customer/call_staff', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 request_type: type,
-                table_no: currentTableNo 
+                table_no: currentTableNo,
+                client_request_id: requestId
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                window.__customerServiceRequestId = null;
                 const reqId = data.id || data.request_id;
                 if (reqId) {
                     saveCallId(reqId);
@@ -1552,7 +1589,55 @@
                 icon: 'error',
                 confirmButtonColor: '#dc2626'
             });
+        })
+        .finally(() => {
+            window.__customerMutationFetchAllowed = false;
+            // ปลดล็อกหลังจาก server ตอบกลับ/เกิด network error แล้ว
+            window.__customerMutationBusy = false;
+            document.querySelectorAll('.customer-request-busy').forEach(btn => { btn.disabled = false; btn.classList.remove('customer-request-busy'); });
         });
     }
+
+    // Global guard สำหรับ mutation request ของ Customer
+    // GET สำหรับ polling/status จะไม่ถูกล็อก
+    (function installCustomerRequestGuard() {
+        if (window.__customerRequestGuardInstalled) return;
+        window.__customerRequestGuardInstalled = true;
+        if (typeof window.__customerMutationBusy !== 'boolean') {
+            window.__customerMutationBusy = false;
+        }
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function(input, init) {
+            const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+            const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+            if (isMutation && window.__customerMutationBusy && !window.__customerMutationFetchAllowed) {
+                return Promise.reject(new Error('CUSTOMER_REQUEST_BUSY'));
+            }
+
+            if (isMutation && !window.__customerMutationBusy) {
+                window.__customerMutationBusy = true;
+                document.querySelectorAll('button[type="submit"], input[type="submit"], button[data-customer-mutation]').forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('customer-request-busy');
+                });
+            }
+
+            const release = () => {
+                if (!window.__customerCheckoutRequestId) {
+                    window.__customerMutationBusy = false;
+                }
+                document.querySelectorAll('.customer-request-busy').forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('customer-request-busy');
+                });
+            };
+
+            return originalFetch(input, init).finally(() => {
+                if (isMutation) release();
+            });
+        };
+    })();
 </script>
 {% endblock %}

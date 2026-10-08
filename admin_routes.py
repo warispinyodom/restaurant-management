@@ -28,6 +28,46 @@ RESET_TABLE_PAYLOAD = {
     'order': {'items': [], 'total_amount': 0.0}
 }
 
+
+def _get_user_by_id(user_id):
+    """อ่านข้อมูลผู้ใช้เป้าหมายจาก Firebase อย่างปลอดภัย"""
+    if not user_id:
+        return None
+
+    try:
+        user = get_firebase_data(f'users/{user_id}')
+        return user if isinstance(user, dict) else None
+    except Exception as e:
+        print(f"Error loading user {user_id}: {e}")
+        return None
+
+
+def _is_admin_account(user_id, user_data=None):
+    """ตรวจว่าบัญชีเป้าหมายเป็น Admin หรือไม่"""
+    if user_data is None:
+        user_data = _get_user_by_id(user_id)
+
+    if not isinstance(user_data, dict):
+        return False
+
+    return str(user_data.get('role', '')).strip().lower() == 'admin'
+
+
+def _is_current_user(user_id):
+    """ตรวจว่าบัญชีเป้าหมายคือบัญชีที่กำลัง Login อยู่หรือไม่"""
+    current_user_id = str(session.get('user_id', '')).strip()
+    target_user_id = str(user_id or '').strip()
+    return bool(current_user_id and target_user_id and current_user_id == target_user_id)
+
+
+def _admin_protected_response(message):
+    """ตอบกลับเมื่อพยายามแก้ไข/ลบ/ปิดใช้งานบัญชี Admin"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({'status': 'error', 'message': message}), 403
+
+    flash(message, 'error')
+    return redirect(url_for('admin.admin_staff_list'))
+
 def _get_request_ids(request):
     """ฟังก์ชันช่วยดึงรายการ IDs จาก Request รองรับทั้ง JSON, Form Data และคีย์หลายรูปแบบ"""
     data = request.get_json(silent=True) or {}
@@ -478,39 +518,360 @@ def admin_staff_add():
 
     return redirect(url_for('admin.admin_staff_list'))
 
+@admin_bp.route('/admin/staff/batch-add', methods=['POST'])
+@admin_required
+def admin_staff_batch_add():
+    """เพิ่มพนักงานหลายบัญชีในคำขอเดียว พร้อมตรวจข้อมูลซ้ำก่อนเขียน Firebase"""
+    try:
+        data = request.get_json(silent=True) or {}
+        users = data.get('users')
+
+        if not isinstance(users, list) or not users:
+            return jsonify({'status': 'error', 'message': 'กรุณาระบุข้อมูลพนักงานที่ต้องการเพิ่ม'}), 400
+
+        if len(users) > 50:
+            return jsonify({'status': 'error', 'message': 'สามารถเพิ่มพนักงานพร้อมกันได้ไม่เกิน 50 รายการ'}), 400
+
+        existing_users = get_all_users() or {}
+        existing_usernames = {
+            str(info.get('username', '')).strip().lower()
+            for info in existing_users.values()
+            if isinstance(info, dict) and str(info.get('username', '')).strip()
+        }
+
+        created = []
+        skipped = []
+        failed = []
+        request_usernames = set()
+
+        for index, item in enumerate(users, start=1):
+            if not isinstance(item, dict):
+                failed.append(f'รายการที่ {index}: รูปแบบข้อมูลไม่ถูกต้อง')
+                continue
+
+            username = str(item.get('username', '')).strip()
+            password = str(item.get('password', '')).strip()
+            role = str(item.get('role', 'staff')).strip().lower()
+            username_key = username.lower()
+
+            if len(username) < 3 or len(password) < 4:
+                failed.append(f'รายการที่ {index} ({username or "ไม่ระบุชื่อ"}): ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร และรหัสผ่านอย่างน้อย 4 ตัวอักษร')
+                continue
+
+            if role not in ['staff', 'admin']:
+                failed.append(f'รายการที่ {index} ({username}): ตำแหน่งไม่ถูกต้อง')
+                continue
+
+            if username_key in request_usernames:
+                skipped.append(f'{username} (ซ้ำในรายการเดียวกัน)')
+                continue
+
+            request_usernames.add(username_key)
+
+            if username_key in existing_usernames:
+                skipped.append(f'{username} (มีอยู่ในระบบแล้ว)')
+                continue
+
+            try:
+                hashed_password = generate_password_hash(password)
+                if create_user(username, hashed_password, role):
+                    created.append(username)
+                    existing_usernames.add(username_key)
+                else:
+                    failed.append(f'{username} (ไม่สามารถบันทึก Firebase ได้)')
+            except Exception as item_error:
+                failed.append(f'{username} ({str(item_error)})')
+
+        total_requested = len(users)
+        if not created and failed and not skipped:
+            status = 'error'
+        elif failed or skipped:
+            status = 'partial'
+        else:
+            status = 'success'
+
+        parts = [f'เพิ่มสำเร็จ {len(created)} จาก {total_requested} รายการ']
+        if skipped:
+            parts.append(f'ข้าม {len(skipped)} รายการ: {", ".join(skipped[:5])}' + (' และรายการอื่น ๆ' if len(skipped) > 5 else ''))
+        if failed:
+            parts.append(f'ไม่สำเร็จ {len(failed)} รายการ: {", ".join(failed[:5])}' + (' และรายการอื่น ๆ' if len(failed) > 5 else ''))
+
+        return jsonify({
+            'status': status,
+            'message': ' | '.join(parts),
+            'created_count': len(created),
+            'skipped_count': len(skipped),
+            'failed_count': len(failed),
+            'created': created,
+            'skipped': skipped,
+            'failed': failed
+        }), (400 if status == 'error' else 200)
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'เกิดข้อผิดพลาดในการเพิ่มพนักงานหลายรายการ: {str(e)}'}), 500
+
+
+@admin_bp.route('/admin/staff/batch-edit', methods=['POST'])
+@admin_required
+def admin_staff_batch_edit():
+    """แก้ไข Staff หลายบัญชีพร้อมกัน โดยป้องกันการลดสิทธิ์/ปิดใช้งาน Admin"""
+    try:
+        ids = _get_request_ids(request)
+        data = request.get_json(silent=True) or {}
+        role = data.get('role')
+        is_active = data.get('is_active')
+
+        if not ids:
+            return jsonify({'status': 'error', 'message': 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ'}), 400
+
+        # ทำให้ IDs ไม่ซ้ำและตัดค่าที่ว่างออก เพื่อไม่ให้เขียน Firebase ซ้ำ
+        unique_ids = []
+        seen_ids = set()
+        for raw_id in ids:
+            user_id = str(raw_id or '').strip()
+            if user_id and user_id not in seen_ids:
+                seen_ids.add(user_id)
+                unique_ids.append(user_id)
+
+        role = str(role).strip().lower() if role is not None and str(role).strip() else None
+        is_active = str(is_active).strip().lower() if is_active is not None and str(is_active).strip() else None
+
+        if role is not None and role not in ['staff', 'admin']:
+            return jsonify({'status': 'error', 'message': 'ตำแหน่งผู้ใช้ไม่ถูกต้อง'}), 400
+        if is_active is not None and is_active not in ['true', 'false', '1', '0', 'on', 'off']:
+            return jsonify({'status': 'error', 'message': 'สถานะการใช้งานไม่ถูกต้อง'}), 400
+        if role is None and is_active is None:
+            return jsonify({'status': 'error', 'message': 'ไม่มีข้อมูลที่ต้องอัปเดต'}), 400
+
+        requested_active = None
+        if is_active is not None:
+            requested_active = is_active in ['true', '1', 'on']
+
+        updated = []
+        skipped = []
+        failed = []
+
+        for user_id in unique_ids:
+            target_user = _get_user_by_id(user_id)
+            if not target_user:
+                failed.append(f'{user_id} (ไม่พบข้อมูลบัญชี)')
+                continue
+
+            current_role = str(target_user.get('role', 'staff')).strip().lower()
+            is_admin = _is_admin_account(user_id, target_user)
+            is_current = _is_current_user(user_id)
+
+            # Admin ต้องคงสิทธิ์ admin และเปิดใช้งานเสมอ
+            if is_admin:
+                if role == 'staff' or requested_active is False:
+                    reason = 'บัญชี Admin ห้ามลดสิทธิ์หรือปิดใช้งาน'
+                    skipped.append(f'{target_user.get("username", user_id)} ({reason})')
+                    continue
+                # หากไม่ได้สั่งเปลี่ยน role/status หรือสั่งเป็นค่าที่ปลอดภัย ให้คงค่าเดิมของ Admin
+                update_data = {}
+                if role == 'admin':
+                    update_data['role'] = 'admin'
+                if requested_active is True:
+                    update_data['is_active'] = True
+                if not update_data:
+                    skipped.append(f'{target_user.get("username", user_id)} (ไม่มีการเปลี่ยนแปลง)')
+                    continue
+            else:
+                update_data = {}
+                if role is not None:
+                    update_data['role'] = role
+                if requested_active is not None:
+                    update_data['is_active'] = requested_active
+
+                # ป้องกัน Admin ที่กำลัง Login อยู่ถูกทำให้เข้าใช้งานต่อไม่ได้จากคำขอแบบกลุ่ม
+                if is_current and current_role == 'admin':
+                    if update_data.get('role') == 'staff' or update_data.get('is_active') is False:
+                        skipped.append(f'{target_user.get("username", user_id)} (เป็นบัญชี Admin ที่กำลังใช้งานอยู่)')
+                        continue
+
+            if not update_data:
+                skipped.append(f'{target_user.get("username", user_id)} (ไม่มีการเปลี่ยนแปลง)')
+                continue
+
+            try:
+                if patch_firebase_data('users', user_id, update_data):
+                    updated.append(target_user.get('username', user_id))
+                else:
+                    failed.append(f'{target_user.get("username", user_id)} (Firebase ไม่ตอบรับการอัปเดต)')
+            except Exception as item_error:
+                failed.append(f'{target_user.get("username", user_id)} ({str(item_error)})')
+
+        if not updated and failed and not skipped:
+            status = 'error'
+        elif failed or skipped:
+            status = 'partial'
+        else:
+            status = 'success'
+
+        parts = [f'อัปเดตสำเร็จ {len(updated)} รายการ จากที่เลือก {len(unique_ids)} รายการ']
+        if skipped:
+            parts.append(f'ข้าม {len(skipped)} รายการ: {", ".join(skipped[:5])}' + (' และรายการอื่น ๆ' if len(skipped) > 5 else ''))
+        if failed:
+            parts.append(f'ไม่สำเร็จ {len(failed)} รายการ: {", ".join(failed[:5])}' + (' และรายการอื่น ๆ' if len(failed) > 5 else ''))
+
+        return jsonify({
+            'status': status,
+            'message': ' | '.join(parts),
+            'updated_count': len(updated),
+            'skipped_count': len(skipped),
+            'failed_count': len(failed),
+            'updated': updated,
+            'skipped': skipped,
+            'failed': failed
+        }), (400 if status == 'error' else 200)
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'เกิดข้อผิดพลาดในการแก้ไขพนักงานหลายรายการ: {str(e)}'}), 500
+
+
+@admin_bp.route('/admin/staff/batch-delete', methods=['POST'])
+@admin_required
+def admin_staff_batch_delete():
+    """ลบ Staff หลายบัญชีพร้อมกัน โดยไม่อนุญาตให้ลบ Admin หรือบัญชีที่กำลัง Login"""
+    try:
+        ids = _get_request_ids(request)
+        if not ids:
+            return jsonify({'status': 'error', 'message': 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ'}), 400
+
+        unique_ids = []
+        seen_ids = set()
+        for raw_id in ids:
+            user_id = str(raw_id or '').strip()
+            if user_id and user_id not in seen_ids:
+                seen_ids.add(user_id)
+                unique_ids.append(user_id)
+
+        deleted = []
+        skipped = []
+        failed = []
+
+        for user_id in unique_ids:
+            target_user = _get_user_by_id(user_id)
+            if not target_user:
+                failed.append(f'{user_id} (ไม่พบข้อมูลบัญชี)')
+                continue
+
+            username = str(target_user.get('username', user_id)).strip() or user_id
+
+            if _is_current_user(user_id):
+                skipped.append(f'{username} (ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่)')
+                continue
+
+            if _is_admin_account(user_id, target_user):
+                skipped.append(f'{username} (ไม่สามารถลบบัญชี Admin)')
+                continue
+
+            try:
+                if delete_firebase_data('users', user_id):
+                    deleted.append(username)
+                else:
+                    failed.append(f'{username} (ไม่สามารถลบจาก Firebase ได้)')
+            except Exception as item_error:
+                failed.append(f'{username} ({str(item_error)})')
+
+        if not deleted and failed and not skipped:
+            status = 'error'
+        elif failed or skipped:
+            status = 'partial'
+        else:
+            status = 'success'
+
+        parts = [f'ลบสำเร็จ {len(deleted)} รายการ จากที่เลือก {len(unique_ids)} รายการ']
+        if skipped:
+            parts.append(f'ข้าม {len(skipped)} รายการ: {", ".join(skipped[:5])}' + (' และรายการอื่น ๆ' if len(skipped) > 5 else ''))
+        if failed:
+            parts.append(f'ไม่สำเร็จ {len(failed)} รายการ: {", ".join(failed[:5])}' + (' และรายการอื่น ๆ' if len(failed) > 5 else ''))
+
+        return jsonify({
+            'status': status,
+            'message': ' | '.join(parts),
+            'deleted_count': len(deleted),
+            'skipped_count': len(skipped),
+            'failed_count': len(failed),
+            'deleted': deleted,
+            'skipped': skipped,
+            'failed': failed
+        }), (400 if status == 'error' else 200)
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'เกิดข้อผิดพลาดในการลบพนักงานหลายรายการ: {str(e)}'}), 500
+
+
 @admin_bp.route('/admin/staff/edit/<user_id>', methods=['POST'])
 @admin_required
 def admin_staff_edit(user_id):
     try:
+        target_user = _get_user_by_id(user_id)
+        if not target_user:
+            return _admin_protected_response("ไม่พบข้อมูลบัญชีผู้ใช้ที่ต้องการแก้ไข")
+
         username = request.form.get('username', '').strip()
-        role = request.form.get('role', 'staff')
+        requested_role = str(request.form.get('role', target_user.get('role', 'staff'))).strip().lower()
         status_input = request.form.get('is_active', 'true')
         password = request.form.get('password', '').strip()
 
-        if username:
-            users = get_all_users()
-            if isinstance(users, dict):
-                is_duplicate = any(
-                    info.get('username') == username 
-                    for uid, info in users.items() 
-                    if uid != user_id and isinstance(info, dict)
-                )
-                if is_duplicate:
-                    flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
-                    return redirect(url_for('admin.admin_staff_list'))
+        if requested_role not in ['staff', 'admin']:
+            flash("สิทธิ์ผู้ใช้ไม่ถูกต้อง", "error")
+            return redirect(url_for('admin.admin_staff_list'))
 
-        is_active = True if role == 'admin' else (str(status_input).lower() in ['true', 'on', '1'])
+        # บัญชี Admin เป็นบัญชีที่ได้รับการป้องกัน:
+        # - ห้ามลด role จาก admin เป็น staff
+        # - ห้ามเปลี่ยน username ผ่านหน้าแก้ไข
+        # - ห้ามปิดใช้งาน
+        # - อนุญาตให้เปลี่ยน password ได้
+        if _is_admin_account(user_id, target_user):
+            if requested_role != 'admin':
+                return _admin_protected_response("ไม่สามารถลดสิทธิ์บัญชี Admin เป็น Staff ได้")
+
+            old_username = str(target_user.get('username', '')).strip()
+            if username and username != old_username:
+                return _admin_protected_response("ไม่สามารถเปลี่ยนชื่อผู้ใช้ของบัญชี Admin ได้")
+
+            update_data = {
+                'role': 'admin',
+                'is_active': True
+            }
+
+            if password:
+                update_data['password'] = generate_password_hash(password)
+
+            if patch_firebase_data('users', user_id, update_data):
+                flash("อัปเดตข้อมูลบัญชี Admin สำเร็จ (บัญชี Admin ยังคงเปิดใช้งานและสิทธิ์เดิม)", "success")
+            else:
+                flash("ไม่สามารถอัปเดตข้อมูลไปยัง Firebase ได้", "error")
+
+            return redirect(url_for('admin.admin_staff_list'))
+
+        # บัญชี Staff/ผู้ใช้ทั่วไปสามารถแก้ไขข้อมูลได้ตามปกติ
+        users = get_all_users() or {}
+        if isinstance(users, dict) and username:
+            is_duplicate = any(
+                isinstance(info, dict)
+                and uid != user_id
+                and str(info.get('username', '')).strip() == username
+                for uid, info in users.items()
+            )
+            if is_duplicate:
+                flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
+                return redirect(url_for('admin.admin_staff_list'))
+
+        is_active = str(status_input).lower() in ['true', 'on', '1']
 
         update_data = {
-            "role": role,
-            "is_active": is_active
+            'role': requested_role,
+            'is_active': is_active
         }
 
         if username:
-            update_data["username"] = username
+            update_data['username'] = username
 
         if password:
-            update_data["password"] = generate_password_hash(password)
+            update_data['password'] = generate_password_hash(password)
 
         if patch_firebase_data('users', user_id, update_data):
             flash("อัปเดตข้อมูลพนักงานสำเร็จ", "success")
@@ -526,16 +887,26 @@ def admin_staff_edit(user_id):
 @admin_required
 def admin_staff_toggle_status(user_id):
     try:
-        target_user = get_firebase_data(f"users/{user_id}")
-        if isinstance(target_user, dict) and target_user.get('role') == 'admin':
-            return jsonify({'status': 'error', 'message': 'ไม่สามารถเปลี่ยนสถานะผู้ดูแลระบบได้!'}), 400
+        target_user = _get_user_by_id(user_id)
+        if not target_user:
+            return jsonify({'status': 'error', 'message': 'ไม่พบข้อมูลบัญชีผู้ใช้'}), 404
 
-        current_status = target_user.get('is_active', True) if isinstance(target_user, dict) else True
+        if _is_admin_account(user_id, target_user):
+            return jsonify({
+                'status': 'error',
+                'message': 'ไม่สามารถเปลี่ยนสถานะบัญชี Admin ได้ บัญชี Admin ต้องเปิดใช้งานอยู่เสมอ'
+            }), 403
+
+        current_status = bool(target_user.get('is_active', True))
         new_status = not current_status
 
-        if patch_firebase_data('users', user_id, {"is_active": new_status}):
+        if patch_firebase_data('users', user_id, {'is_active': new_status}):
             status_text = "เปิดใช้งาน" if new_status else "ถูกระงับ"
-            return jsonify({'status': 'success', 'message': f'เปลี่ยนสถานะบัญชีเป็น "{status_text}" เรียบร้อยแล้ว'})
+            return jsonify({
+                'status': 'success',
+                'message': f'เปลี่ยนสถานะบัญชีเป็น "{status_text}" เรียบร้อยแล้ว',
+                'is_active': new_status
+            })
 
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลได้'}), 500
     except Exception as e:
@@ -545,8 +916,18 @@ def admin_staff_toggle_status(user_id):
 @admin_required
 def admin_staff_delete(id):
     try:
-        if id == session.get('user_id'):
+        target_user = _get_user_by_id(id)
+        if not target_user:
+            return jsonify({'status': 'error', 'message': 'ไม่พบข้อมูลบัญชีผู้ใช้ที่ต้องการลบ'}), 404
+
+        if _is_current_user(id):
             return jsonify({'status': 'error', 'message': 'ไม่สามารถลบบัญชีของตัวเองที่กำลังใช้งานอยู่ได้'}), 400
+
+        if _is_admin_account(id, target_user):
+            return jsonify({
+                'status': 'error',
+                'message': 'ไม่สามารถลบบัญชี Admin ได้ เพื่อป้องกันระบบหลักถูกล็อกออกจากสิทธิ์ผู้ดูแล'
+            }), 403
 
         if delete_firebase_data('users', id):
             return jsonify({'status': 'success', 'message': 'ลบพนักงานเรียบร้อยแล้ว'})

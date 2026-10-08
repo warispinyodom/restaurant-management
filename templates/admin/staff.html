@@ -579,6 +579,7 @@
                 noSearchRow.classList.add('d-none');
             }
         }
+        updateBatchBar();
     }
 
     function resetFilters() {
@@ -612,14 +613,23 @@
         const selected = getSelectedIds();
         const batchBar = document.getElementById('batchBar');
         const countSpan = document.getElementById('selectedCount');
-        
+        const selectAllCb = document.getElementById('selectAll');
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.staff-checkbox')).filter(function (cb) {
+            const row = cb.closest('tr');
+            return row && row.style.display !== 'none';
+        });
+        const visibleSelected = visibleCheckboxes.filter(function (cb) { return cb.checked; });
+
         if (selected.length > 0) {
             batchBar.classList.add('active');
             countSpan.textContent = `เลือกแล้ว ${selected.length} รายการ`;
         } else {
             batchBar.classList.remove('active');
-            const selectAllCb = document.getElementById('selectAll');
-            if(selectAllCb) selectAllCb.checked = false;
+        }
+
+        if (selectAllCb) {
+            selectAllCb.checked = visibleCheckboxes.length > 0 && visibleSelected.length === visibleCheckboxes.length;
+            selectAllCb.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visibleCheckboxes.length;
         }
     }
 
@@ -669,9 +679,10 @@
         }
     }
 
-    function submitBatchAdd() {
-        const rows = document.querySelectorAll('.dynamic-staff-row');
+    async function submitBatchAdd() {
+        const rows = Array.from(document.querySelectorAll('.dynamic-staff-row'));
         const users = [];
+        const seenUsernames = new Set();
 
         for (let i = 0; i < rows.length; i++) {
             const username = rows[i].querySelector('.staff-input-username').value.trim();
@@ -679,7 +690,7 @@
             const role = rows[i].querySelector('.staff-input-role').value;
 
             if (!username || !password) {
-                if(typeof showNotification === 'function') {
+                if (typeof showNotification === 'function') {
                     showNotification('error', 'ข้อมูลไม่ครบถ้วน', `กรุณากรอกชื่อผู้ใช้และรหัสผ่านในแถวที่ ${i + 1}`);
                 } else {
                     alert(`กรุณากรอกชื่อผู้ใช้และรหัสผ่านในแถวที่ ${i + 1}`);
@@ -687,48 +698,70 @@
                 return;
             }
 
+            const normalizedUsername = username.toLowerCase();
+            if (seenUsernames.has(normalizedUsername)) {
+                if (typeof showNotification === 'function') {
+                    showNotification('error', 'ข้อมูลซ้ำ', `ชื่อผู้ใช้ "${username}" ซ้ำกันในรายการที่กำลังเพิ่ม`);
+                } else {
+                    alert(`ชื่อผู้ใช้ "${username}" ซ้ำกันในรายการที่กำลังเพิ่ม`);
+                }
+                return;
+            }
+
+            seenUsernames.add(normalizedUsername);
             users.push({ username, password, role });
         }
 
-        fetch('/admin/staff/batch-add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ users })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                if(typeof showNotification === 'function') {
-                    showNotification('success', 'บันทึกสำเร็จ', data.message).then(() => location.reload());
+        try {
+            const response = await fetch('/admin/staff/batch-add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ users })
+            });
+            const data = await response.json();
+
+            if (data.status === 'success' || data.status === 'partial') {
+                const level = data.status === 'success' ? 'success' : 'warning';
+                if (typeof showNotification === 'function') {
+                    await showNotification(level, data.status === 'success' ? 'บันทึกสำเร็จ' : 'บันทึกบางส่วน', data.message);
+                    location.reload();
                 } else {
                     alert(data.message);
                     location.reload();
                 }
             } else {
-                if(typeof showNotification === 'function') {
-                    showNotification('error', 'เกิดข้อผิดพลาด', data.message);
+                if (typeof showNotification === 'function') {
+                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถเพิ่มพนักงานได้');
                 } else {
-                    alert(data.message);
+                    alert(data.message || 'ไม่สามารถเพิ่มพนักงานได้');
                 }
             }
-        })
-        .catch(err => {
-            if(typeof showNotification === 'function') {
-                showNotification('error', 'เกิดข้อผิดพลาด', err.message);
+        } catch (err) {
+            if (typeof showNotification === 'function') {
+                showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
             } else {
-                alert(err.message);
+                alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
             }
-        });
+        }
     }
 
     // 4. บันทึกการแก้ไขแบบกลุ่ม (Batch Edit Submit)
-    function submitBatchEdit() {
+    async function submitBatchEdit() {
         const ids = getSelectedIds();
         const role = document.getElementById('batchRoleInput').value;
         const is_active = document.getElementById('batchStatusInput').value;
 
+        if (ids.length === 0) {
+            if (typeof showNotification === 'function') {
+                showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
+            } else {
+                alert('กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
+            }
+            return;
+        }
+
         if (!role && !is_active) {
-            if(typeof showNotification === 'function') {
+            if (typeof showNotification === 'function') {
                 showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกฟิลด์ที่ต้องการอัปเดต');
             } else {
                 alert('กรุณาเลือกฟิลด์ที่ต้องการอัปเดต');
@@ -736,73 +769,100 @@
             return;
         }
 
-        fetch('/admin/staff/batch-edit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids, role: role || undefined, is_active: is_active || undefined })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                if(typeof showNotification === 'function') {
-                    showNotification('success', 'สำเร็จ', data.message).then(() => location.reload());
+        try {
+            const response = await fetch('/admin/staff/batch-edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({
+                    ids,
+                    role: role || null,
+                    is_active: is_active || null
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'success' || data.status === 'partial') {
+                const level = data.status === 'success' ? 'success' : 'warning';
+                if (typeof showNotification === 'function') {
+                    await showNotification(level, data.status === 'success' ? 'แก้ไขสำเร็จ' : 'แก้ไขบางส่วน', data.message);
+                    location.reload();
                 } else {
                     alert(data.message);
                     location.reload();
                 }
             } else {
-                if(typeof showNotification === 'function') {
-                    showNotification('error', 'เกิดข้อผิดพลาด', data.message);
+                if (typeof showNotification === 'function') {
+                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถแก้ไขข้อมูลได้');
                 } else {
-                    alert(data.message);
+                    alert(data.message || 'ไม่สามารถแก้ไขข้อมูลได้');
                 }
             }
-        });
+        } catch (err) {
+            if (typeof showNotification === 'function') {
+                showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+            } else {
+                alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+            }
+        }
     }
 
     // 5. ลบพนักงานแบบกลุ่ม (Batch Delete Confirmation)
     function confirmBatchDelete() {
         const ids = getSelectedIds();
-        if (ids.length === 0) return;
+        if (ids.length === 0) {
+            if (typeof showNotification === 'function') {
+                showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
+            } else {
+                alert('กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
+            }
+            return;
+        }
 
-        const executeDelete = function() {
-            fetch('/admin/staff/batch-delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    if(typeof showNotification === 'function') {
-                        showNotification('success', 'ลบข้อมูลสำเร็จ', data.message).then(() => location.reload());
+        const executeDelete = async function() {
+            try {
+                const response = await fetch('/admin/staff/batch-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success' || data.status === 'partial') {
+                    const level = data.status === 'success' ? 'success' : 'warning';
+                    if (typeof showNotification === 'function') {
+                        await showNotification(level, data.status === 'success' ? 'ลบข้อมูลสำเร็จ' : 'ลบข้อมูลบางส่วน', data.message);
+                        location.reload();
                     } else {
                         alert(data.message);
                         location.reload();
                     }
                 } else {
-                    if(typeof showNotification === 'function') {
-                        showNotification('error', 'เกิดข้อผิดพลาด', data.message);
+                    if (typeof showNotification === 'function') {
+                        showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถลบข้อมูลได้');
                     } else {
-                        alert(data.message);
+                        alert(data.message || 'ไม่สามารถลบข้อมูลได้');
                     }
                 }
-            });
+            } catch (err) {
+                if (typeof showNotification === 'function') {
+                    showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+                } else {
+                    alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+                }
+            }
         };
 
         if (typeof confirmAction === 'function') {
             confirmAction(
                 'ยืนยันการลบที่เลือก?',
-                `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก?`,
+                `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก? บัญชี Admin และบัญชีที่กำลังใช้งานอยู่จะไม่ถูกลบ`,
                 executeDelete,
                 'warning',
                 'ลบข้อมูล',
                 'ยกเลิก'
             );
-        } else {
-            if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก?`)) {
-                executeDelete();
-            }
+        } else if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก?`)) {
+            executeDelete();
         }
     }
 
@@ -854,4 +914,126 @@
         }
     }
 </script>
+
+<script>
+/* ============================================================
+   ADMIN REQUEST GUARD
+   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
+   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
+   - ป้องกัน double-submit ของ form POST
+   ============================================================ */
+(function () {
+    if (window.__adminRequestGuardInstalled) return;
+    window.__adminRequestGuardInstalled = true;
+
+    let requestBusy = false;
+    const originalFetch = window.fetch.bind(window);
+
+    function isMutation(method) {
+        return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || 'GET').toUpperCase());
+    }
+
+    function getActionButtons() {
+        return Array.from(document.querySelectorAll(
+            'button[type="submit"], button[onclick], input[type="submit"], button[data-bs-toggle="modal"]'
+        ));
+    }
+
+    function setBusy(busy, sourceButton) {
+        requestBusy = busy;
+        document.documentElement.classList.toggle('admin-request-busy', busy);
+
+        getActionButtons().forEach(function (btn) {
+            if (!btn) return;
+            if (busy) {
+                if (!btn.dataset.adminOriginalDisabled) {
+                    btn.dataset.adminOriginalDisabled = btn.disabled ? '1' : '0';
+                }
+                btn.disabled = true;
+                btn.classList.add('admin-request-disabled');
+                if (btn.tagName === 'BUTTON' && !btn.dataset.adminOriginalHtml) {
+                    btn.dataset.adminOriginalHtml = btn.innerHTML;
+                }
+            } else {
+                if (btn.dataset.adminOriginalDisabled === '0') btn.disabled = false;
+                delete btn.dataset.adminOriginalDisabled;
+                btn.classList.remove('admin-request-disabled');
+            }
+        });
+
+        if (sourceButton && busy) {
+            sourceButton.dataset.adminRequestSource = '1';
+        }
+    }
+
+    window.__adminSetRequestBusy = setBusy;
+
+    window.fetch = function (input, init) {
+        const method = (init && init.method) || (input && input.method) || 'GET';
+        if (!isMutation(method)) {
+            return originalFetch(input, init);
+        }
+
+        if (requestBusy) {
+            return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า กรุณารอให้เสร็จสิ้น'));
+        }
+
+        setBusy(true);
+        return originalFetch(input, init).finally(function () {
+            setBusy(false);
+        });
+    };
+
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.dataset.adminSubmitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
+        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
+        if (form.getAttribute('onsubmit')) return;
+
+        const method = String(form.getAttribute('method') || 'GET').toUpperCase();
+        if (!isMutation(method)) return;
+
+        if (requestBusy) {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.adminSubmitting = '1';
+        setBusy(true, event.submitter || form.querySelector('[type="submit"]'));
+
+        const submitter = event.submitter || form.querySelector('[type="submit"]');
+        if (submitter) {
+            submitter.dataset.adminSubmitOriginalHtml = submitter.innerHTML;
+            submitter.disabled = true;
+            submitter.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
+        }
+    }, true);
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.type === 'button' && button.dataset.bsDismiss === 'modal') return;
+        if (button.disabled) return;
+        if (requestBusy && button.dataset.adminRequestSource !== '1') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+    }, true);
+
+    const style = document.createElement('style');
+    style.textContent = `
+        .admin-request-disabled { opacity: .65 !important; cursor: wait !important; }
+        .admin-request-busy { cursor: wait; }
+        .admin-request-busy .admin-request-disabled { pointer-events: none !important; }
+    `;
+    document.head.appendChild(style);
+})();
+</script>
+
 {% endblock %}
