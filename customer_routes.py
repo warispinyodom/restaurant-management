@@ -11,7 +11,22 @@ from firebase_utils import (
 
 customer_bp = Blueprint('customer', __name__)
 
+def get_current_user_keys():
+    """ดึงรหัสระบุตัวตนทั้งหมดของลูกค้าใน Session ปัจจุบัน (user_id, username, email, user, guest_id)"""
+    keys = set()
+    for k in ['user_id', 'username', 'email', 'user', 'guest_id']:
+        val = session.get(k)
+        if val:
+            keys.add(str(val).strip())
+            
+    if not keys:
+        session['guest_id'] = f"guest_{uuid.uuid4().hex[:8]}"
+        keys.add(session['guest_id'])
+        
+    return keys
+
 def get_current_user_key():
+    """ดึง Primary user key หลักสำหรับนำไปบันทึกข้อมูล"""
     user_key = session.get('user_id') or session.get('username') or session.get('email') or session.get('user') or session.get('guest_id')
     if not user_key:
         session['guest_id'] = f"guest_{uuid.uuid4().hex[:8]}"
@@ -22,8 +37,8 @@ def sync_user_table_session():
     if session.get('selected_table_ids') or session.get('selected_table_id'):
         return
 
-    user_key = get_current_user_key()
-    if not user_key:
+    user_keys = get_current_user_keys()
+    if not user_keys:
         return
 
     try:
@@ -34,7 +49,7 @@ def sync_user_table_session():
         for t in all_tables:
             status = str(t.get('status', '')).lower()
             occ_by = str(t.get('occupied_by', '')).strip()
-            if status == 'occupied' and occ_by and occ_by == user_key:
+            if status == 'occupied' and occ_by and occ_by in user_keys:
                 user_tables.append(t)
 
         if user_tables:
@@ -164,7 +179,8 @@ def customer_choose_table():
         all_tables = parse_firebase_data(raw_tables)
         tables_map = {str(t.get('id')): t for t in all_tables}
 
-        user_key = get_current_user_key()
+        user_keys = get_current_user_keys()
+        primary_user_key = get_current_user_key()
 
         old_ids = session.get('selected_table_ids', [])
         if not old_ids and session.get('selected_table_id'):
@@ -187,7 +203,7 @@ def customer_choose_table():
                 return redirect(url_for('customer.customer_choose_table'))
             
             occ_by = str(table_info.get('occupied_by', '')).strip()
-            is_own_table = (occ_by == user_key) if user_key else False
+            is_own_table = (occ_by in user_keys) if user_keys else False
 
             if table_info.get('status') != 'available' and tid not in old_ids and not is_own_table:
                 flash(f"ขออภัย โต๊ะ {table_info.get('table_no')} ถูกใช้งานหรือถูกจองแล้ว", "error")
@@ -198,7 +214,7 @@ def customer_choose_table():
         for tid in table_ids:
             patch_firebase_data('tables', tid, {
                 'status': 'occupied',
-                'occupied_by': user_key if user_key else '',
+                'occupied_by': primary_user_key if primary_user_key else '',
                 'customer_count': customer_count
             })
 
@@ -363,26 +379,14 @@ def customer_api_orders():
 
     sync_user_table_session()
 
-    user_key = get_current_user_key()
+    # ดึงค่าระบุตัวตนทั้งหมดของลูกค้าใน Session ปัจจุบัน
+    user_keys = get_current_user_keys()
 
-    req_table_no = request.args.get('table_no', '').strip()
     req_order_ids = request.args.get('order_ids', '').strip()
-
-    param_order_ids = set()
-    if req_order_ids:
-        param_order_ids = set(x.strip() for x in req_order_ids.split(',') if x.strip())
+    param_order_ids = set(x.strip() for x in req_order_ids.split(',') if x.strip()) if req_order_ids else set()
 
     current_table_id = str(session.get('selected_table_id', ''))
-    current_table_no = str(session.get('selected_table_no', ''))
     current_table_ids = [str(x) for x in session.get('selected_table_ids', [])]
-
-    table_nos_set = set()
-    for raw_no in [current_table_no, req_table_no]:
-        if raw_no:
-            for part in str(raw_no).replace('-', ',').split(','):
-                cleaned = part.strip()
-                if cleaned:
-                    table_nos_set.add(cleaned)
 
     try:
         raw_orders = get_firebase_data('orders')
@@ -391,29 +395,27 @@ def customer_api_orders():
         matched_orders = []
         for ord_item in all_orders:
             ord_id = str(ord_item.get('id', ''))
-            ord_table_id = str(ord_item.get('table_id', ''))
-            ord_table_no = str(ord_item.get('table_no', ''))
-            ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
             ord_user_key = str(ord_item.get('user_key', '')).strip()
-            ord_prev_table = str(ord_item.get('previous_table', '') or ord_item.get('merged_from', '')).strip()
+            ord_status = str(ord_item.get('status', '')).lower()
 
-            match_order_id = bool(ord_id and ord_id in param_order_ids)
-            match_user_key = bool(user_key and ord_user_key and ord_user_key == user_key)
-            match_table_id = bool(
-                (current_table_id and ord_table_id == current_table_id) or
-                any(tid in current_table_ids for tid in ord_table_ids)
-            )
-
-            match_table_no = False
-            if ord_table_no:
-                ord_nos = [x.strip() for x in str(ord_table_no).replace('-', ',').split(',')]
-                if any(n in table_nos_set for n in ord_nos):
-                    match_table_no = True
-            if ord_prev_table and ord_prev_table in table_nos_set:
-                match_table_no = True
-
-            if match_order_id or match_user_key or match_table_id or match_table_no:
-                matched_orders.append(ord_item)
+            # 1. เช็ค user_key เป็นหลัก
+            if ord_user_key:
+                # ต้อง match กับ user_keys ของคนที่กำลังล็อกอินอยู่เท่านั้น
+                if ord_user_key in user_keys:
+                    matched_orders.append(ord_item)
+                # หากเป็น user_key ของผู้ใช้อื่น ให้ข้ามทันที แม้จะมี order_id ส่งมาใน URL
+            else:
+                # 2. รองรับกรณีออเดอร์เก่าที่ไม่มี user_key (Legacy)
+                match_order_id = bool(ord_id and ord_id in param_order_ids)
+                
+                ord_table_id = str(ord_item.get('table_id', ''))
+                ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
+                match_table = (
+                    (current_table_id and ord_table_id == current_table_id) or
+                    any(tid in current_table_ids for tid in ord_table_ids)
+                )
+                if match_order_id or (match_table and ord_status not in ['completed', 'cancelled']):
+                    matched_orders.append(ord_item)
 
         matched_orders.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
         return jsonify({'status': 'success', 'orders': matched_orders})

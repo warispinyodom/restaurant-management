@@ -497,6 +497,84 @@ def staff_toggle_menu_status():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+# ==========================================
+# NEW ROUTES FOR QUICK & BULK MENU UPDATES
+# ==========================================
+
+@staff_bp.route('/staff/menu/quick-update/<menu_id>', methods=['POST'])
+@staff_required
+def staff_quick_update_menu(menu_id):
+    """อัปเดตราคาส่วนลด สต็อก และสถานะ ของเมนูรายการเดียว"""
+    try:
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
+        if not menu_id:
+            return jsonify({'status': 'error', 'message': 'ไม่พบรหัสเมนู'}), 400
+
+        price = to_float(data.get('price'), 0.0)
+        discount = to_float(data.get('discount'), 0.0)
+        stock = data.get('stock')
+        status = data.get('status', 'available')
+
+        is_available = (status == 'available')
+
+        patch_payload = {
+            'price': abs(price),
+            'discount': abs(discount),
+            'stock': int(abs(stock)) if stock is not None and str(stock).isdigit() else None,
+            'status': status,
+            'is_available': is_available,
+            'updated_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        if patch_firebase_data('menus', menu_id, patch_payload):
+            return jsonify({'status': 'success', 'message': 'อัปเดตรายการเรียบร้อยแล้ว'})
+        return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตข้อมูลลงฐานข้อมูลได้'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@staff_bp.route('/staff/menu/bulk-update', methods=['POST'])
+@staff_required
+def staff_bulk_update_menus():
+    """อัปเดตข้อมูลเมนูแบบหลายรายการพร้อมกัน (Bulk Update)"""
+    try:
+        data = request.get_json(silent=True) or {}
+        items = data.get('items', {})
+
+        if not items or not isinstance(items, dict):
+            return jsonify({'status': 'error', 'message': 'ไม่พบรายการข้อมูลที่ส่งมา'}), 400
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        success_count = 0
+
+        for menu_id, item_data in items.items():
+            if not isinstance(item_data, dict):
+                continue
+
+            price = to_float(item_data.get('price'), 0.0)
+            discount = to_float(item_data.get('discount'), 0.0)
+            stock = item_data.get('stock')
+            status = item_data.get('status', 'available')
+            is_available = (status == 'available')
+
+            patch_payload = {
+                'price': abs(price),
+                'discount': abs(discount),
+                'stock': int(abs(stock)) if stock is not None and str(stock).isdigit() else None,
+                'status': status,
+                'is_available': is_available,
+                'updated_at': now_str
+            }
+
+            if patch_firebase_data('menus', menu_id, patch_payload):
+                success_count += 1
+
+        return jsonify({
+            'status': 'success',
+            'message': f'อัปเดตข้อมูลสำเร็จ {success_count} รายการ'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @staff_bp.route('/staff/service-requests')
 @staff_required
 def staff_service_requests_page():

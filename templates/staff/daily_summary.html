@@ -223,7 +223,6 @@
                                         <div class="fs-4 fw-bolder text-dark mb-2">฿{{ "{:,.2f}".format(amt or 0) }}</div>
                                     </div>
 
-                                    <!-- Progress Bar (ใช้ data-width เพื่อหลีกเลี่ยง VS Code CSS Linter Error) -->
                                     <div class="progress rounded-pill bg-secondary bg-opacity-25" style="height: 6px;">
                                         <div class="progress-bar {% if 'เงินสด' in method %}bg-success{% elif 'โอน' in method or 'QR' in method %}bg-primary{% elif 'บัตร' in method %}bg-info{% else %}bg-dark{% endif %} rounded-pill" 
                                              role="progressbar" 
@@ -283,7 +282,6 @@
                                         {{ "{:,}".format(item.qty or 0) }} <span class="fw-normal">จาน/แก้ว</span>
                                     </span>
                                 </div>
-                                <!-- Relative Sales Progress Bar (ใช้ data-width เพื่อหลีกเลี่ยง VS Code CSS Linter Error) -->
                                 <div class="progress rounded-pill bg-light ms-4" style="height: 5px;">
                                     <div class="progress-bar {% if loop.index == 1 %}bg-warning{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-danger{% else %}bg-info{% endif %} rounded-pill" 
                                          role="progressbar" 
@@ -312,18 +310,12 @@
 
 {% block scripts %}
 <script>
-/**
- * กรองข้อมูลสรุปตามวันที่เลือก
- */
 function filterByDate(dateVal) {
     if (dateVal) {
         window.location.href = '?date=' + encodeURIComponent(dateVal);
     }
 }
 
-/**
- * เลือกแสดงผลยอดขายของวันนี้
- */
 function selectToday() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -333,9 +325,6 @@ function selectToday() {
     window.location.href = '?date=' + todayStr;
 }
 
-/**
- * ปุ่มเลื่อนวันที่ ถัดไป / ย้อนหลัง
- */
 function navigateDate(daysOffset) {
     const input = document.getElementById('summaryDateSelect');
     let currentDateVal = input ? input.value : '';
@@ -364,9 +353,6 @@ function navigateDate(daysOffset) {
     }
 }
 
-/**
- * ปรับความกว้าง Progress Bar จาก data-width เมื่อหน้าเว็บโหลดเสร็จ
- */
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
         bar.style.width = bar.getAttribute('data-width');

@@ -1,13 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-    /* Utility Font Sizes สำหรับมือถือ */
     .fs-7 { font-size: 0.78rem !important; }
     .fs-8 { font-size: 0.70rem !important; }
 
     /* ป้องกันแถบลอยบดบังการ์ดอาหารแถวสุดท้าย */
     .menu-page-wrapper {
-        padding-bottom: 90px !important;
+        padding-bottom: 100px !important;
     }
 
     /* สไตล์การ์ดอาหาร Responsive */
@@ -27,7 +26,6 @@
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08) !important;
     }
     
-    /* สไตล์เมื่อการ์ดถูกเลือก */
     .menu-card.selected-card {
         border: 2px solid #0d6efd !important;
         background-color: #f0f7ff !important;
@@ -38,7 +36,7 @@
     .menu-img-wrapper {
         position: relative;
         width: 100%;
-        padding-top: 72%;
+        padding-top: 70%;
         overflow: hidden;
         background-color: #f8f9fa;
         flex-shrink: 0;
@@ -56,55 +54,49 @@
         transform: scale(1.05);
     }
 
-    /* Checkbox Overlay ตำแหน่งมุมซ้ายบน */
+    /* Checkbox & Badge Layers ป้องกันการซ้อนทับ */
     .card-checkbox-wrapper {
         position: absolute;
         top: 6px;
         left: 6px;
         z-index: 10;
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(4px);
         border-radius: 8px;
-        padding: 3px;
+        padding: 4px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
     }
     .menu-select-checkbox {
-        width: 1.1rem;
-        height: 1.1rem;
+        width: 1.15rem;
+        height: 1.15rem;
         cursor: pointer;
         margin: 0 !important;
         accent-color: #0d6efd;
     }
 
-    /* Badge บนภาพ */
     .status-badge-overlay {
         position: absolute;
         top: 6px;
         right: 6px;
-        z-index: 2;
+        z-index: 9;
+        max-width: 50%;
     }
     .price-badge-overlay {
         position: absolute;
         bottom: 6px;
         right: 6px;
-        z-index: 2;
-        background: rgba(15, 23, 42, 0.85);
+        z-index: 9;
+        background: rgba(15, 23, 42, 0.88);
         backdrop-filter: blur(4px);
         color: #ffffff;
         font-weight: 700;
-        padding: 2px 8px;
+        padding: 3px 8px;
         border-radius: 20px;
         font-size: 0.75rem;
         line-height: 1.2;
-    }
-    @media (min-width: 576px) {
-        .card-checkbox-wrapper { top: 8px; left: 8px; padding: 4px; }
-        .menu-select-checkbox { width: 1.15rem; height: 1.15rem; }
-        .status-badge-overlay { top: 8px; right: 8px; }
-        .price-badge-overlay { bottom: 8px; right: 8px; font-size: 0.875rem; padding: 4px 12px; }
     }
 
     .out-of-stock-overlay {
@@ -114,7 +106,7 @@
         width: 100%;
         height: 100%;
         background: rgba(0, 0, 0, 0.45);
-        z-index: 1;
+        z-index: 5;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -127,9 +119,9 @@
         filter: grayscale(80%);
     }
 
-    /* ควบคุมบรรทัดของชื่อรายการอาหารให้เท่ากัน */
+    /* ชื่อรายการอาหาร */
     .menu-title-text {
-        font-size: 0.825rem;
+        font-size: 0.85rem;
         font-weight: 700;
         color: #1e293b;
         display: -webkit-box;
@@ -137,14 +129,14 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
-        min-height: 2.5em;
-        line-height: 1.25em;
+        min-height: 2.4em;
+        line-height: 1.2em;
         margin-bottom: 0.4rem;
     }
     @media (min-width: 576px) {
         .menu-title-text {
             font-size: 0.95rem;
-            margin-bottom: 0.5rem;
+            min-height: 2.5em;
         }
     }
 
@@ -165,7 +157,7 @@
     /* ปุ่มจัดการการ์ดอาหาร */
     .btn-card-action {
         font-size: 0.72rem;
-        padding: 4px 6px;
+        padding: 5px 6px;
         line-height: 1.2;
     }
     @media (min-width: 576px) {
@@ -186,27 +178,15 @@
         backdrop-filter: blur(10px);
         color: #ffffff;
         border-radius: 50px;
-        padding: 6px 12px;
+        padding: 8px 14px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-        width: calc(100% - 24px);
-        max-width: 600px;
+        width: calc(100% - 20px);
+        max-width: 580px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        animation: fadeInUp 0.25s ease-out;
-    }
-    @media (min-width: 576px) {
-        .bulk-toolbar {
-            padding: 8px 18px;
-            bottom: 20px;
-            width: 92%;
-        }
-    }
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translate(-50%, 20px); }
-        to { opacity: 1; transform: translate(-50%, 0); }
     }
 
     .custom-modal-scroll {
-        max-height: 68vh;
+        max-height: 70vh;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
@@ -226,23 +206,23 @@
 
     <!-- Bulk Action Toolbar -->
     <div class="bulk-toolbar d-none" id="bulkActionToolbar">
-        <div class="d-flex align-items-center justify-content-between gap-1 gap-sm-2">
-            <div class="d-flex align-items-center gap-1 gap-sm-2 flex-shrink-1 overflow-hidden">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2 flex-shrink-1 overflow-hidden">
                 <div class="form-check m-0 d-flex align-items-center">
                     <input class="form-check-input menu-select-checkbox" type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)">
                     <label class="form-check-label fw-bold text-white fs-8 fs-sm-7 ms-1 text-nowrap" for="selectAllCheckbox">
-                        เลือกทั้งหมด
+                        ทั้งหมด
                     </label>
                 </div>
-                <span class="badge bg-primary rounded-pill px-2 py-1 fs-8 fs-sm-7 fw-semibold text-nowrap" id="selectedCountBadge">เลือกอยู่ 0 รายการ</span>
+                <span class="badge bg-primary rounded-pill px-2 py-1 fs-8 fs-sm-7 fw-semibold text-nowrap" id="selectedCountBadge">0 รายการ</span>
             </div>
 
-            <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
-                <button type="button" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark text-nowrap px-2 px-sm-3 fs-8 fs-sm-7" data-bs-toggle="modal" data-bs-target="#batchEditModal">
-                    <i class="fas fa-pen-to-square me-1"></i><span class="d-inline">แก้ไข</span>
+            <div class="d-flex align-items-center gap-1.5 ms-auto flex-shrink-0">
+                <button type="button" class="btn btn-warning btn-sm rounded-pill fw-bold text-dark text-nowrap px-2.5 px-sm-3 fs-8 fs-sm-7" data-bs-toggle="modal" data-bs-target="#batchEditModal">
+                    <i class="fas fa-pen-to-square me-1"></i><span>แก้ไข</span>
                 </button>
-                <button type="button" class="btn btn-danger btn-sm rounded-pill fw-bold text-nowrap px-2 px-sm-3 fs-8 fs-sm-7" onclick="submitBatchDelete()">
-                    <i class="fas fa-trash-can me-1"></i><span class="d-inline">ลบ</span>
+                <button type="button" class="btn btn-danger btn-sm rounded-pill fw-bold text-nowrap px-2.5 px-sm-3 fs-8 fs-sm-7" onclick="submitBatchDelete()">
+                    <i class="fas fa-trash-can me-1"></i><span>ลบ</span>
                 </button>
                 <button type="button" class="btn btn-link text-white-50 text-decoration-none p-1 ms-1 fs-6" onclick="deselectAll()" title="ยกเลิกการเลือก">
                     <i class="fas fa-xmark text-white"></i>
@@ -288,28 +268,28 @@
             <div class="category-scroll-wrapper flex-grow-1">
                 <div class="btn-group gap-1 flex-nowrap" role="group">
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_all" value="all" checked>
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_all">ทั้งหมด</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_all">ทั้งหมด</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_main" value="อาหารจานหลัก">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_main">🍲 อาหารจานหลัก</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_main">🍲 อาหารจานหลัก</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_snack" value="ยำ / ของว่างทานเล่น">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_snack">🥗 ยำ / ของว่าง</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_snack">🥗 ยำ / ของว่าง</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_shabu" value="ชาบู / สุกี้ / ปิ้งย่าง">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_shabu">🥩 ชาบู / ปิ้งย่าง</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_shabu">🥩 ชาบู / ปิ้งย่าง</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_drink" value="เครื่องดื่ม">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_drink">🥤 เครื่องดื่ม</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_drink">🥤 เครื่องดื่ม</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_dessert" value="ของหวาน">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_dessert">🍨 ของหวาน</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_dessert">🍨 ของหวาน</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_special" value="เมนูแนะนำ / โปรโมชั่น">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_special">🌟 เมนูแนะนำ</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_special">🌟 เมนูแนะนำ</label>
 
                     <input type="radio" class="btn-check" name="filterCategory" id="f_cat_other" value="อื่น ๆ">
-                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_other">📦 อื่น ๆ</label>
+                    <label class="btn btn-sm btn-outline-primary rounded-pill px-2.5 px-sm-3 py-1 fs-7 text-nowrap" for="f_cat_other">📦 อื่น ๆ</label>
                 </div>
             </div>
         </div>
@@ -373,13 +353,13 @@
                         <button type="button"
                             class="btn btn-card-action btn-outline-warning text-dark fw-semibold flex-fill rounded-pill d-inline-flex align-items-center justify-content-center text-nowrap"
                             data-bs-toggle="modal" data-bs-target="#editMenuModal{{ menu.id }}">
-                            <i class="fas fa-pen-to-square me-1"></i> แก้ไข
+                            <i class="fas fa-pen-to-square me-1"></i> <span class="d-none d-xs-inline">แก้ไข</span>
                         </button>
                         <button type="button"
                             class="btn btn-card-action btn-outline-danger fw-semibold flex-fill rounded-pill d-inline-flex align-items-center justify-content-center text-nowrap"
                             data-url="{{ url_for('admin.admin_menu_delete', id=menu.id) }}"
                             onclick="deleteItem(this.dataset.url)">
-                            <i class="fas fa-trash-can me-1"></i> ลบ
+                            <i class="fas fa-trash-can me-1"></i> <span class="d-none d-xs-inline">ลบ</span>
                         </button>
                     </div>
                 </div>
@@ -402,7 +382,7 @@
 
         {% if not menus %}
         <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 text-center py-5">
+            <div class="card border-0 shadow-sm rounded-4 text-center py-5 bg-white">
                 <div class="card-body text-muted p-3">
                     <i class="fas fa-utensils fa-3x mb-3 text-secondary opacity-50"></i>
                     <h5 class="fw-bold text-dark fs-6 fs-sm-5">ยังไม่มีรายการเมนูอาหาร</h5>
@@ -684,7 +664,7 @@
 
         if (count > 0) {
             toolbar.classList.remove('d-none');
-            badge.textContent = `เลือกอยู่ ${count} รายการ`;
+            badge.textContent = `${count} รายการ`;
             if (batchCountSpan) batchCountSpan.textContent = count;
         } else {
             toolbar.classList.add('d-none');

@@ -245,7 +245,7 @@
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    {% set is_avail = (menu.status == 'available') %}
+                                    {% set is_avail = (menu.status == 'available' or menu.is_available) %}
                                     <div class="form-check form-switch d-inline-block">
                                         <input class="form-check-input menu-status-toggle fs-5" type="checkbox" role="switch" 
                                                id="statusSwitchDesktop{{ menu.id }}" 
@@ -284,7 +284,7 @@
     <div class="d-block d-md-none">
         {% if menus %}
             {% for menu in menus %}
-            {% set is_avail = (menu.status == 'available') %}
+            {% set is_avail = (menu.status == 'available' or menu.is_available) %}
             <div class="pantry-card p-3 mb-3 shadow-sm menu-item-card" id="menu-card-{{ menu.id }}" data-id="{{ menu.id }}" data-name="{{ menu.name | lower }}" data-category="{{ menu.category or '' }}">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
