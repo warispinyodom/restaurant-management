@@ -404,9 +404,9 @@ def customer_api_service_requests():
             req_user_key = str(req.get('user_key', '')).strip()
             req_table_no = str(req.get('table_no', '')).strip()
 
-            is_user_match = (req_user_key and req_user_key in user_keys)
-            is_id_match = (req_id and req_id in param_req_ids)
-            is_table_match = (current_table_no and req_table_no == current_table_no)
+            is_user_match = bool(req_user_key and req_user_key in user_keys)
+            is_id_match = bool(req_id and req_id in param_req_ids)
+            is_table_match = bool(current_table_no and req_table_no == current_table_no)
 
             if is_user_match or is_id_match or is_table_match:
                 matched_requests.append(req)
@@ -417,6 +417,7 @@ def customer_api_service_requests():
 
 @customer_bp.route('/customer/api/orders')
 def customer_api_orders():
+    """API ดึงข้อมูลออเดอร์ของลูกค้าสำหรับติดตามสถานะ"""
     if session.get('role') != 'customer':
         return jsonify({'status': 'error', 'message': 'ไม่มีสิทธิ์เข้าถึง'}), 403
 
@@ -429,6 +430,7 @@ def customer_api_orders():
 
     current_table_id = str(session.get('selected_table_id', ''))
     current_table_ids = [str(x) for x in session.get('selected_table_ids', [])]
+    current_table_no = str(session.get('selected_table_no', '')).strip()
 
     try:
         raw_orders = get_firebase_data('orders')
@@ -440,20 +442,25 @@ def customer_api_orders():
             ord_user_key = str(ord_item.get('user_key', '')).strip()
             ord_status = str(ord_item.get('status', '')).lower()
 
-            if ord_user_key:
-                if ord_user_key in user_keys:
-                    matched_orders.append(ord_item)
-            else:
-                match_order_id = bool(ord_id and ord_id in param_order_ids)
-                
-                ord_table_id = str(ord_item.get('table_id', ''))
-                ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
-                match_table = (
-                    (current_table_id and ord_table_id == current_table_id) or
-                    any(tid in current_table_ids for tid in ord_table_ids)
-                )
-                if match_order_id or (match_table and ord_status not in ['completed', 'cancelled']):
-                    matched_orders.append(ord_item)
+            # กรองรายการที่ถูกยกเลิก (cancelled) ออกไป แต่ยังคงส่งรายการเสร็จสิ้น (completed) ให้ลูกค้าดูได้
+            if ord_status == 'cancelled':
+                continue
+
+            ord_table_id = str(ord_item.get('table_id', ''))
+            ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
+            ord_table_no = str(ord_item.get('table_no', '')).strip()
+
+            is_user_match = bool(ord_user_key and ord_user_key in user_keys)
+            is_id_match = bool(ord_id and ord_id in param_order_ids)
+            is_table_match = bool(
+                (current_table_id and ord_table_id == current_table_id) or
+                any(tid in current_table_ids for tid in ord_table_ids if tid) or
+                (current_table_no and ord_table_no == current_table_no)
+            )
+
+            # หากตรงเงื่อนไขตัวใดตัวหนึ่ง ให้นำรายการมาแสดงผล
+            if is_user_match or is_id_match or is_table_match:
+                matched_orders.append(ord_item)
 
         matched_orders.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
         return jsonify({'status': 'success', 'orders': matched_orders})

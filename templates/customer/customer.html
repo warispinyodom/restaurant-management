@@ -268,6 +268,18 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
+    <!-- แสดง Flash Messages จาก Flask Backend -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else (category if category in ['warning', 'info', 'success'] else 'primary') }} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <!-- Header Banner สำหรับแสดงสถานะโต๊ะและเมนูลัด -->
     <div class="table-info-banner mb-3 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
@@ -307,15 +319,29 @@
     </div>
 
     <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
-    <div id="serviceCallBanner" class="alert alert-info rounded-4 shadow-sm mb-4 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
+    <div id="serviceCallBanner" class="alert alert-warning rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3">
-            <div class="spinner-grow text-primary flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            <div class="spinner-grow text-warning flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
             <div>
                 <h6 class="fw-bold mb-0 text-slate-800" id="serviceCallTitle">สถานะการเรียกพนักงาน</h6>
                 <span class="small text-muted" id="serviceCallDesc">กำลังส่งสัญญาณแจ้งพนักงาน...</span>
             </div>
         </div>
         <span class="badge rounded-pill px-3 py-2 fw-bold flex-shrink-0" id="serviceCallStatusBadge">รอดำเนินการ</span>
+    </div>
+
+    <!-- Banner แสดงสถานะออเดอร์ล่าสุดแบบ Real-time บนหน้าหลัก -->
+    <div id="orderStatusBanner" class="alert alert-primary rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="spinner-border text-primary flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            <div>
+                <h6 class="fw-bold mb-0 text-slate-800" id="orderStatusTitle">สถานะรายการสั่งอาหาร</h6>
+                <span class="small text-muted" id="orderStatusDesc">กำลังอัปเดตข้อมูลจากห้องครัว...</span>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold flex-shrink-0" onclick="openOrderHistoryModal()">
+            <i class="fas fa-list-check me-1"></i> ดูออเดอร์ทั้งหมด
+        </button>
     </div>
 
     {% if not selected_table_no %}
@@ -655,6 +681,7 @@
     const hasSelectedTable = "{{ selected_table_no or '' }}" !== "";
     const currentTableNo = "{{ selected_table_no or '' }}";
     let lastCallStatuses = {};
+    let lastOrderStatuses = {};
 
     document.addEventListener('DOMContentLoaded', function() {
         syncCartUI();
@@ -662,7 +689,7 @@
         togglePaymentQR('mobile');
         fetchLiveOrders();
         fetchLiveServiceCalls();
-        setInterval(fetchLiveOrders, 8000);
+        setInterval(fetchLiveOrders, 5000);
         setInterval(fetchLiveServiceCalls, 4000);
     });
 
@@ -1030,6 +1057,7 @@
                 const newOrderId = data.order_id || data.id || (data.data && data.data.id);
                 if (newOrderId) {
                     saveOrderId(newOrderId);
+                    lastOrderStatuses[String(newOrderId)] = 'pending';
                 }
 
                 const offcanvasElem = document.getElementById('mobileCartOffcanvas');
@@ -1069,6 +1097,7 @@
         });
     }
 
+    /* --- ระบบดึงข้อมูลและแจ้งเตือนสถานะออเดอร์แบบ Real-time --- */
     function fetchLiveOrders() {
         const localOrderIds = getSavedOrderIds();
         const queryParams = new URLSearchParams();
@@ -1086,24 +1115,108 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    syncOrderIdsFromAPI(data.orders);
-                    renderOrderHistory(data.orders);
-                    
-                    const activeBadge = document.getElementById('activeOrderBadge');
-                    if (activeBadge) {
-                        const hasActive = (data.orders || []).some(o => {
-                            const st = strToLowerCase(o.status);
-                            return st === 'pending' || st === 'cooking' || st === 'in_progress';
-                        });
-                        if (hasActive) {
-                            activeBadge.classList.remove('d-none');
-                        } else {
-                            activeBadge.classList.add('d-none');
-                        }
-                    }
+                    const orders = data.orders || [];
+                    syncOrderIdsFromAPI(orders);
+                    processOrderStatusChanges(orders);
+                    renderOrderHistory(orders);
+                    renderOrderStatusBanner(orders);
                 }
             })
             .catch(err => console.error('Error fetching orders:', err));
+    }
+
+    function processOrderStatusChanges(orders) {
+        if (!Array.isArray(orders)) return;
+
+        orders.forEach(ord => {
+            const oid = String(ord.id || ord.order_id);
+            if (!oid) return;
+
+            const newStatus = strToLowerCase(ord.status);
+            const oldStatus = lastOrderStatuses[oid];
+
+            if (oldStatus && oldStatus !== newStatus) {
+                let title = '';
+                let text = `ออเดอร์ #${oid}: `;
+                let icon = 'info';
+
+                if (newStatus === 'cooking' || newStatus === 'in_progress') {
+                    title = '👨‍🍳 ห้องครัวกำลังปรุงอาหาร!';
+                    text += 'รายการอาหารของคุณกำลังอยู่ระหว่างการจัดเตรียม';
+                    icon = 'info';
+                } else if (newStatus === 'served') {
+                    title = '🍽️ เสิร์ฟอาหารเรียบร้อย!';
+                    text += 'รายการอาหารเสิร์ฟถึงโต๊ะของคุณแล้ว';
+                    icon = 'success';
+                } else if (newStatus === 'completed' || newStatus === 'paid') {
+                    title = '✅ ออเดอร์เสร็จสิ้นสมบูรณ์!';
+                    text += 'ขอบคุณที่ใช้บริการครับ';
+                    icon = 'success';
+                } else if (newStatus === 'cancelled' || newStatus === 'voided') {
+                    title = '❌ ออเดอร์ถูกยกเลิก';
+                    text += 'รายการอาหารนี้ถูกยกเลิกเรียบร้อยแล้ว';
+                    icon = 'warning';
+                }
+
+                if (title) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icon,
+                        title: title,
+                        text: text,
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                }
+            }
+            lastOrderStatuses[oid] = newStatus;
+        });
+    }
+
+    function renderOrderStatusBanner(orders) {
+        const banner = document.getElementById('orderStatusBanner');
+        const titleElem = document.getElementById('orderStatusTitle');
+        const descElem = document.getElementById('orderStatusDesc');
+        const activeBadge = document.getElementById('activeOrderBadge');
+
+        if (!banner || !titleElem || !descElem) return;
+
+        const activeOrders = orders.filter(o => {
+            const st = strToLowerCase(o.status);
+            return st === 'pending' || st === 'cooking' || st === 'in_progress' || st === 'served';
+        });
+
+        if (activeBadge) {
+            if (activeOrders.length > 0) {
+                activeBadge.classList.remove('d-none');
+            } else {
+                activeBadge.classList.add('d-none');
+            }
+        }
+
+        if (activeOrders.length > 0) {
+            banner.classList.remove('d-none');
+            banner.classList.add('d-flex');
+
+            const latestOrder = activeOrders[0];
+            const st = strToLowerCase(latestOrder.status);
+
+            if (st === 'cooking' || st === 'in_progress') {
+                titleElem.innerHTML = `<i class="fas fa-fire text-danger me-1"></i>กำลังปรุงอาหาร (ออเดอร์ #${latestOrder.id})`;
+                descElem.innerText = 'ห้องครัวกำลังรับและปรุงอาหารของคุณ กรุณารอสักครู่...';
+            } else if (st === 'served') {
+                titleElem.innerHTML = `<i class="fas fa-utensils text-success me-1"></i>เสิร์ฟอาหารแล้ว (ออเดอร์ #${latestOrder.id})`;
+                descElem.innerText = 'อาหารเสิร์ฟเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
+            } else {
+                titleElem.innerHTML = `<i class="fas fa-hourglass-start text-warning me-1"></i>รอดำเนินการ (ออเดอร์ #${latestOrder.id})`;
+                descElem.innerText = 'ส่งออเดอร์เข้าครัวแล้ว กำลังรอห้องครัวเริ่มปรุงอาหาร...';
+            }
+        } else {
+            banner.classList.add('d-none');
+            banner.classList.remove('d-flex');
+        }
     }
 
     function renderOrderHistory(orders) {
@@ -1132,7 +1245,7 @@
             } else if (statusStr === 'served') {
                 statusBadge = `<span class="badge bg-info text-white"><i class="fas fa-utensils me-1"></i>เสิร์ฟแล้ว</span>`;
             } else if (statusStr === 'completed' || statusStr === 'paid') {
-                statusBadge = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>เรียบร้อย</span>`;
+                statusBadge = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>เสร็จสิ้นเรียบร้อย</span>`;
             } else if (statusStr === 'cancelled' || statusStr === 'voided') {
                 statusBadge = `<span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>ยกเลิกแล้ว</span>`;
             } else {
@@ -1215,7 +1328,6 @@
             const oldStatus = lastCallStatuses[id];
 
             if (!req) {
-                // หาก Staff กดเสร็จสิ้นแล้วลบรายการออกจากฐานข้อมูล
                 if (oldStatus && oldStatus !== 'completed') {
                     Swal.fire({
                         toast: true,
@@ -1231,7 +1343,6 @@
             } else {
                 const newStatus = strToLowerCase(req.status);
 
-                // กรณีที่ Staff กดรับเรื่อง (เปลี่ยนสถานะจาก pending -> in_progress หรือ accepted)
                 if (oldStatus === 'pending' && (newStatus === 'in_progress' || newStatus === 'accepted' || newStatus === 'cooking')) {
                     Swal.fire({
                         icon: 'info',
@@ -1242,7 +1353,6 @@
                     });
                 }
 
-                // กรณีที่ Staff กดเปลี่ยนสถานะเป็น completed
                 if (newStatus === 'completed') {
                     if (oldStatus && oldStatus !== 'completed') {
                         Swal.fire({
@@ -1262,7 +1372,6 @@
             }
         });
 
-        // บันทึกรายการใหม่ที่พบในฐานข้อมูลลงใน Storage
         requests.forEach(req => {
             if (req.id) {
                 const st = strToLowerCase(req.status);
