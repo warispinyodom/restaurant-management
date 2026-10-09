@@ -13,9 +13,7 @@ customer_bp = Blueprint('customer', __name__)
 
 
 def get_current_user_keys():
-    """ดึงรหัสระบุตัวตนทั้งหมดของลูกค้าใน Session ปัจจุบัน
-    (user_id, username, email, user, guest_id)
-    """
+    """ดึงรหัสระบุตัวตนทั้งหมดของลูกค้าใน Session ปัจจุบัน"""
     keys = set()
 
     for k in ['user_id', 'username', 'email', 'user', 'guest_id']:
@@ -136,16 +134,10 @@ def customer_dashboard():
 
     sync_user_table_session()
 
-    selected_table_id = session.get(
-        'selected_table_id'
-    )
-
-    selected_table_ids = session.get(
-        'selected_table_ids'
-    )
+    selected_table_id = session.get('selected_table_id')
+    selected_table_ids = session.get('selected_table_ids')
 
     if not selected_table_id and not selected_table_ids:
-        # ไม่ flash ซ้ำ เพราะหน้าเลือกโต๊ะมีข้อความแจ้งเตือนของตัวเองอยู่แล้ว
         return redirect(
             url_for('customer.customer_choose_table')
         )
@@ -179,27 +171,12 @@ def customer_dashboard():
             if cat not in categories:
                 categories.append(cat)
 
-        raw_payments = get_firebase_data(
-            'payment_channels'
-        )
-
-        payments = [
-            p
-            for p in parse_firebase_data(raw_payments)
-            if (
-                str(p.get('is_active')).lower()
-                in ['1', 'true', 'on']
-                or p.get('is_active') == 1
-            )
-        ]
-
     except Exception as e:
         print(
             f"Error loading customer data: {e}"
         )
 
         menus = []
-        payments = []
         categories = []
 
         flash(
@@ -226,7 +203,6 @@ def customer_dashboard():
     return render_template(
         'customer/customer.html',
         menus=menus,
-        payments=payments,
         categories=categories,
         selected_table_no=selected_table_no,
         customer_count=customer_count
@@ -276,9 +252,7 @@ def customer_choose_table():
                 return redirect(url_for('customer.customer_choose_table'))
             return redirect(url_for('customer.customer_dashboard'))
 
-        # ---------------------------------------------------------
         # ยกเลิกโต๊ะ
-        # ---------------------------------------------------------
         if action == 'cancel':
 
             selected_ids = session.get(
@@ -311,30 +285,11 @@ def customer_choose_table():
                         }
                     )
 
-            session.pop(
-                'selected_table_id',
-                None
-            )
-
-            session.pop(
-                'selected_table_ids',
-                None
-            )
-
-            session.pop(
-                'selected_table_no',
-                None
-            )
-
-            session.pop(
-                'selected_table_nos',
-                None
-            )
-
-            session.pop(
-                'customer_count',
-                None
-            )
+            session.pop('selected_table_id', None)
+            session.pop('selected_table_ids', None)
+            session.pop('selected_table_no', None)
+            session.pop('selected_table_nos', None)
+            session.pop('customer_count', None)
 
             flash(
                 "ยกเลิกการเลือกโต๊ะอาหารเรียบร้อยแล้ว",
@@ -352,9 +307,7 @@ def customer_choose_table():
                 )
             )
 
-        # ---------------------------------------------------------
         # รับรายการโต๊ะที่ลูกค้าเลือก
-        # ---------------------------------------------------------
         table_ids = request.form.getlist(
             'table_ids'
         )
@@ -385,13 +338,8 @@ def customer_choose_table():
                 )
             )
 
-        raw_tables = get_firebase_data(
-            'tables'
-        )
-
-        all_tables = parse_firebase_data(
-            raw_tables
-        )
+        raw_tables = get_firebase_data('tables')
+        all_tables = parse_firebase_data(raw_tables)
 
         tables_map = {
             str(t.get('id')): t
@@ -414,9 +362,7 @@ def customer_choose_table():
                 session.get('selected_table_id')
             ]
 
-        # ---------------------------------------------------------
         # คืนโต๊ะเก่าที่ไม่ได้เลือกแล้ว
-        # ---------------------------------------------------------
         for old_id in old_ids:
 
             if (
@@ -439,9 +385,7 @@ def customer_choose_table():
 
         selected_nos = []
 
-        # ---------------------------------------------------------
         # ตรวจสอบโต๊ะก่อนจอง
-        # ---------------------------------------------------------
         for tid in table_ids:
 
             table_info = tables_map.get(
@@ -500,9 +444,7 @@ def customer_choose_table():
                 )
             )
 
-        # ---------------------------------------------------------
         # เปลี่ยนสถานะโต๊ะเป็น occupied
-        # ---------------------------------------------------------
         for tid in table_ids:
 
             patch_firebase_data(
@@ -519,28 +461,11 @@ def customer_choose_table():
                 }
             )
 
-        # ---------------------------------------------------------
-        # บันทึกโต๊ะลง Session
-        # ---------------------------------------------------------
         session['selected_table_ids'] = table_ids
-
-        session['selected_table_id'] = (
-            table_ids[0]
-            if table_ids
-            else ''
-        )
-
-        session['selected_table_nos'] = (
-            selected_nos
-        )
-
-        session['selected_table_no'] = (
-            ", ".join(selected_nos)
-        )
-
-        session['customer_count'] = (
-            customer_count
-        )
+        session['selected_table_id'] = table_ids[0] if table_ids else ''
+        session['selected_table_nos'] = selected_nos
+        session['selected_table_no'] = ", ".join(selected_nos)
+        session['customer_count'] = customer_count
 
         flash(
             f"เลือกโต๊ะ {session['selected_table_no']} "
@@ -559,50 +484,22 @@ def customer_choose_table():
             )
         )
 
-    # -------------------------------------------------------------
     # GET - โหลดข้อมูลโต๊ะ
-    # -------------------------------------------------------------
     try:
 
-        raw_tables = get_firebase_data(
-            'tables'
-        )
-
-        tables = parse_firebase_data(
-            raw_tables
-        )
+        raw_tables = get_firebase_data('tables')
+        tables = parse_firebase_data(raw_tables)
 
         def sort_key(t):
-            no = str(
-                t.get(
-                    'table_no',
-                    ''
-                )
-            )
+            no = str(t.get('table_no', ''))
+            digits = ''.join(filter(str.isdigit, no))
+            return int(digits) if digits else no
 
-            digits = ''.join(
-                filter(
-                    str.isdigit,
-                    no
-                )
-            )
-
-            return (
-                int(digits)
-                if digits
-                else no
-            )
-
-        tables.sort(
-            key=sort_key
-        )
+        tables.sort(key=sort_key)
 
     except Exception as e:
 
-        print(
-            f"Error loading tables for customer: {e}"
-        )
-
+        print(f"Error loading tables for customer: {e}")
         tables = []
 
         flash(
@@ -639,16 +536,11 @@ def customer_choose_table():
     )
 
     try:
-
-        current_customer_count = int(
-            raw_customer_count
-        )
-
+        current_customer_count = int(raw_customer_count)
         if current_customer_count < 1:
             current_customer_count = 1
 
     except (ValueError, TypeError):
-
         current_customer_count = 1
 
     return render_template(
@@ -665,7 +557,7 @@ def customer_choose_table():
     methods=['POST']
 )
 def customer_checkout():
-    """สร้างรายการสั่งอาหาร"""
+    """สร้างรายการสั่งอาหารเข้าครัว"""
 
     if session.get('role') != 'customer':
         return jsonify({
@@ -706,49 +598,26 @@ def customer_checkout():
     )
 
     try:
-
-        total_amount = (
-            float(raw_total)
-            if raw_total is not None
-            else 0.0
-        )
-
+        total_amount = float(raw_total) if raw_total is not None else 0.0
     except (ValueError, TypeError):
-
         total_amount = 0.0
 
     raw_count = (
         data.get('customer_count')
-        or session.get(
-            'customer_count',
-            1
-        )
+        or session.get('customer_count', 1)
     )
 
     try:
-
-        customer_count = (
-            int(raw_count)
-            if raw_count is not None
-            else 1
-        )
-
+        customer_count = int(raw_count) if raw_count is not None else 1
         if customer_count < 1:
             customer_count = 1
-
     except (ValueError, TypeError):
-
         customer_count = 1
 
-    payment_method = data.get(
-        'payment_method',
-        'เงินสด'
-    )
+    # กำหนดสถานะการชำระเงินเริ่มต้นให้พนักงานมาเช็คบิลแทน
+    payment_method = data.get('payment_method', 'เงินสด (เช็คบิลกับพนักงาน)')
 
-    items = data.get(
-        'items',
-        []
-    )
+    items = data.get('items', [])
 
     if not items:
         return jsonify({
@@ -757,11 +626,8 @@ def customer_checkout():
         }), 400
 
     try:
-
         user_key = get_current_user_key()
 
-        # Idempotency: ถ้า browser ส่งคำขอเดิมซ้ำ ให้คืน order เดิม
-        # แม้คำขอเดิมถูกบันทึกสำเร็จแล้วแต่ response ครั้งแรกหายไป
         if client_request_id:
             raw_existing_orders = get_firebase_data('orders')
             existing_orders = parse_firebase_data(raw_existing_orders)
@@ -805,19 +671,15 @@ def customer_checkout():
         )
 
         if response and 'name' in response:
-
             return jsonify({
                 'status': 'success',
                 'message': 'สั่งอาหารสำเร็จ! กรุณารอสักครู่',
                 'order_id': response.get('name')
             })
 
-        raise Exception(
-            "Firebase Response Error"
-        )
+        raise Exception("Firebase Response Error")
 
     except Exception as e:
-
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -859,12 +721,7 @@ def customer_call_staff():
     )
 
     if not table_id:
-
-        selected_ids = session.get(
-            'selected_table_ids',
-            []
-        )
-
+        selected_ids = session.get('selected_table_ids', [])
         if selected_ids:
             table_id = selected_ids[0]
 
@@ -874,40 +731,16 @@ def customer_call_staff():
             'message': 'กรุณาเลือกโต๊ะก่อนเรียกพนักงาน'
         }), 400
 
-    # -------------------------------------------------------------
-    # Normalize request type
-    # -------------------------------------------------------------
     request_type = str(
-        data.get(
-            'request_type',
-            'เรียกพนักงาน'
-        )
+        data.get('request_type', 'เรียกพนักงาน')
     ).strip() or 'เรียกพนักงาน'
 
     user_key = get_current_user_key()
 
     try:
+        raw_existing = get_firebase_data('service_requests')
+        existing_requests = parse_firebase_data(raw_existing)
 
-        # ---------------------------------------------------------
-        # ป้องกันการสร้าง Service Request ซ้ำ
-        #
-        # ถ้ามีคำขอของ:
-        # - user เดียวกัน
-        # - โต๊ะเดียวกัน
-        # - request_type เดียวกัน
-        # - สถานะยังทำงานอยู่
-        #
-        # ให้คืน ID เดิมแทนการสร้างรายการใหม่
-        # ---------------------------------------------------------
-        raw_existing = get_firebase_data(
-            'service_requests'
-        )
-
-        existing_requests = parse_firebase_data(
-            raw_existing
-        )
-
-        # Idempotency: request_id เดิมต้องได้คำขอเดิมกลับมาเสมอ
         if client_request_id:
             for existing in reversed(existing_requests):
                 if (
@@ -924,77 +757,32 @@ def customer_call_staff():
                             'duplicate': True
                         })
 
-        active_statuses = {
-            'pending',
-            'in_progress',
-            'accepted'
-        }
+        active_statuses = {'pending', 'in_progress', 'accepted'}
 
-        for existing in reversed(
-            existing_requests
-        ):
-
-            existing_status = str(
-                existing.get(
-                    'status',
-                    ''
-                )
-            ).strip().lower()
-
-            existing_user = str(
-                existing.get(
-                    'user_key',
-                    ''
-                )
-            ).strip()
-
-            existing_table = str(
-                existing.get(
-                    'table_no',
-                    ''
-                )
-            ).strip()
-
-            existing_type = str(
-                existing.get(
-                    'request_type',
-                    ''
-                )
-            ).strip()
+        for existing in reversed(existing_requests):
+            existing_status = str(existing.get('status', '')).strip().lower()
+            existing_user = str(existing.get('user_key', '')).strip()
+            existing_table = str(existing.get('table_no', '')).strip()
+            existing_type = str(existing.get('request_type', '')).strip()
 
             is_duplicate = (
                 existing_status in active_statuses
-                and existing_user
-                == str(user_key).strip()
-                and existing_table
-                == str(table_no).strip()
-                and existing_type
-                == request_type
+                and existing_user == str(user_key).strip()
+                and existing_table == str(table_no).strip()
+                and existing_type == request_type
             )
 
             if is_duplicate:
-
-                existing_id = (
-                    existing.get('id')
-                    or existing.get('request_id')
-                )
-
+                existing_id = existing.get('id') or existing.get('request_id')
                 if existing_id:
-
                     return jsonify({
                         'status': 'success',
-                        'message': (
-                            'มีคำขอนี้อยู่แล้ว '
-                            'กำลังรอพนักงานดำเนินการ'
-                        ),
+                        'message': 'มีคำขอนี้อยู่แล้ว กำลังรอพนักงานดำเนินการ',
                         'id': existing_id,
                         'request_id': existing_id,
                         'duplicate': True
                     })
 
-        # ---------------------------------------------------------
-        # สร้าง Service Request ใหม่
-        # ---------------------------------------------------------
         payload = {
             "table_no": table_no,
             "table_id": table_id or "",
@@ -1002,30 +790,13 @@ def customer_call_staff():
             "status": "pending",
             "user_key": user_key or "",
             "client_request_id": client_request_id or "",
-            "created_at": datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # ---------------------------------------------------------
-        # IMPORTANT:
-        # service_requests เป็นแหล่งข้อมูลหลักเพียงชุดเดียว
-        #
-        # ไม่สร้าง notifications ซ้ำอีกชุด
-        # เพราะจะทำให้ Staff ที่อ่านทั้งสองจุดเห็น
-        # notification ซ้ำ 2 รายการ
-        # ---------------------------------------------------------
-        response = post_firebase_data(
-            'service_requests',
-            payload
-        )
+        response = post_firebase_data('service_requests', payload)
 
         if response and 'name' in response:
-
-            req_id = response.get(
-                'name'
-            )
-
+            req_id = response.get('name')
             return jsonify({
                 'status': 'success',
                 'message': 'แจ้งพนักงานเรียบร้อยแล้ว',
@@ -1034,21 +805,16 @@ def customer_call_staff():
                 'duplicate': False
             })
 
-        raise Exception(
-            "Firebase Response Error"
-        )
+        raise Exception("Firebase Response Error")
 
     except Exception as e:
-
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
 
-@customer_bp.route(
-    '/customer/api/service_requests'
-)
+@customer_bp.route('/customer/api/service_requests')
 def customer_api_service_requests():
     """API ดึงข้อมูลสถานะคำขอเรียกพนักงานของลูกค้าแบบ Real-time"""
 
@@ -1061,85 +827,31 @@ def customer_api_service_requests():
     sync_user_table_session()
 
     user_keys = get_current_user_keys()
+    current_table_no = str(session.get('selected_table_no', '')).strip()
 
-    current_table_no = str(
-        session.get(
-            'selected_table_no',
-            ''
-        )
-    ).strip()
-
-    req_ids_str = request.args.get(
-        'request_ids',
-        ''
-    ).strip()
-
+    req_ids_str = request.args.get('request_ids', '').strip()
     param_req_ids = (
-        set(
-            x.strip()
-            for x in req_ids_str.split(',')
-            if x.strip()
-        )
+        set(x.strip() for x in req_ids_str.split(',') if x.strip())
         if req_ids_str
         else set()
     )
 
     try:
-
-        raw_requests = get_firebase_data(
-            'service_requests'
-        )
-
-        all_requests = parse_firebase_data(
-            raw_requests
-        )
+        raw_requests = get_firebase_data('service_requests')
+        all_requests = parse_firebase_data(raw_requests)
 
         matched_requests = []
 
         for req in all_requests:
+            req_id = str(req.get('id', ''))
+            req_user_key = str(req.get('user_key', '')).strip()
+            req_table_no = str(req.get('table_no', '')).strip()
 
-            req_id = str(
-                req.get(
-                    'id',
-                    ''
-                )
-            )
+            is_user_match = bool(req_user_key and req_user_key in user_keys)
+            is_id_match = bool(req_id and req_id in param_req_ids)
+            is_table_match = bool(current_table_no and req_table_no == current_table_no)
 
-            req_user_key = str(
-                req.get(
-                    'user_key',
-                    ''
-                )
-            ).strip()
-
-            req_table_no = str(
-                req.get(
-                    'table_no',
-                    ''
-                )
-            ).strip()
-
-            is_user_match = bool(
-                req_user_key
-                and req_user_key in user_keys
-            )
-
-            is_id_match = bool(
-                req_id
-                and req_id in param_req_ids
-            )
-
-            is_table_match = bool(
-                current_table_no
-                and req_table_no
-                == current_table_no
-            )
-
-            if (
-                is_user_match
-                or is_id_match
-                or is_table_match
-            ):
+            if is_user_match or is_id_match or is_table_match:
                 matched_requests.append(req)
 
         return jsonify({
@@ -1148,16 +860,13 @@ def customer_api_service_requests():
         })
 
     except Exception as e:
-
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
 
-@customer_bp.route(
-    '/customer/api/orders'
-)
+@customer_bp.route('/customer/api/orders')
 def customer_api_orders():
     """API ดึงข้อมูลออเดอร์ของลูกค้าสำหรับติดตามสถานะ"""
 
@@ -1171,153 +880,48 @@ def customer_api_orders():
 
     user_keys = get_current_user_keys()
 
-    req_order_ids = request.args.get(
-        'order_ids',
-        ''
-    ).strip()
-
+    req_order_ids = request.args.get('order_ids', '').strip()
     param_order_ids = (
-        set(
-            x.strip()
-            for x in req_order_ids.split(',')
-            if x.strip()
-        )
+        set(x.strip() for x in req_order_ids.split(',') if x.strip())
         if req_order_ids
         else set()
     )
 
-    current_table_id = str(
-        session.get(
-            'selected_table_id',
-            ''
-        )
-    )
-
-    current_table_ids = [
-        str(x)
-        for x in session.get(
-            'selected_table_ids',
-            []
-        )
-    ]
-
-    current_table_no = str(
-        session.get(
-            'selected_table_no',
-            ''
-        )
-    ).strip()
+    current_table_id = str(session.get('selected_table_id', ''))
+    current_table_ids = [str(x) for x in session.get('selected_table_ids', [])]
+    current_table_no = str(session.get('selected_table_no', '')).strip()
 
     try:
-
-        raw_orders = get_firebase_data(
-            'orders'
-        )
-
-        all_orders = parse_firebase_data(
-            raw_orders
-        )
+        raw_orders = get_firebase_data('orders')
+        all_orders = parse_firebase_data(raw_orders)
 
         matched_orders = []
 
         for ord_item in all_orders:
+            ord_id = str(ord_item.get('id', ''))
+            ord_user_key = str(ord_item.get('user_key', '')).strip()
+            ord_status = str(ord_item.get('status', '')).lower()
 
-            ord_id = str(
-                ord_item.get(
-                    'id',
-                    ''
-                )
-            )
-
-            ord_user_key = str(
-                ord_item.get(
-                    'user_key',
-                    ''
-                )
-            ).strip()
-
-            ord_status = str(
-                ord_item.get(
-                    'status',
-                    ''
-                )
-            ).lower()
-
-            # กรองรายการที่ถูกยกเลิกออก
-            # แต่ยังคงให้ลูกค้าดูรายการ completed ได้
             if ord_status == 'cancelled':
                 continue
 
-            ord_table_id = str(
-                ord_item.get(
-                    'table_id',
-                    ''
-                )
-            )
+            ord_table_id = str(ord_item.get('table_id', ''))
+            ord_table_ids = [str(x) for x in ord_item.get('table_ids', [])]
+            ord_table_no = str(ord_item.get('table_no', '')).strip()
 
-            ord_table_ids = [
-                str(x)
-                for x in ord_item.get(
-                    'table_ids',
-                    []
-                )
-            ]
-
-            ord_table_no = str(
-                ord_item.get(
-                    'table_no',
-                    ''
-                )
-            ).strip()
-
-            is_user_match = bool(
-                ord_user_key
-                and ord_user_key in user_keys
-            )
-
-            is_id_match = bool(
-                ord_id
-                and ord_id in param_order_ids
-            )
-
+            is_user_match = bool(ord_user_key and ord_user_key in user_keys)
+            is_id_match = bool(ord_id and ord_id in param_order_ids)
             is_table_match = bool(
-                (
-                    current_table_id
-                    and ord_table_id
-                    == current_table_id
-                )
-                or
-                any(
-                    tid in current_table_ids
-                    for tid in ord_table_ids
-                    if tid
-                )
-                or
-                (
-                    current_table_no
-                    and ord_table_no
-                    == current_table_no
-                )
+                (current_table_id and ord_table_id == current_table_id)
+                or any(tid in current_table_ids for tid in ord_table_ids if tid)
+                or (current_table_no and ord_table_no == current_table_no)
             )
 
-            # หากตรงเงื่อนไขตัวใดตัวหนึ่ง
-            # ให้นำรายการมาแสดงผล
-            if (
-                is_user_match
-                or is_id_match
-                or is_table_match
-            ):
-                matched_orders.append(
-                    ord_item
-                )
+            if is_user_match or is_id_match or is_table_match:
+                matched_orders.append(ord_item)
 
         matched_orders.sort(
-            key=lambda x: str(
-                x.get(
-                    'created_at',
-                    ''
-                )
-            ),
+            key=lambda x: str(x.get('created_at', '')),
             reverse=True
         )
 
@@ -1327,7 +931,6 @@ def customer_api_orders():
         })
 
     except Exception as e:
-
         return jsonify({
             'status': 'error',
             'message': str(e)

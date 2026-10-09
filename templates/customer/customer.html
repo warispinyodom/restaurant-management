@@ -291,15 +291,17 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- Flash Messages จาก Flask Backend -->
+    <!-- Flash Messages (กรองให้แสดงอันเดียว และปิดตัวเองอัตโนมัติ) -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
+            {% set seen_messages = [] %}
             {% for category, message in messages %}
-                {% if selected_table_no or ('เลือกโต๊ะ' not in message and 'โต๊ะอาหาร' not in message) %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else (category if category in ['warning', 'info', 'success'] else 'primary') }} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
-                    <i class="fas fa-info-circle me-2"></i> {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+                {% if message not in seen_messages %}
+                    {% set _ = seen_messages.append(message) %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else ('success' if category == 'success' else 'primary') }} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
+                        <i class="fas {{ 'fa-check-circle' if category == 'success' else 'fa-info-circle' }} me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                 {% endif %}
             {% endfor %}
         {% endif %}
@@ -497,7 +499,7 @@
             </div>
         </div>
 
-        <!-- ฝั่งขวา: ตะกร้าสินค้าและการชำระเงิน (Desktop Layout) -->
+        <!-- ฝั่งขวา: ตะกร้าสินค้าและการสั่งซื้อ (Desktop Layout - ตัดส่วนการเลือกวิธีชำระเงิน/QR ออก) -->
         <div class="col-12 col-lg-5 col-xl-4 d-none d-lg-block">
             <div class="card border-0 shadow-sm rounded-4 cart-sticky-container">
                 <div class="cart-box-header p-3 d-flex justify-content-between align-items-center">
@@ -528,25 +530,8 @@
                         <span class="fw-bold fs-4 text-primary" id="cart-total-desktop">฿0.00</span>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-medium mb-1"><i class="fas fa-credit-card me-1"></i>ช่องทางการชำระเงิน</label>
-                        <select class="form-select form-select-sm border-slate-200" id="payment-method-desktop" onchange="togglePaymentQR('desktop')">
-                            <option value="เงินสด" data-type="cash">เงินสด (ชำระที่เคาน์เตอร์ / พนักงาน)</option>
-                            {% for payment in payments %}
-                            <option value="{{ payment['bank_name'] }} - {{ payment['account_name'] }}"
-                                    data-type="qr" 
-                                    data-bank="{{ payment['bank_name'] }}"
-                                    data-account="{{ payment['account_name'] }}"
-                                    data-no="{{ payment['promptpay_no'] }}"
-                                    data-qr="{% if payment['qr_image'] %}{% if payment['qr_image'].startswith('http') %}{{ payment['qr_image'] }}{% else %}{{ url_for('static', filename='uploads/' + payment['qr_image']) }}{% endif %}{% endif %}">
-                                โอนเงินผ่าน QR Code ({{ payment['bank_name'] }})
-                            </option>
-                            {% endfor %}
-                        </select>
-
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2 d-none shadow-sm fw-semibold rounded-pill" id="btn-show-qr-desktop" data-bs-toggle="modal" data-bs-target="#qrModal">
-                            <i class="fas fa-qrcode me-1"></i> ดู QR Code สแกนจ่ายเงิน
-                        </button>
+                    <div class="alert alert-light border rounded-3 p-2 mb-3 text-center small text-muted">
+                        <i class="fas fa-receipt me-1 text-primary"></i> สั่งอาหารเข้าครัว แล้วแจ้งพนักงานเช็คบิลได้ตลอดเวลา
                     </div>
 
                     <button class="btn btn-checkout-primary w-100 shadow-sm" id="btn-checkout-desktop" data-customer-mutation onclick="confirmCheckout()" disabled>
@@ -591,52 +576,12 @@
                 <span class="fw-bold text-slate-900 fs-6">ยอดรวมทั้งหมด</span>
                 <span class="fw-bold fs-4 text-primary" id="cart-total-mobile">฿0.00</span>
             </div>
-            <div class="mb-3">
-                <select class="form-select form-select-sm border-slate-200" id="payment-method-mobile" onchange="togglePaymentQR('mobile')">
-                    <option value="เงินสด" data-type="cash">เงินสด (ชำระที่เคาน์เตอร์ / พนักงาน)</option>
-                    {% for payment in payments %}
-                    <option value="{{ payment['bank_name'] }} - {{ payment['account_name'] }}"
-                            data-type="qr" 
-                            data-bank="{{ payment['bank_name'] }}"
-                            data-account="{{ payment['account_name'] }}"
-                            data-no="{{ payment['promptpay_no'] }}"
-                            data-qr="{% if payment['qr_image'] %}{% if payment['qr_image'].startswith('http') %}{{ payment['qr_image'] }}{% else %}{{ url_for('static', filename='uploads/' + payment['qr_image']) }}{% endif %}{% endif %}">
-                        โอนเงินผ่าน QR Code ({{ payment['bank_name'] }})
-                    </option>
-                    {% endfor %}
-                </select>
-                <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2 d-none rounded-pill" id="btn-show-qr-mobile" data-bs-toggle="modal" data-bs-target="#qrModal">
-                    <i class="fas fa-qrcode me-1"></i> ดู QR Code สแกนจ่ายเงิน
-                </button>
+            <div class="alert alert-light border rounded-3 p-2 mb-3 text-center small text-muted">
+                <i class="fas fa-receipt me-1 text-primary"></i> สั่งอาหารเข้าครัว แล้วแจ้งพนักงานเช็คบิลได้ตลอดเวลา
             </div>
             <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" data-customer-mutation onclick="confirmCheckout()" disabled>
                 <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
             </button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal สแกนจ่าย QR Code -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header bg-dark text-white border-0 pb-2 rounded-top-4">
-                <h6 class="modal-title fw-bold text-warning"><i class="fas fa-qrcode me-1"></i> สแกนชำระเงิน</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center py-3">
-                <div class="bg-slate-100 p-2 rounded-3 mb-3 border">
-                    <img id="qrModalImg" src="" class="img-fluid rounded" style="max-height: 200px; object-fit: contain;" alt="QR Code Payment">
-                </div>
-                <div class="small text-start">
-                    <p class="mb-1"><strong>ธนาคาร:</strong> <span id="qrModalBank">-</span></p>
-                    <p class="mb-1"><strong>ชื่อบัญชี:</strong> <span id="qrModalAccount">-</span></p>
-                    <p class="mb-0"><strong>พร้อมเพย์/เลขบัญชี:</strong> <span id="qrModalNo" class="font-monospace fw-bold text-primary">-</span></p>
-                </div>
-            </div>
-            <div class="modal-footer border-0 pt-0 justify-content-center">
-                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-pill" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
-            </div>
         </div>
     </div>
 </div>
@@ -730,12 +675,23 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         syncCartUI();
-        togglePaymentQR('desktop');
-        togglePaymentQR('mobile');
         fetchLiveOrders();
         fetchLiveServiceCalls();
         setInterval(fetchLiveOrders, 5000);
         setInterval(fetchLiveServiceCalls, 4000);
+
+        // ซ่อน Flash Alert การเลือกโต๊ะ/แจ้งเตือนอัตโนมัติภายใน 3.5 วินาที
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alert => {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    if (bsAlert) bsAlert.close();
+                } else {
+                    alert.remove();
+                }
+            });
+        }, 3500);
     });
 
     function getSavedOrderIds() {
@@ -1010,31 +966,6 @@
         totalElement.innerText = `฿${totalAmount.toFixed(2)}`;
     }
 
-    function togglePaymentQR(type) {
-        const select = document.getElementById(`payment-method-${type}`);
-        if (!select) return;
-        
-        const selectedOption = select.options[select.selectedIndex];
-        const btnShowQr = document.getElementById(`btn-show-qr-${type}`);
-
-        if (selectedOption && selectedOption.dataset.type === 'qr') {
-            if (btnShowQr) btnShowQr.classList.remove('d-none');
-            const qrImg = document.getElementById('qrModalImg');
-            if (qrImg) qrImg.src = selectedOption.dataset.qr || '';
-            
-            const bankElem = document.getElementById('qrModalBank');
-            if (bankElem) bankElem.innerText = selectedOption.dataset.bank || '-';
-            
-            const accElem = document.getElementById('qrModalAccount');
-            if (accElem) accElem.innerText = selectedOption.dataset.account || '-';
-            
-            const noElem = document.getElementById('qrModalNo');
-            if (noElem) noElem.innerText = selectedOption.dataset.no || '-';
-        } else {
-            if (btnShowQr) btnShowQr.classList.add('d-none');
-        }
-    }
-
     function confirmCheckout() {
         if (!hasSelectedTable) {
             Swal.fire({
@@ -1049,7 +980,6 @@
         if (cart.length === 0) return;
 
         const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const paymentMethod = document.getElementById('payment-method-desktop')?.value || document.getElementById('payment-method-mobile')?.value || 'เงินสด';
         
         let itemListHTML = cart.map(i => `<li class="text-start mb-1"><b>${i.name}</b> x ${i.qty} = ฿${(i.price*i.qty).toFixed(2)} ${i.note ? `<i class="text-amber-600">(${i.note})</i>` : ''}</li>`).join('');
 
@@ -1060,8 +990,7 @@
                     <p class="mb-1 fw-bold">รายการอาหารที่คุณสั่ง:</p>
                     <ul class="ps-3 small">${itemListHTML}</ul>
                     <hr>
-                    <p class="mb-1"><b>ยอดรวมสุทธิ:</b> <span class="text-primary fw-bold fs-5">฿${totalAmount.toFixed(2)}</span></p>
-                    <p class="mb-0"><b>การชำระเงิน:</b> ${paymentMethod}</p>
+                    <p class="mb-0"><b>ยอดรวมสุทธิ:</b> <span class="text-primary fw-bold fs-5">฿${totalAmount.toFixed(2)}</span></p>
                 </div>
             `,
             icon: 'question',
@@ -1087,13 +1016,12 @@
         const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         let countInput = document.getElementById('customer-count');
         const customerCount = validateCustomerCount(countInput);
-        const paymentMethod = document.getElementById('payment-method-desktop')?.value || document.getElementById('payment-method-mobile')?.value || 'เงินสด';
 
         const payload = {
             items: cart,
             total_amount: totalAmount,
             customer_count: customerCount,
-            payment_method: paymentMethod,
+            payment_method: 'เงินสด (เช็คบิลกับพนักงาน)',
             table_no: currentTableNo,
             client_request_id: requestId
         };
@@ -1235,7 +1163,6 @@
         });
     }
 
-    /* --- ปรับปรุง Banner แสดงผลให้เหลือแค่ติ๊กเดียวในวงกลมฝั่งซ้าย และข้อความด้านขวาไม่มีไอคอนนำหน้า --- */
     function renderOrderStatusBanner(orders) {
         const banner = document.getElementById('orderStatusBanner');
         const iconBox = document.getElementById('orderStatusIconBox');
@@ -1355,7 +1282,7 @@
                         ${itemsList}
                     </ul>
                     <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                        <small class="text-muted" style="font-size: 0.75rem;">ชำระด้วย: ${ord.payment_method || 'เงินสด'}</small>
+                        <small class="text-muted" style="font-size: 0.75rem;">การชำระเงิน: เช็คบิลกับพนักงาน</small>
                         <div class="fw-bold text-primary fs-6">ยอดรวม: ฿${parseFloat(ord.total_amount || ord.total_price || 0).toFixed(2)}</div>
                     </div>
                 </div>
