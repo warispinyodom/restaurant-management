@@ -77,12 +77,12 @@
     }
 </style>
 
-<!-- Header & Real-time Badge (แนบ data-role ไว้สำหรับดึงไปใช้ใน JS) -->
+<!-- Header & Real-time Badge -->
 <div id="dashboard-header" 
      class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2" 
      data-role="{{ role or session.get('role', 'admin') }}">
     <div>
-        <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
+        <h3 class="fw-bold mb-1 d-flex align-items-center gap-2 text-slate-900">
             <i class="fas fa-chart-pie text-primary"></i> แผงควบคุมระบบ (Dashboard)
             <span class="badge bg-primary fs-6 fw-normal rounded-pill px-3">{{ role or session.get('role', 'admin') }}</span>
         </h3>
@@ -245,152 +245,150 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- นำเข้า Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    // ดึงค่า role จาก data attribute ของ HTML (สะอาด ปลอดภัย และไม่ติด Syntax Error ใน Editor)
-    const headerElem = document.getElementById('dashboard-header');
-    const userRole = headerElem ? headerElem.dataset.role : 'admin';
-    let salesChart = null;
+    document.addEventListener('DOMContentLoaded', function () {
+        const headerElem = document.getElementById('dashboard-header');
+        const userRole = (headerElem ? headerElem.dataset.role : 'admin').toLowerCase();
+        const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+        let salesChart = null;
 
-    // 1. สร้างกราฟแท่ง (Bar Chart)
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    
-    // Gradient สีแท่งกราฟ
-    const gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
-    gradientFill.addColorStop(0, 'rgba(13, 110, 253, 0.95)');
-    gradientFill.addColorStop(1, 'rgba(13, 110, 253, 0.35)');
+        // 1. สร้างวัตถุกราฟแท่ง (Bar Chart)
+        const canvasElem = document.getElementById('salesChart');
+        if (canvasElem) {
+            const ctx = canvasElem.getContext('2d');
+            
+            const gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
+            gradientFill.addColorStop(0, 'rgba(13, 110, 253, 0.95)');
+            gradientFill.addColorStop(1, 'rgba(13, 110, 253, 0.35)');
 
-    const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
-
-    salesChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: dayNames,
-            datasets: [{
-                label: 'ยอดขาย (บาท)',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                backgroundColor: gradientFill,
-                hoverBackgroundColor: '#0b5ed7',
-                borderColor: '#0d6efd',
-                borderWidth: 1,
-                borderRadius: 8,
-                borderSkipped: false,
-                maxBarThickness: 42
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
+            salesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dayNames,
+                    datasets: [{
+                        label: 'ยอดขาย (บาท)',
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        backgroundColor: gradientFill,
+                        hoverBackgroundColor: '#0b5ed7',
+                        borderColor: '#0d6efd',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        maxBarThickness: 42
+                    }]
                 },
-                tooltip: {
-                    backgroundColor: 'rgba(33, 37, 41, 0.9)',
-                    titleFont: { size: 14, weight: 'bold' },
-                    bodyFont: { size: 13 },
-                    padding: 10,
-                    cornerRadius: 8,
-                    callbacks: {
-                        label: function(context) {
-                            let value = context.raw || 0;
-                            return ' ยอดขาย: ฿' + value.toLocaleString('th-TH', { 
-                                minimumFractionDigits: 2, 
-                                maximumFractionDigits: 2 
-                            });
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        font: { size: 11 },
-                        callback: function(value) {
-                            if (value >= 1000000) {
-                                return '฿' + (value / 1000000).toFixed(1) + 'M';
-                            } else if (value >= 100000) {
-                                return '฿' + (value / 1000).toLocaleString('th-TH') + 'k';
-                            } else {
-                                return '฿' + value.toLocaleString('th-TH');
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(33, 37, 41, 0.9)',
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.raw || 0;
+                                    return ' ยอดขาย: ฿' + Number(value).toLocaleString('th-TH', { 
+                                        minimumFractionDigits: 2, 
+                                        maximumFractionDigits: 2 
+                                    });
+                                }
                             }
                         }
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
                     },
-                    ticks: {
-                        font: { size: 12, weight: '500' }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: {
+                                font: { size: 11 },
+                                callback: function(value) {
+                                    if (value >= 1000000) return '฿' + (value / 1000000).toFixed(1) + 'M';
+                                    if (value >= 100000) return '฿' + (value / 1000).toLocaleString('th-TH') + 'k';
+                                    return '฿' + Number(value).toLocaleString('th-TH');
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 12, weight: '500' } }
+                        }
                     }
                 }
-            }
+            });
         }
-    });
 
-    // 2. ดึงข้อมูลจาก API และอัปเดตแบบ Realtime
-    if (userRole === 'admin') {
+        // 2. ดึงข้อมูลสถิติจาก API
         function fetchDashboardStats() {
             fetch('/api/admin/dashboard_stats')
                 .then(res => res.json())
                 .then(data => {
-                    // อัปเดตการ์ดสรุปตัวเลข
-                    const salesToday = data.sales_today || 0;
-                    const customersToday = data.customers_today || 0;
-                    const activeStaff = data.active_staff || 0;
+                    if (!data) return;
 
-                    document.getElementById('sales-today').innerText = '฿' + salesToday.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    document.getElementById('customers-today').innerText = customersToday.toLocaleString('th-TH') + ' คน';
-                    document.getElementById('active-staff').innerText = activeStaff.toLocaleString('th-TH') + ' คน';
+                    // แปลงค่าตัวเลขอย่างปลอดภัย
+                    const salesToday = parseFloat(data.sales_today || 0);
+                    const customersToday = parseInt(data.customers_today || 0);
+                    const activeStaff = parseInt(data.active_staff || 0);
 
-                    // อัปเดตกราฟแท่งและคำนวณสถิติต่างๆ
-                    if (data.weekly_sales && salesChart) {
-                        const weeklySales = data.weekly_sales;
+                    // อัปเดตการ์ดสรุปสถิติ 4 ช่อง
+                    const salesTodayElem = document.getElementById('sales-today');
+                    const customersTodayElem = document.getElementById('customers-today');
+                    const activeStaffElem = document.getElementById('active-staff');
+
+                    if (salesTodayElem) salesTodayElem.innerText = '฿' + salesToday.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    if (customersTodayElem) customersTodayElem.innerText = customersToday.toLocaleString('th-TH') + ' คน';
+                    if (activeStaffElem) activeStaffElem.innerText = activeStaff.toLocaleString('th-TH') + ' คน';
+
+                    // อัปเดตกราฟแท่งและคำนวณยอดขายรายสัปดาห์
+                    let weeklySales = Array.isArray(data.weekly_sales) ? data.weekly_sales.map(v => parseFloat(v || 0)) : [0, 0, 0, 0, 0, 0, 0];
+                    
+                    if (salesChart) {
                         salesChart.data.datasets[0].data = weeklySales;
                         salesChart.update();
-
-                        // คำนวณยอดขายรวมทั้งสัปดาห์
-                        const weeklyTotal = weeklySales.reduce((sum, val) => sum + val, 0);
-                        document.getElementById('sales-weekly-total').innerText = '฿' + weeklyTotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-                        // คำนวณวันที่ขายดีที่สุด
-                        let maxSales = -1;
-                        let maxDayIndex = 0;
-                        weeklySales.forEach((val, idx) => {
-                            if (val > maxSales) {
-                                maxSales = val;
-                                maxDayIndex = idx;
-                            }
-                        });
-
-                        if (maxSales > 0) {
-                            document.getElementById('peak-sales-day').innerText = 'วัน' + dayNames[maxDayIndex];
-                            document.getElementById('peak-sales-amount').innerText = 'ยอดขาย ฿' + maxSales.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-                        } else {
-                            document.getElementById('peak-sales-day').innerText = '-';
-                            document.getElementById('peak-sales-amount').innerText = 'ยังไม่มียอดขายในสัปดาห์นี้';
-                        }
-
-                        // คำนวณยอดขายเฉลี่ยต่อวัน
-                        const avgSales = weeklyTotal / 7;
-                        document.getElementById('avg-daily-sales').innerText = '฿' + avgSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     }
+
+                    // คำนวณยอดรวมสัปดาห์นี้
+                    const weeklyTotal = weeklySales.reduce((sum, val) => sum + val, 0);
+                    const weeklyTotalElem = document.getElementById('sales-weekly-total');
+                    if (weeklyTotalElem) weeklyTotalElem.innerText = '฿' + weeklyTotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    // คำนวณวันที่ขายดีที่สุด
+                    let maxSales = -1;
+                    let maxDayIndex = 0;
+                    weeklySales.forEach((val, idx) => {
+                        if (val > maxSales) {
+                            maxSales = val;
+                            maxDayIndex = idx;
+                        }
+                    });
+
+                    const peakDayElem = document.getElementById('peak-sales-day');
+                    const peakAmountElem = document.getElementById('peak-sales-amount');
+
+                    if (maxSales > 0) {
+                        if (peakDayElem) peakDayElem.innerText = 'วัน' + dayNames[maxDayIndex];
+                        if (peakAmountElem) peakAmountElem.innerText = 'ยอดขาย ฿' + maxSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    } else {
+                        if (peakDayElem) peakDayElem.innerText = '-';
+                        if (peakAmountElem) peakAmountElem.innerText = 'ยังไม่มียอดขายในสัปดาห์นี้';
+                    }
+
+                    // คำนวณยอดขายเฉลี่ยต่อวัน
+                    const avgSales = weeklyTotal / 7;
+                    const avgSalesElem = document.getElementById('avg-daily-sales');
+                    if (avgSalesElem) avgSalesElem.innerText = '฿' + avgSales.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 })
                 .catch(err => console.error('Dashboard Stats Fetch Error:', err));
         }
 
-        // เรียกใช้งานครั้งแรกทันทีเมื่อโหลดหน้าเว็บ
-        fetchDashboardStats();
-        
-        // ตั้งเวลาอัปเดตข้อมูลทุกๆ 10 วินาที
-        setInterval(fetchDashboardStats, 10000);
-    }
+        // เริ่มต้นการดึงข้อมูลเฉพาะสิทธิ์ admin หรือผ่อนปรนให้ดึงข้อมูลเสมอหากอยู่ในหน้านี้
+        if (userRole === 'admin' || userRole === 'staff' || userRole === 'administrator') {
+            fetchDashboardStats();
+            setInterval(fetchDashboardStats, 10000);
+        }
+    });
 </script>
 {% endblock %}
