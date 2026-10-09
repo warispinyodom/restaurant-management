@@ -281,7 +281,8 @@
         display: inline-block;
         margin-top: 3px;
     }
-.customer-request-busy {
+
+    .customer-request-busy {
         pointer-events: none !important;
         opacity: 0.65 !important;
         cursor: wait !important;
@@ -290,7 +291,7 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- Flash Messages จาก Flask Backend (กรองข้อความเรื่องเลือกโต๊ะออกหากไม่มีโต๊ะเพื่อไม่ให้ซ้ำซ้อน) -->
+    <!-- Flash Messages จาก Flask Backend -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -342,7 +343,7 @@
         </div>
     </div>
 
-    <!-- กล่องแจ้งเตือนเลือกโต๊ะอาหารเพียงตัวเดียวเมื่อยังไม่ได้เลือกโต๊ะ -->
+    <!-- กล่องแจ้งเตือนเลือกโต๊ะอาหาร -->
     {% if not selected_table_no %}
     <div class="alert alert-warning rounded-4 shadow-sm mb-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border-0 bg-white p-3" role="alert">
         <div class="d-flex align-items-center gap-3">
@@ -363,7 +364,9 @@
     <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
     <div id="serviceCallBanner" class="alert alert-warning rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
-            <div class="spinner-grow text-warning flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            <div id="serviceCallIconBox" class="flex-shrink-0">
+                <div class="spinner-grow text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            </div>
             <div class="overflow-hidden flex-grow-1" style="min-width: 0;">
                 <h6 class="fw-bold mb-0 text-slate-800 text-truncate" id="serviceCallTitle">สถานะการเรียกพนักงาน</h6>
                 <span class="small text-muted text-truncate d-block" id="serviceCallDesc">กำลังส่งสัญญาณแจ้งพนักงาน...</span>
@@ -375,7 +378,9 @@
     <!-- Banner แสดงสถานะออเดอร์ล่าสุดแบบ Real-time บนหน้าหลัก -->
     <div id="orderStatusBanner" class="alert alert-primary rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
-            <div class="spinner-border text-primary flex-shrink-0" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            <div id="orderStatusIconBox" class="flex-shrink-0">
+                <div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>
+            </div>
             <div class="overflow-hidden flex-grow-1" style="min-width: 0;">
                 <h6 class="fw-bold mb-0 text-slate-800 text-truncate" id="orderStatusTitle">สถานะรายการสั่งอาหาร</h6>
                 <span class="small text-muted text-truncate d-block" id="orderStatusDesc">กำลังอัปเดตข้อมูลจากห้องครัว...</span>
@@ -544,7 +549,7 @@
                         </button>
                     </div>
 
-                    <button class="btn btn-checkout-primary w-100 shadow-sm" id="btn-checkout-desktop" data-customer-mutation data-customer-mutation onclick="confirmCheckout()" disabled>
+                    <button class="btn btn-checkout-primary w-100 shadow-sm" id="btn-checkout-desktop" data-customer-mutation onclick="confirmCheckout()" disabled>
                         <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
                     </button>
                 </div>
@@ -554,7 +559,7 @@
     </div>
 </div>
 
-<!-- Mobile Floating Cart Summary Bar (สำหรับจอมือถือ) -->
+<!-- Mobile Floating Cart Summary Bar -->
 <div class="mobile-cart-bar d-lg-none" id="mobileCartBar" style="display: none;">
     <div class="d-flex align-items-center gap-2">
         <div class="badge bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" id="mobileCartBadge">0</div>
@@ -568,7 +573,7 @@
     </button>
 </div>
 
-<!-- Mobile Cart Offcanvas Drawer (ตะกร้าเลื่อนขึ้นจากล่าง) -->
+<!-- Mobile Cart Offcanvas Drawer -->
 <div class="offcanvas offcanvas-bottom h-75 rounded-top-4 d-lg-none" tabindex="-1" id="mobileCartOffcanvas">
     <div class="offcanvas-header bg-dark text-white rounded-top-4 py-3">
         <h5 class="offcanvas-title fw-bold fs-6"><i class="fas fa-cart-shopping text-warning me-2"></i>ตะกร้าอาหารของคุณ</h5>
@@ -604,7 +609,7 @@
                     <i class="fas fa-qrcode me-1"></i> ดู QR Code สแกนจ่ายเงิน
                 </button>
             </div>
-            <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" data-customer-mutation data-customer-mutation onclick="confirmCheckout()" disabled>
+            <button class="btn btn-checkout-primary w-100 shadow-sm py-2" id="btn-checkout-mobile" data-customer-mutation onclick="confirmCheckout()" disabled>
                 <i class="fas fa-paper-plane me-2"></i>ยืนยันการสั่งซื้ออาหาร
             </button>
         </div>
@@ -713,7 +718,7 @@
     let lastCallStatuses = {};
     let lastOrderStatuses = {};
 
-    /* --- Helper ฟังก์ชั่นสำหรับจัดฟอร์แมต Order ID ให้สั้นและสวยงาม --- */
+    /* --- Helper ฟังก์ชั่นสำหรับจัดฟอร์แมต Order ID --- */
     function formatOrderId(rawId) {
         if (!rawId) return '';
         const strId = String(rawId).trim();
@@ -734,7 +739,7 @@
         setInterval(fetchLiveServiceCalls, 4000);
     });
 
-    /* --- LocalStorage Management สำหรับออเดอร์และคำขอเรียกพนักงาน --- */
+    /* --- LocalStorage Management --- */
     function getSavedOrderIds() {
         try {
             const saved = localStorage.getItem('customer_order_ids');
@@ -1074,10 +1079,7 @@
     }
 
     async function checkout() {
-        // ป้องกันการส่งออเดอร์ซ้ำ: ล็อกทันทีตั้งแต่ก่อนเริ่ม fetch
-        if (window.__customerMutationBusy) {
-            return;
-        }
+        if (window.__customerMutationBusy) return;
 
         window.__customerMutationBusy = true;
         const requestId = window.__customerCheckoutRequestId || (crypto.randomUUID ? crypto.randomUUID() : ('checkout_' + Date.now() + '_' + Math.random().toString(16).slice(2)));
@@ -1122,7 +1124,7 @@
 
                 Swal.fire({
                     title: 'ส่งออเดอร์เรียบร้อย!',
-                    text: `สั่งอาหารสำเร็จ กรุณารอพนักงานเสิร์ฟ`,
+                    text: `สั่งอาหารสำเร็จ กรุณารอสักครู่`,
                     icon: 'success',
                     confirmButtonText: 'ตกลง',
                     confirmButtonColor: '#2563eb'
@@ -1151,7 +1153,6 @@
         })
         .finally(() => {
             window.__customerMutationFetchAllowed = false;
-            // ปลดล็อกเมื่อ fetch ได้ response แล้วเท่านั้น
             window.__customerMutationBusy = false;
             document.querySelectorAll('.customer-request-busy').forEach(btn => { btn.disabled = false; btn.classList.remove('customer-request-busy'); });
         });
@@ -1207,8 +1208,8 @@
                     text += 'รายการอาหารของคุณกำลังอยู่ระหว่างการจัดเตรียม';
                     icon = 'info';
                 } else if (newStatus === 'served') {
-                    title = '🍽️ เสิร์ฟอาหารเรียบร้อย!';
-                    text += 'รายการอาหารเสิร์ฟถึงโต๊ะของคุณแล้ว';
+                    title = '🍽️ เสิร์ฟสำเร็จแล้ว!';
+                    text += 'รายการอาหารเสิร์ฟถึงโต๊ะของคุณเรียบร้อยแล้ว';
                     icon = 'success';
                 } else if (newStatus === 'completed' || newStatus === 'paid') {
                     title = '✅ ออเดอร์เสร็จสิ้นสมบูรณ์!';
@@ -1237,8 +1238,10 @@
         });
     }
 
+    /* --- ปรับปรุงการแสดงผล Banner สถานะออเดอร์ ไม่ให้ค้างระบบหมุนเมื่อเสิร์ฟสำเร็จ --- */
     function renderOrderStatusBanner(orders) {
         const banner = document.getElementById('orderStatusBanner');
+        const iconBox = document.getElementById('orderStatusIconBox');
         const titleElem = document.getElementById('orderStatusTitle');
         const descElem = document.getElementById('orderStatusDesc');
         const activeBadge = document.getElementById('activeOrderBadge');
@@ -1266,13 +1269,25 @@
             const st = strToLowerCase(latestOrder.status);
             const formattedId = formatOrderId(latestOrder.id || latestOrder.order_id);
 
-            if (st === 'cooking' || st === 'in_progress') {
+            if (st === 'served') {
+                if (iconBox) {
+                    iconBox.innerHTML = '<div class="bg-success-subtle text-success p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;"><i class="fas fa-check-circle fs-4 text-success"></i></div>';
+                }
+                banner.className = 'alert alert-success rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
+                titleElem.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i>เสิร์ฟสำเร็จแล้ว (ออเดอร์ #${formattedId})`;
+                descElem.innerText = 'อาหารเสิร์ฟถึงโต๊ะของคุณเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
+            } else if (st === 'cooking' || st === 'in_progress') {
+                if (iconBox) {
+                    iconBox.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
+                }
+                banner.className = 'alert alert-primary rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
                 titleElem.innerHTML = `<i class="fas fa-fire text-danger me-1"></i>กำลังปรุงอาหาร (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ห้องครัวกำลังรับและปรุงอาหารของคุณ กรุณารอสักครู่...';
-            } else if (st === 'served') {
-                titleElem.innerHTML = `<i class="fas fa-utensils text-success me-1"></i>เสิร์ฟอาหารแล้ว (ออเดอร์ #${formattedId})`;
-                descElem.innerText = 'อาหารเสิร์ฟเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
             } else {
+                if (iconBox) {
+                    iconBox.innerHTML = '<div class="spinner-border text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
+                }
+                banner.className = 'alert alert-warning rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
                 titleElem.innerHTML = `<i class="fas fa-hourglass-start text-warning me-1"></i>รอดำเนินการ (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ส่งออเดอร์เข้าครัวแล้ว กำลังรอห้องครัวเริ่มปรุงอาหาร...';
             }
@@ -1306,9 +1321,9 @@
             } else if (statusStr === 'cooking' || statusStr === 'in_progress') {
                 statusBadge = `<span class="badge bg-primary"><i class="fas fa-fire fa-spin me-1"></i>กำลังปรุงอาหาร</span>`;
             } else if (statusStr === 'served') {
-                statusBadge = `<span class="badge bg-info text-white"><i class="fas fa-utensils me-1"></i>เสิร์ฟแล้ว</span>`;
+                statusBadge = `<span class="badge bg-success text-white"><i class="fas fa-check-circle me-1"></i>เสิร์ฟสำเร็จ</span>`;
             } else if (statusStr === 'completed' || statusStr === 'paid') {
-                statusBadge = `<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>เสร็จสิ้นเรียบร้อย</span>`;
+                statusBadge = `<span class="badge bg-success"><i class="fas fa-check-double me-1"></i>เสร็จสิ้นเรียบร้อย</span>`;
             } else if (statusStr === 'cancelled' || statusStr === 'voided') {
                 statusBadge = `<span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>ยกเลิกแล้ว</span>`;
             } else {
@@ -1457,6 +1472,7 @@
 
         const activeBadge = document.getElementById('activeCallBadge');
         const banner = document.getElementById('serviceCallBanner');
+        const iconBox = document.getElementById('serviceCallIconBox');
         const titleElem = document.getElementById('serviceCallTitle');
         const descElem = document.getElementById('serviceCallDesc');
         const badgeElem = document.getElementById('serviceCallStatusBadge');
@@ -1472,13 +1488,19 @@
                 const st = strToLowerCase(latest.status);
 
                 if (st === 'in_progress' || st === 'accepted') {
+                    if (iconBox) {
+                        iconBox.innerHTML = '<div class="bg-success-subtle text-success p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;"><i class="fas fa-user-check fs-5 text-success"></i></div>';
+                    }
                     if (titleElem) titleElem.innerText = `พนักงานรับเรื่องแล้ว: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'พนักงานกำลังเดินทางมาให้บริการที่โต๊ะของคุณ';
                     if (badgeElem) {
                         badgeElem.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold flex-shrink-0 text-nowrap';
-                        badgeElem.innerHTML = '<i class="fas fa-user-check me-1"></i>พนักงานกำลังมา';
+                        badgeElem.innerHTML = '<i class="fas fa-check me-1"></i>พนักงานกำลังมา';
                     }
                 } else {
+                    if (iconBox) {
+                        iconBox.innerHTML = '<div class="spinner-grow text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
+                    }
                     if (titleElem) titleElem.innerText = `กำลังเรียกพนักงาน: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'ระบบแจ้งพนักงานเรียบร้อยแล้ว กรุณารอสักครู่...';
                     if (badgeElem) {
@@ -1527,10 +1549,7 @@
     }
 
     function sendServiceRequest(type) {
-        // ล็อกทันที ไม่ให้กดปุ่มเรียกพนักงานซ้ำจนกว่า response จะกลับมา
-        if (window.__customerMutationBusy) {
-            return;
-        }
+        if (window.__customerMutationBusy) return;
 
         window.__customerMutationBusy = true;
         const requestId = window.__customerServiceRequestId || (crypto.randomUUID ? crypto.randomUUID() : ('service_' + Date.now() + '_' + Math.random().toString(16).slice(2)));
@@ -1592,14 +1611,12 @@
         })
         .finally(() => {
             window.__customerMutationFetchAllowed = false;
-            // ปลดล็อกหลังจาก server ตอบกลับ/เกิด network error แล้ว
             window.__customerMutationBusy = false;
             document.querySelectorAll('.customer-request-busy').forEach(btn => { btn.disabled = false; btn.classList.remove('customer-request-busy'); });
         });
     }
 
-    // Global guard สำหรับ mutation request ของ Customer
-    // GET สำหรับ polling/status จะไม่ถูกล็อก
+    // Global Guard
     (function installCustomerRequestGuard() {
         if (window.__customerRequestGuardInstalled) return;
         window.__customerRequestGuardInstalled = true;
