@@ -718,7 +718,6 @@
     let lastCallStatuses = {};
     let lastOrderStatuses = {};
 
-    /* --- Helper ฟังก์ชั่นสำหรับจัดฟอร์แมต Order ID --- */
     function formatOrderId(rawId) {
         if (!rawId) return '';
         const strId = String(rawId).trim();
@@ -739,7 +738,6 @@
         setInterval(fetchLiveServiceCalls, 4000);
     });
 
-    /* --- LocalStorage Management --- */
     function getSavedOrderIds() {
         try {
             const saved = localStorage.getItem('customer_order_ids');
@@ -1158,7 +1156,6 @@
         });
     }
 
-    /* --- ระบบดึงข้อมูลและแจ้งเตือนสถานะออเดอร์แบบ Real-time --- */
     function fetchLiveOrders() {
         const localOrderIds = getSavedOrderIds();
         const queryParams = new URLSearchParams();
@@ -1238,7 +1235,7 @@
         });
     }
 
-    /* --- ปรับปรุงการแสดงผล Banner สถานะออเดอร์ ไม่ให้ค้างระบบหมุนเมื่อเสิร์ฟสำเร็จ --- */
+    /* --- ปรับปรุง Banner แสดงผลให้เหลือแค่ติ๊กเดียวในวงกลมฝั่งซ้าย และข้อความด้านขวาไม่มีไอคอนนำหน้า --- */
     function renderOrderStatusBanner(orders) {
         const banner = document.getElementById('orderStatusBanner');
         const iconBox = document.getElementById('orderStatusIconBox');
@@ -1271,24 +1268,24 @@
 
             if (st === 'served') {
                 if (iconBox) {
-                    iconBox.innerHTML = '<div class="bg-success-subtle text-success p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;"><i class="fas fa-check-circle fs-4 text-success"></i></div>';
+                    iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;"><i class="fas fa-check fs-5"></i></div>';
                 }
                 banner.className = 'alert alert-success rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
-                titleElem.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i>เสิร์ฟสำเร็จแล้ว (ออเดอร์ #${formattedId})`;
+                titleElem.innerText = `เสิร์ฟสำเร็จแล้ว (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'อาหารเสิร์ฟถึงโต๊ะของคุณเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
             } else if (st === 'cooking' || st === 'in_progress') {
                 if (iconBox) {
                     iconBox.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
                 }
                 banner.className = 'alert alert-primary rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
-                titleElem.innerHTML = `<i class="fas fa-fire text-danger me-1"></i>กำลังปรุงอาหาร (ออเดอร์ #${formattedId})`;
+                titleElem.innerText = `กำลังปรุงอาหาร (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ห้องครัวกำลังรับและปรุงอาหารของคุณ กรุณารอสักครู่...';
             } else {
                 if (iconBox) {
                     iconBox.innerHTML = '<div class="spinner-border text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
                 }
                 banner.className = 'alert alert-warning rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
-                titleElem.innerHTML = `<i class="fas fa-hourglass-start text-warning me-1"></i>รอดำเนินการ (ออเดอร์ #${formattedId})`;
+                titleElem.innerText = `รอดำเนินการ (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ส่งออเดอร์เข้าครัวแล้ว กำลังรอห้องครัวเริ่มปรุงอาหาร...';
             }
         } else {
@@ -1366,7 +1363,6 @@
         }).join('');
     }
 
-    /* --- ระบบตรวจจับและแสดงสถานะการเรียกพนักงานแบบ Real-time --- */
     function fetchLiveServiceCalls() {
         const localCallIds = getSavedCallIds();
         if (localCallIds.length === 0 && !currentTableNo) {
@@ -1489,7 +1485,7 @@
 
                 if (st === 'in_progress' || st === 'accepted') {
                     if (iconBox) {
-                        iconBox.innerHTML = '<div class="bg-success-subtle text-success p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;"><i class="fas fa-user-check fs-5 text-success"></i></div>';
+                        iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;"><i class="fas fa-check fs-5"></i></div>';
                     }
                     if (titleElem) titleElem.innerText = `พนักงานรับเรื่องแล้ว: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'พนักงานกำลังเดินทางมาให้บริการที่โต๊ะของคุณ';
@@ -1616,7 +1612,6 @@
         });
     }
 
-    // Global Guard
     (function installCustomerRequestGuard() {
         if (window.__customerRequestGuardInstalled) return;
         window.__customerRequestGuardInstalled = true;
