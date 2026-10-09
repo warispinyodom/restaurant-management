@@ -1,186 +1,256 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block extra_head %}
 <style>
+    :root {
+        --board-bg: #f8fafc;
+        --border-color: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+    }
+
+    /* สไลด์บาร์ตัวกรองแบบแนวนอนสำหรับมือถือ */
+    .filter-scroll-container {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 4px 2px 8px 2px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .filter-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-btn {
+        flex-shrink: 0;
+        border-radius: 50rem;
+        padding: 6px 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: 1px solid var(--border-color);
+        background-color: #ffffff;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+    }
+    .filter-btn:hover, .filter-btn.active {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+        border-color: #0f172a !important;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+    }
+
+    /* โครงสร้างการ์ดออเดอร์ */
     .order-card {
         border-radius: 16px;
-        border: 1px solid #e9ecef;
-        transition: all 0.25s ease;
+        border: 1px solid var(--border-color);
+        background: #ffffff;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
     }
     .order-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08) !important;
     }
-    .order-card.status-pending {
-        border-left: 5px solid #ffc107;
-    }
-    .order-card.status-cooking, .order-card.status-in_progress, .order-card.status-preparing {
-        border-left: 5px solid #0d6efd;
-    }
-    .order-card.status-served, .order-card.status-cooked, .order-card.status-ready {
-        border-left: 5px solid #17a2b8;
-    }
-    .order-card.status-completed, .order-card.status-paid, .order-card.status-success {
-        border-left: 5px solid #198754;
-    }
-    .order-card.status-voided, .order-card.status-cancelled {
-        border-left: 5px solid #dc3545;
-        opacity: 0.7;
-    }
-    .filter-btn.active {
-        background-color: #212529 !important;
-        color: #ffffff !important;
-        border-color: #212529 !important;
+
+    /* แถบสีแยกตามสถานะออเดอร์ */
+    .order-card.status-pending { border-left: 5px solid #f59e0b; }
+    .order-card.status-cooking, .order-card.status-in_progress, .order-card.status-preparing { border-left: 5px solid #2563eb; }
+    .order-card.status-served, .order-card.status-cooked, .order-card.status-ready { border-left: 5px solid #06b6d4; }
+    .order-card.status-completed, .order-card.status-paid, .order-card.status-success { border-left: 5px solid #10b981; }
+    .order-card.status-voided, .order-card.status-cancelled { border-left: 5px solid #ef4444; opacity: 0.75; }
+
+    /* Animation กระพริบเรียกลูกตาสำหรับออเดอร์ใหม่ */
+    @keyframes pulse-border {
+        0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
     }
     .new-order-pulse {
-        animation: pulse-bg 1.5s infinite;
+        animation: pulse-border 2s infinite;
     }
-    @keyframes pulse-bg {
-        0% { background-color: rgba(255, 193, 7, 0.15); }
-        50% { background-color: rgba(255, 193, 7, 0.4); }
-        100% { background-color: rgba(255, 193, 7, 0.15); }
+
+    /* รองรับขนาดหน้าจอมือถือ */
+    @media (max-width: 575.98px) {
+        .orders-page-container {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+        .header-title {
+            font-size: 1.2rem !important;
+        }
+        .order-card-header {
+            padding: 10px 12px !important;
+        }
+        .order-card-body {
+            padding: 10px 12px !important;
+        }
+        .action-btn {
+            padding: 6px 12px !important;
+            font-size: 0.8rem !important;
+        }
     }
 </style>
+{% endblock %}
 
-<!-- Header & Staff Status Bar -->
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-    <div>
-        <h3 class="fw-bold mb-1"><i class="fas fa-concierge-bell text-warning me-2"></i>รายการสั่งซื้ออาหาร (Staff Kitchen Board)</h3>
-        <p class="text-muted mb-0 small">จัดการสถานะรายการสั่งซื้อ รับออเดอร์จากหน้าบ้าน และเตรียมเสิร์ฟลูกค้าแบบ Real-time</p>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        <button id="soundToggleBtn" class="btn btn-outline-warning btn-sm rounded-pill px-3 shadow-sm" onclick="toggleSound()">
-            <i class="fas fa-volume-up me-1" id="soundIcon"></i><span id="soundText">เปิดเสียงเตือน</span>
-        </button>
+{% block content %}
+<div class="container-fluid px-2 px-sm-3 px-md-4 py-2 py-md-3 orders-page-container">
 
-        <label class="small text-muted fw-bold me-1 ms-2">สถานะพนักงาน:</label>
-        <select id="staffStatusSelect" class="form-select form-select-sm fw-bold border-0 shadow-sm rounded-pill px-3" style="width: auto;" onchange="changeStaffStatus(this.value)">
-            <option value="ready" {% if staff_status == 'ready' %}selected{% endif %}>🟢 พร้อมให้บริการ (Ready)</option>
-            <option value="busy" {% if staff_status == 'busy' %}selected{% endif %}>🔴 กำลังยุ่ง (Busy)</option>
-            <option value="break" {% if staff_status == 'break' %}selected{% endif %}>🟡 พักผ่อน (On Break)</option>
-        </select>
-        <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle p-2 shadow-sm ms-2" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
-            <i class="fas fa-sync-alt" id="refreshIcon"></i>
-        </button>
-    </div>
-</div>
+    <!-- Header & Staff Controls -->
+    <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 mb-3">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1 header-title">
+                <i class="fas fa-concierge-bell text-warning me-2"></i>รายการสั่งซื้ออาหาร (Kitchen Board)
+            </h3>
+            <p class="text-muted small mb-0">จัดการสถานะรายการสั่งซื้อ รับออเดอร์จากลูกค้า และเตรียมเสิร์ฟแบบ Real-time</p>
+        </div>
 
-<!-- Filter Pills -->
-<div class="d-flex flex-wrap gap-2 mb-4">
-    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
-        <i class="fas fa-th-large me-1"></i>ทั้งหมด (<span id="cntAll">0</span>)
-    </button>
-    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="pending" onclick="filterOrders('pending', this)">
-        <i class="fas fa-clock text-warning me-1"></i>รอดำเนินการ (<span id="cntPending">0</span>)
-    </button>
-    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="cooking" onclick="filterOrders('cooking', this)">
-        <i class="fas fa-fire text-primary me-1"></i>กำลังปรุงอาหาร (<span id="cntCooking">0</span>)
-    </button>
-    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="served" onclick="filterOrders('served', this)">
-        <i class="fas fa-utensils text-info me-1"></i>เสิร์ฟแล้ว (<span id="cntServed">0</span>)
-    </button>
-    <button type="button" class="btn btn-light btn-sm rounded-pill px-3 filter-btn" data-filter="completed" onclick="filterOrders('completed', this)">
-        <i class="fas fa-check-circle text-success me-1"></i>ชำระเงินแล้ว (<span id="cntCompleted">0</span>)
-    </button>
-</div>
+        <!-- Controls Toolbar -->
+        <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto justify-content-start justify-content-lg-end">
+            <!-- Toggle Sound Button -->
+            <button id="soundToggleBtn" class="btn btn-outline-warning text-dark btn-sm rounded-pill px-3 shadow-sm fw-medium" onclick="toggleSound()">
+                <i class="fas fa-volume-up me-1" id="soundIcon"></i><span id="soundText">เปิดเสียงเตือน</span>
+            </button>
 
-<!-- Orders Grid Container -->
-<div class="row g-3" id="ordersGrid">
-    {% if orders %}
-    {% for order in orders %}
-    {% set st = (order.status or 'pending') | lower %}
-    {% set order_id_str = (order.id | string) if order.id is defined and order.id else '' %}
-    {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
-    {% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
-    {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
-    {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else 0) %}
-
-    <div class="col-12 col-md-6 col-lg-4 order-item-col" data-status="{{ st }}" id="order-card-{{ order_id_str }}">
-        <div class="card order-card shadow-sm h-100 bg-white status-{{ st }} {% if st == 'pending' %}new-order-pulse{% endif %}">
-            <div class="card-header bg-transparent border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace">#{{ order_id_str[:8] }}</span>
-                    <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
-                        <i class="fas fa-chair me-1"></i>โต๊ะ {{ table_no }}
-                    </span>
-                </div>
-                <div class="text-end">
-                    {% if st == 'pending' %}
-                        <span class="badge bg-warning text-dark rounded-pill"><i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ</span>
-                    {% elif st in ['cooking', 'in_progress', 'preparing'] %}
-                        <span class="badge bg-primary rounded-pill"><i class="fas fa-fire me-1"></i>กำลังปรุงอาหาร</span>
-                    {% elif st in ['cooked', 'served', 'ready'] %}
-                        <span class="badge bg-info text-dark rounded-pill"><i class="fas fa-concierge-bell me-1"></i>เสิร์ฟเรียบร้อย</span>
-                    {% elif st in ['completed', 'paid', 'success'] %}
-                        <span class="badge bg-success rounded-pill"><i class="fas fa-check-circle me-1"></i>ชำระเงินแล้ว</span>
-                    {% elif st in ['voided', 'cancelled'] %}
-                        <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>ยกเลิก</span>
-                    {% endif %}
-                </div>
+            <!-- Staff Status Selector -->
+            <div class="d-flex align-items-center bg-white border rounded-pill px-2 py-1 shadow-sm">
+                <label class="small text-muted fw-bold me-2 ms-1 d-none d-sm-inline" style="font-size: 0.75rem;">พนักงาน:</label>
+                <select id="staffStatusSelect" class="form-select form-select-sm fw-bold border-0 bg-transparent p-0 pe-4" style="outline: none; box-shadow: none; font-size: 0.85rem; cursor: pointer;" onchange="changeStaffStatus(this.value)">
+                    <option value="ready" {% if staff_status == 'ready' %}selected{% endif %}>🟢 พร้อมให้บริการ</option>
+                    <option value="busy" {% if staff_status == 'busy' %}selected{% endif %}>🔴 กำลังยุ่ง</option>
+                    <option value="break" {% if staff_status == 'break' %}selected{% endif %}>🟡 พักผ่อน</option>
+                </select>
             </div>
 
-            <div class="card-body px-3 py-2 d-flex flex-column">
-                <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: {{ created_str.replace('T', ' ')[:16] }}</div>
-                
-                <h6 class="fw-bold mb-2 text-secondary small border-bottom pb-1"><i class="fas fa-list me-1"></i>รายการอาหารที่สั่ง:</h6>
-                <ul class="list-group list-group-flush mb-3 flex-grow-1">
-                    {% if items_list %}
-                        {% for item in items_list %}
-                        <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center border-0">
-                            <div>
-                                <span class="fw-bold text-dark">{{ item.name if item.name is defined else item.title }}</span>
-                                {% if item.spice_level and item.spice_level != 'ไม่เผ็ด' %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">{{ item.spice_level }}</span>
-                                {% endif %}
-                                {% if item.notes %}
-                                    <small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>{{ item.notes }}</small>
-                                {% endif %}
-                            </div>
-                            <span class="badge bg-secondary rounded-pill fs-6 fw-bold">x{{ item.quantity if item.quantity is defined else (item.qty if item.qty is defined else 1) }}</span>
-                        </li>
-                        {% endfor %}
-                    {% else %}
-                        <li class="list-group-item px-0 py-2 bg-transparent text-muted small border-0">ไม่มีข้อมูลรายการ</li>
-                    {% endif %}
-                </ul>
+            <!-- Refresh Button -->
+            <button type="button" class="btn btn-light border btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
+                <i class="fas fa-sync-alt text-secondary" id="refreshIcon"></i>
+            </button>
+        </div>
+    </div>
 
-                <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
+    <!-- Filter Pills (Scrollable on mobile) -->
+    <div class="filter-scroll-container mb-3 mb-md-4">
+        <button type="button" class="filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
+            <i class="fas fa-th-large me-1"></i>ทั้งหมด (<span id="cntAll">0</span>)
+        </button>
+        <button type="button" class="filter-btn" data-filter="pending" onclick="filterOrders('pending', this)">
+            <i class="fas fa-clock text-warning me-1"></i>รอดำเนินการ (<span id="cntPending">0</span>)
+        </button>
+        <button type="button" class="filter-btn" data-filter="cooking" onclick="filterOrders('cooking', this)">
+            <i class="fas fa-fire text-primary me-1"></i>กำลังปรุงอาหาร (<span id="cntCooking">0</span>)
+        </button>
+        <button type="button" class="filter-btn" data-filter="served" onclick="filterOrders('served', this)">
+            <i class="fas fa-utensils text-info me-1"></i>เสิร์ฟแล้ว (<span id="cntServed">0</span>)
+        </button>
+        <button type="button" class="filter-btn" data-filter="completed" onclick="filterOrders('completed', this)">
+            <i class="fas fa-check-circle text-success me-1"></i>ชำระเงินแล้ว (<span id="cntCompleted">0</span>)
+        </button>
+    </div>
+
+    <!-- Orders Grid Container -->
+    <div class="row g-2 g-sm-3" id="ordersGrid">
+        {% if orders %}
+        {% for order in orders %}
+        {% set st = (order.status or 'pending') | lower %}
+        {% set order_id_str = (order.id | string) if order.id is defined and order.id else '' %}
+        {% set table_no = order.table_no if order.table_no is defined and order.table_no else (order.table if order.table is defined and order.table else '-') %}
+        {% set created_str = (order.created_at | string) if order.created_at is defined and order.created_at else '-' %}
+        {% set items_list = order.items if order.items is defined and order.items is iterable and order.items is not string else [] %}
+        {% set total_amt = order.total_price if order.total_price is defined and order.total_price is not none else (order.total_amount if order.total_amount is defined and order.total_amount is not none else 0) %}
+
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3 order-item-col" data-status="{{ st }}" id="order-card-{{ order_id_str }}">
+            <div class="card order-card shadow-sm h-100 bg-white status-{{ st }} {% if st == 'pending' %}new-order-pulse{% endif %}">
+                <!-- Card Header -->
+                <div class="order-card-header bg-transparent border-bottom pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="small text-muted d-block">ราคารวม:</span>
-                        <span class="fw-bold fs-5 text-success">฿{{ "%.2f"|format(total_amt|float) }}</span>
+                        <span class="badge bg-dark text-white rounded-pill px-2.5 py-1 font-monospace">#{{ order_id_str[:8] }}</span>
+                        <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
+                            <i class="fas fa-chair me-1"></i>โต๊ะ {{ table_no }}
+                        </span>
                     </div>
-
-                    <div class="btn-group btn-group-sm">
+                    <div class="text-end">
                         {% if st == 'pending' %}
-                            <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('{{ order_id_str }}', 'cooking')">
-                                <i class="fas fa-fire me-1"></i>เริ่มปรุง
-                            </button>
-                            <button type="button" class="btn btn-outline-danger rounded-circle ms-1" onclick="cancelOrder('{{ order_id_str }}')" title="ยกเลิกออเดอร์">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <span class="badge bg-warning text-dark rounded-pill"><i class="fas fa-hourglass-half me-1"></i>รอดำเนินการ</span>
                         {% elif st in ['cooking', 'in_progress', 'preparing'] %}
-                            <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('{{ order_id_str }}', 'served')">
-                                <i class="fas fa-concierge-bell me-1"></i>พร้อมเสิร์ฟ
-                            </button>
+                            <span class="badge bg-primary rounded-pill"><i class="fas fa-fire me-1"></i>กำลังปรุงอาหาร</span>
                         {% elif st in ['cooked', 'served', 'ready'] %}
-                            <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold" disabled>
-                                <i class="fas fa-check me-1"></i>เสิร์ฟแล้ว
-                            </button>
+                            <span class="badge bg-info text-dark rounded-pill"><i class="fas fa-concierge-bell me-1"></i>เสิร์ฟเรียบร้อย</span>
+                        {% elif st in ['completed', 'paid', 'success'] %}
+                            <span class="badge bg-success rounded-pill"><i class="fas fa-check-circle me-1"></i>ชำระเงินแล้ว</span>
+                        {% elif st in ['voided', 'cancelled'] %}
+                            <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>ยกเลิก</span>
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Card Body -->
+                <div class="order-card-body px-3 py-2 d-flex flex-column">
+                    <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: {{ created_str.replace('T', ' ')[:16] }}</div>
+                    
+                    <h6 class="fw-bold mb-2 text-secondary small border-bottom pb-1"><i class="fas fa-list me-1"></i>รายการอาหารที่สั่ง:</h6>
+                    <ul class="list-group list-group-flush mb-3 flex-grow-1">
+                        {% if items_list %}
+                            {% for item in items_list %}
+                            <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center border-0">
+                                <div>
+                                    <span class="fw-bold text-dark">{{ item.name if item.name is defined else item.title }}</span>
+                                    {% if item.spice_level and item.spice_level != 'ไม่เผ็ด' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">{{ item.spice_level }}</span>
+                                    {% endif %}
+                                    {% if item.notes %}
+                                        <small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>{{ item.notes }}</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-secondary rounded-pill fs-6 fw-bold">x{{ item.quantity if item.quantity is defined else (item.qty if item.qty is defined else 1) }}</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item px-0 py-2 bg-transparent text-muted small border-0">ไม่มีข้อมูลรายการ</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Card Footer Inside Body -->
+                    <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
+                        <div>
+                            <span class="small text-muted d-block" style="font-size: 0.75rem;">ราคารวม:</span>
+                            <span class="fw-bold fs-5 text-success">฿{{ "%.2f"|format(total_amt|float) }}</span>
+                        </div>
+
+                        <div class="btn-group btn-group-sm">
+                            {% if st == 'pending' %}
+                                <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold action-btn" onclick="updateOrderStatus('{{ order_id_str }}', 'cooking')">
+                                    <i class="fas fa-fire me-1"></i>เริ่มปรุง
+                                </button>
+                                <button type="button" class="btn btn-outline-danger rounded-circle ms-1" onclick="cancelOrder('{{ order_id_str }}')" title="ยกเลิกออเดอร์">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            {% elif st in ['cooking', 'in_progress', 'preparing'] %}
+                                <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold action-btn" onclick="updateOrderStatus('{{ order_id_str }}', 'served')">
+                                    <i class="fas fa-concierge-bell me-1"></i>พร้อมเสิร์ฟ
+                                </button>
+                            {% elif st in ['cooked', 'served', 'ready'] %}
+                                <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold action-btn" disabled>
+                                    <i class="fas fa-check me-1"></i>เสิร์ฟแล้ว
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <div class="col-12 text-center py-5" id="noOrdersBox">
-        <div class="p-5 bg-white rounded-4 shadow-sm border">
-            <i class="fas fa-receipt fa-4x text-muted opacity-25 mb-3 d-block"></i>
-            <h5 class="fw-bold text-muted">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
+        {% endfor %}
+        {% else %}
+        <div class="col-12 text-center py-5" id="noOrdersBox">
+            <div class="p-4 p-md-5 bg-white rounded-4 shadow-sm border d-inline-block">
+                <i class="fas fa-receipt fa-3x text-muted opacity-25 mb-3 d-block"></i>
+                <h5 class="fw-bold text-muted m-0">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
+            </div>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}
 
@@ -206,7 +276,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateCounts();
-        setInterval(() => fetchOrdersRealtime(false), 5000);
+        setInterval(() => fetchOrdersRealtime(false), 4000);
     });
 
     function toggleSound() {
@@ -217,12 +287,12 @@
         const text = document.getElementById('soundText');
 
         if (isSoundEnabled) {
-            btn.classList.replace('btn-outline-warning', 'btn-warning');
+            btn.className = "btn btn-warning text-dark btn-sm rounded-pill px-3 shadow-sm fw-medium";
             icon.className = 'fas fa-volume-up me-1';
             text.innerText = 'เปิดเสียงเตือนแล้ว';
             playBeepSound();
         } else {
-            btn.classList.replace('btn-warning', 'btn-outline-warning');
+            btn.className = "btn btn-outline-warning text-dark btn-sm rounded-pill px-3 shadow-sm fw-medium";
             icon.className = 'fas fa-volume-mute me-1';
             text.innerText = 'ปิดเสียงเตือน';
         }
@@ -312,9 +382,9 @@
         if (!orders || orders.length === 0) {
             grid.innerHTML = `
                 <div class="col-12 text-center py-5">
-                    <div class="p-5 bg-white rounded-4 shadow-sm border">
-                        <i class="fas fa-receipt fa-4x text-muted opacity-25 mb-3 d-block"></i>
-                        <h5 class="fw-bold text-muted">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
+                    <div class="p-4 p-md-5 bg-white rounded-4 shadow-sm border d-inline-block">
+                        <i class="fas fa-receipt fa-3x text-muted opacity-25 mb-3 d-block"></i>
+                        <h5 class="fw-bold text-muted m-0">ยังไม่มีรายการสั่งซื้ออาหารในขณะนี้</h5>
                     </div>
                 </div>`;
             updateCounts();
@@ -360,7 +430,7 @@
             let actionBtnHtml = '';
             if (st === 'pending') {
                 actionBtnHtml = `
-                    <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('${orderId}', 'cooking')">
+                    <button type="button" class="btn btn-primary rounded-pill px-3 shadow-sm fw-semibold action-btn" onclick="updateOrderStatus('${orderId}', 'cooking')">
                         <i class="fas fa-fire me-1"></i>เริ่มปรุง
                     </button>
                     <button type="button" class="btn btn-outline-danger rounded-circle ms-1" onclick="cancelOrder('${orderId}')" title="ยกเลิกออเดอร์">
@@ -368,12 +438,12 @@
                     </button>`;
             } else if (['cooking', 'in_progress', 'preparing'].includes(st)) {
                 actionBtnHtml = `
-                    <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold" onclick="updateOrderStatus('${orderId}', 'served')">
+                    <button type="button" class="btn btn-info text-dark rounded-pill px-3 shadow-sm fw-semibold action-btn" onclick="updateOrderStatus('${orderId}', 'served')">
                         <i class="fas fa-concierge-bell me-1"></i>พร้อมเสิร์ฟ
                     </button>`;
             } else if (['cooked', 'served', 'ready'].includes(st)) {
                 actionBtnHtml = `
-                    <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold" disabled>
+                    <button type="button" class="btn btn-outline-success rounded-pill px-3 fw-semibold action-btn" disabled>
                         <i class="fas fa-check me-1"></i>เสิร์ฟแล้ว
                     </button>`;
             }
@@ -381,24 +451,24 @@
             const pulseClass = st === 'pending' ? 'new-order-pulse' : '';
 
             html += `
-            <div class="col-12 col-md-6 col-lg-4 order-item-col" data-status="${st}" id="order-card-${orderId}">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3 order-item-col" data-status="${st}" id="order-card-${orderId}">
                 <div class="card order-card shadow-sm h-100 bg-white status-${st} ${pulseClass}">
-                    <div class="card-header bg-transparent border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
+                    <div class="order-card-header bg-transparent border-bottom pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace">#${orderId.substring(0, 8)}</span>
+                            <span class="badge bg-dark text-white rounded-pill px-2.5 py-1 font-monospace">#${orderId.substring(0, 8)}</span>
                             <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
                                 <i class="fas fa-chair me-1"></i>โต๊ะ ${tableNo}
                             </span>
                         </div>
                         <div class="text-end">${statusBadge}</div>
                     </div>
-                    <div class="card-body px-3 py-2 d-flex flex-column">
+                    <div class="order-card-body px-3 py-2 d-flex flex-column">
                         <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: ${createdAt}</div>
                         <h6 class="fw-bold mb-2 text-secondary small border-bottom pb-1"><i class="fas fa-list me-1"></i>รายการอาหารที่สั่ง:</h6>
                         <ul class="list-group list-group-flush mb-3 flex-grow-1">${itemsHtml}</ul>
                         <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
                             <div>
-                                <span class="small text-muted d-block">ราคารวม:</span>
+                                <span class="small text-muted d-block" style="font-size: 0.75rem;">ราคารวม:</span>
                                 <span class="fw-bold fs-5 text-success">฿${totalAmt}</span>
                             </div>
                             <div class="btn-group btn-group-sm">${actionBtnHtml}</div>
