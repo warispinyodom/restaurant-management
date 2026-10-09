@@ -557,7 +557,7 @@ def customer_choose_table():
     methods=['POST']
 )
 def customer_checkout():
-    """สร้างรายการสั่งอาหารเข้าครัว"""
+    """สร้างรายการสั่งอาหารเข้าครัว พร้อมบันทึกรายละเอียดราคาเริ่มต้น"""
 
     if session.get('role') != 'customer':
         return jsonify({
@@ -592,15 +592,30 @@ def customer_checkout():
             'message': 'กรุณาเลือกโต๊ะอาหารก่อนสั่งซื้อ'
         }), 400
 
+    items = data.get('items', [])
+
+    if not items:
+        return jsonify({
+            'status': 'error',
+            'message': 'ไม่มีสินค้าในตะกร้า'
+        }), 400
+
+    # คำนวณยอด Subtotal และ VAT 7% ตั้งต้น
+    subtotal = sum(
+        float(i.get('price', 0)) * int(i.get('qty', i.get('quantity', 1)))
+        for i in items
+    )
+
     raw_total = (
         data.get('total_amount')
         or data.get('total_price')
+        or subtotal
     )
 
     try:
-        total_amount = float(raw_total) if raw_total is not None else 0.0
+        total_amount = float(raw_total) if raw_total is not None else subtotal
     except (ValueError, TypeError):
-        total_amount = 0.0
+        total_amount = subtotal
 
     raw_count = (
         data.get('customer_count')
@@ -614,16 +629,7 @@ def customer_checkout():
     except (ValueError, TypeError):
         customer_count = 1
 
-    # กำหนดสถานะการชำระเงินเริ่มต้นให้พนักงานมาเช็คบิลแทน
     payment_method = data.get('payment_method', 'เงินสด (เช็คบิลกับพนักงาน)')
-
-    items = data.get('items', [])
-
-    if not items:
-        return jsonify({
-            'status': 'error',
-            'message': 'ไม่มีสินค้าในตะกร้า'
-        }), 400
 
     try:
         user_key = get_current_user_key()
@@ -653,6 +659,11 @@ def customer_checkout():
                 [table_id]
             ),
             "customer_count": customer_count,
+            "subtotal": subtotal,
+            "discount": 0.0,
+            "service_charge": 0.0,
+            "vat_percent": 7.0,
+            "vat_amount": round(subtotal * 0.07, 2),
             "total_amount": total_amount,
             "total_price": total_amount,
             "payment_method": payment_method,

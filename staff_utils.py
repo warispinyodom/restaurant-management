@@ -133,12 +133,10 @@ def get_all_service_requests():
     try:
         combined_data = {}
 
-        # 1. ดึงข้อมูลหลักจาก notifications node
         notif_data = get_firebase_data('notifications')
         if isinstance(notif_data, dict):
             combined_data.update(notif_data)
 
-        # 2. ดึงข้อมูลสำรองจาก service_requests และ service_calls
         sr_data = get_firebase_data('service_requests')
         if isinstance(sr_data, dict):
             combined_data.update(sr_data)
@@ -158,10 +156,6 @@ def get_all_service_requests():
 # STAFF ROUTES & CONTROLLERS
 # ==========================================
 
-# ------------------------------------------
-# SERVICE REQUESTS (เรียกพนักงาน) ROUTES
-# ------------------------------------------
-
 @staff_bp.route('/staff/service-requests')
 @staff_required
 def staff_service_requests_page():
@@ -180,7 +174,6 @@ def api_staff_service_requests():
     """API ดึงรายการเรียกพนักงานสำหรับ Auto-refresh/AJAX"""
     try:
         requests_list = get_all_service_requests() or []
-        # คัดกรองเฉพาะรายการที่ยังไม่ได้ดำเนินการ
         active_requests = [
             req for req in requests_list 
             if str(req.get('status', 'pending')).lower() not in ['resolved', 'completed', 'done', 'cancelled']
@@ -226,7 +219,6 @@ def staff_update_service_request_status():
         if not request_id:
             return jsonify({'status': 'error', 'message': 'ไม่พบรายการที่ต้องการ'}), 400
 
-        # หากกดเสร็จสิ้น (resolved/completed/delete) ให้ทำการลบออกจาก notifications และโหนดที่เกี่ยวข้องใน Firebase ทันที
         if new_status in ['resolved', 'completed', 'delete']:
             res_notif = delete_firebase_data('notifications', request_id)
             res_sr = delete_firebase_data('service_requests', request_id)
@@ -242,7 +234,6 @@ def staff_update_service_request_status():
             'updated_at': now_str
         }
 
-        # กรณีรับเรื่อง (in_progress) ให้ patch สถานะไปยังโหนดต่างๆ
         res_notif = patch_firebase_data('notifications', request_id, patch_payload)
         res_sr = patch_firebase_data('service_requests', request_id, patch_payload)
         res_sc = patch_firebase_data('service_calls', request_id, patch_payload)
@@ -252,10 +243,6 @@ def staff_update_service_request_status():
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตรายการในระบบได้'}), 500
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ------------------------------------------
-# TABLES MANAGEMENT ROUTES
-# ------------------------------------------
 
 @staff_bp.route('/staff/tables')
 @staff_required
@@ -323,10 +310,6 @@ def staff_update_table_status():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# ------------------------------------------
-# ORDERS MANAGEMENT ROUTES
-# ------------------------------------------
-
 @staff_bp.route('/staff/orders')
 @staff_required
 def staff_orders():
@@ -346,10 +329,15 @@ def staff_orders():
 @staff_bp.route('/api/staff/orders')
 @staff_required
 def api_staff_orders():
-    """API ดึงรายการออเดอร์ทั้งหมด"""
+    """API ดึงรายการออเดอร์ทั้งหมด พร้อมจำนวนออเดอร์ใหม่ (pending_count) สำหรับแสดงแจ้งเตือน"""
     try:
         orders = get_all_orders() or []
-        return jsonify({'status': 'success', 'orders': orders})
+        pending_orders = [o for o in orders if str(o.get('status', 'pending')).lower() == 'pending']
+        return jsonify({
+            'status': 'success', 
+            'orders': orders,
+            'pending_count': len(pending_orders)
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -398,6 +386,7 @@ def staff_create_order():
             'table_no': table_no if order_type == 'dine_in' else 'Takeaway/หน้าร้าน',
             'order_type': order_type,
             'items': items,
+            'subtotal': total_amount,
             'total_amount': total_amount,
             'total_price': total_amount,
             'status': 'pending',
@@ -451,6 +440,7 @@ def cancel_order_item():
             
             patch_firebase_data('orders', order_id, {
                 'items': items,
+                'subtotal': new_total,
                 'total_amount': new_total,
                 'total_price': new_total,
                 'updated_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -460,10 +450,6 @@ def cancel_order_item():
         return jsonify({'status': 'error', 'message': 'ตำแหน่งรายการอาหารไม่ถูกต้อง'}), 400
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ------------------------------------------
-# CHECK BILL & PAYMENT ROUTES
-# ------------------------------------------
 
 @staff_bp.route('/staff/check-bill')
 @staff_required
@@ -510,12 +496,20 @@ def api_staff_check_bill():
 @staff_bp.route('/staff/check-bill/process', methods=['POST'])
 @staff_required
 def staff_process_check_bill():
-    """ประมวลผลการรับชำระเงิน และรีเซ็ตโต๊ะเป็นว่าง"""
+    """ประมวลผลการรับชำระเงิน พร้อมบันทึกรายละเอียด VAT 7%, ส่วนลด, ค่าบริการ ลงฐานข้อมูล เพื่อให้ลูกค้ามองเห็นได้"""
     try:
         data = request.get_json(silent=True) or request.form.to_dict() or {}
         table_no = data.get('table_no')
         order_id = data.get('order_id')
         payment_method = data.get('payment_method', 'เงินสด')
+        
+        subtotal = to_float(data.get('subtotal'), 0.0)
+        discount = to_float(data.get('discount'), 0.0)
+        service_charge = to_float(data.get('service_charge'), 0.0)
+        vat_percent = to_float(data.get('vat_percent', 7.0), 7.0)
+        vat_amount = to_float(data.get('vat_amount'), 0.0)
+        total_amount = to_float(data.get('total_amount'), 0.0)
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if not table_no and not order_id:
@@ -532,9 +526,20 @@ def staff_process_check_bill():
             ]
 
         for o in target_orders:
+            calc_subtotal = subtotal if subtotal > 0 else to_float(o.get('subtotal') or o.get('total_amount'), 0.0)
+            calc_vat = vat_amount if vat_amount > 0 else round(calc_subtotal * (vat_percent / 100.0), 2)
+            calc_total = total_amount if total_amount > 0 else round(calc_subtotal - discount + service_charge + calc_vat, 2)
+
             patch_firebase_data('orders', o['id'], {
                 'status': 'completed',
                 'payment_method': payment_method,
+                'subtotal': calc_subtotal,
+                'discount': discount,
+                'service_charge': service_charge,
+                'vat_percent': vat_percent,
+                'vat_amount': calc_vat,
+                'total_amount': calc_total,
+                'total_price': calc_total,
                 'paid_at': now_str,
                 'updated_at': now_str
             })
@@ -551,10 +556,6 @@ def staff_process_check_bill():
         return jsonify({'status': 'success', 'message': f'รับชำระเงินเรียบร้อยแล้ว (โต๊ะ {table_no or "-"})'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-# ------------------------------------------
-# OTHER STAFF UTILITIES & MENU MANAGEMENT
-# ------------------------------------------
 
 @staff_bp.route('/staff/status/update', methods=['POST'])
 @staff_required

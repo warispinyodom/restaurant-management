@@ -206,7 +206,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateCounts();
-        setInterval(() => fetchOrdersRealtime(false), 5000);
+        fetchOrdersRealtime(false);
+        setInterval(() => fetchOrdersRealtime(false), 4000);
     });
 
     function toggleSound() {
@@ -236,11 +237,11 @@
             const gain = audioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.35);
+            osc.stop(audioCtx.currentTime + 0.4);
         } catch (e) {
             console.log('Audio error:', e);
         }
@@ -283,10 +284,32 @@
         document.getElementById('cntServed').innerText = counts.served;
         document.getElementById('cntCompleted').innerText = counts.completed;
 
+        updateSidebarBadge(counts.pending);
+
         if (counts.pending > previousPendingCount && previousPendingCount !== 0) {
             playBeepSound();
         }
         previousPendingCount = counts.pending;
+    }
+
+    /* อัปเดต Red Badge สีแดงที่เมนู Sidebar ของฝั่ง Staff */
+    function updateSidebarBadge(pendingCount) {
+        const orderLinks = document.querySelectorAll('a[href*="/staff/orders"]');
+        orderLinks.forEach(link => {
+            let badge = link.querySelector('.sidebar-order-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'badge bg-danger rounded-circle ms-auto sidebar-order-badge px-2 py-1';
+                badge.style.fontSize = '0.75rem';
+                link.appendChild(badge);
+            }
+            if (pendingCount > 0) {
+                badge.innerText = pendingCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        });
     }
 
     function fetchOrdersRealtime(showLoading = false) {
@@ -299,6 +322,9 @@
                 if (refreshIcon) refreshIcon.classList.remove('fa-spin');
                 if (data.status === 'success') {
                     renderOrdersGrid(data.orders || []);
+                    if (data.pending_count !== undefined) {
+                        updateSidebarBadge(data.pending_count);
+                    }
                 }
             })
             .catch(err => {
