@@ -275,9 +275,13 @@
                 {% elif session.get('role') == 'staff' %}
                 <div class="menu-section-label">พนักงาน (Staff Operations)</div>
 
+                <!-- ปรับแต่งป้าย Red Badge สำหรับรายการออเดอร์ -->
                 <a href="{{ url_for('staff.staff_orders') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint == 'staff.staff_orders' }}">
-                    <i class="fas fa-list-alt text-info"></i> <span>รายการออเดอร์</span>
+                    class="nav-link-custom d-flex align-items-center justify-content-between {{ 'active' if request.endpoint == 'staff.staff_orders' }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-list-alt text-info"></i> <span>รายการออเดอร์</span>
+                    </div>
+                    <span id="sidebar-orders-badge" class="badge bg-danger rounded-pill d-none" style="font-size: 0.7rem;">0</span>
                 </a>
 
                 <a href="{{ url_for('staff.staff_check_bill') }}"
@@ -400,10 +404,9 @@
             });
         }
 
-        // ดึงค่า role จาก session ส่งเข้ามาเป็น String ใน JavaScript
+        // ดึงค่า role จาก session
         const userRole = "{{ session.get('role', '') }}";
 
-        // ใช้ JavaScript เงื่อนไขแทนแท็ก Jinja2 ในแท็ก script เพื่อไม่ให้ VS Code แจ้งเตือน Syntax Error
         if (['staff', 'admin'].includes(userRole)) {
             let previousStaffStatus = document.getElementById('staffStatusSelect')?.value || 'ready';
 
@@ -450,15 +453,11 @@
                 });
             };
 
-            // ระบบ Polling ตรวจสอบรายการเรียกพนักงานในภูมิหลัง
+            // ระบบ Polling เช็คทั้งรายการเรียกพนักงาน และ ออเดอร์ใหม่ Real-time
             function checkStaffNotifications() {
+                // 1. เช็ครายการเรียกพนักงาน
                 fetch("{{ url_for('staff.api_staff_check_notifications') }}")
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error(`HTTP Error Status: ${res.status}`);
-                    }
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         const badge = document.getElementById('sidebar-service-badge');
@@ -472,13 +471,32 @@
                         }
                     }
                 })
-                .catch(err => console.error('Error checking notifications:', err));
+                .catch(err => console.error('Error checking service notifications:', err));
+
+                // 2. เช็คจำนวนออเดอร์ใหม่รอดำเนินการ (Pending Orders)
+                fetch("{{ url_for('staff.api_staff_orders') }}")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const ordersBadge = document.getElementById('sidebar-orders-badge');
+                        if (ordersBadge) {
+                            const pendingCount = data.pending_count !== undefined ? data.pending_count : 0;
+                            if (pendingCount > 0) {
+                                ordersBadge.textContent = pendingCount;
+                                ordersBadge.classList.remove('d-none');
+                            } else {
+                                ordersBadge.classList.add('d-none');
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.error('Error checking order notifications:', err));
             }
 
-            // เริ่ม Polling อย่างปลอดภัย
+            // เริ่ม Polling เช็คทุกๆ 4 วินาที
             function initStaffPolling() {
                 checkStaffNotifications();
-                setInterval(checkStaffNotifications, 10000);
+                setInterval(checkStaffNotifications, 4000);
             }
 
             if (document.readyState === 'loading') {
