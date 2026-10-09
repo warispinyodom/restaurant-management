@@ -2,78 +2,89 @@
 {% block content %}
 
 <style>
-    /* สไตล์การ์ดสรุปยอด และ Responsive UI */
+    :root {
+        --card-radius: 16px;
+        --border-color: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+    }
+
+    /* การ์ดสถิติ KPI Cards */
     .stat-card {
-        border: none;
-        border-radius: 16px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--border-color);
+        border-radius: var(--card-radius);
+        background-color: #ffffff;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
     }
     
     .stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08) !important;
     }
 
     .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.35rem;
+        font-size: 1.4rem;
+        flex-shrink: 0;
     }
 
     /* ปุ่มเมนูลัด Quick Actions */
     .quick-action-btn {
-        border: 1px solid #e9ecef;
+        border: 1px solid var(--border-color);
         background: #ffffff;
-        border-radius: 12px;
-        padding: 12px 16px;
+        border-radius: 14px;
+        padding: 14px 18px;
         transition: all 0.2s ease;
         text-decoration: none;
-        color: #495057;
+        color: var(--text-main);
         display: flex;
         align-items: center;
         gap: 12px;
+        height: 100%;
     }
 
     .quick-action-btn:hover {
-        background: #f8f9fa;
-        border-color: #0d6efd;
-        color: #0d6efd;
+        background: #f8fafc;
+        border-color: #2563eb;
+        color: #2563eb;
         transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
     }
 
     /* ไฟสถานะ Real-time */
     .live-pulse {
         width: 10px;
         height: 10px;
-        background-color: #198754;
+        background-color: #10b981;
         border-radius: 50%;
         display: inline-block;
-        box-shadow: 0 0 0 rgba(25, 135, 84, 0.4);
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
         animation: pulse 1.8s infinite;
     }
 
     @keyframes pulse {
-        0% {
-            box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
-        }
-        70% {
-            box-shadow: 0 0 0 8px rgba(25, 135, 84, 0);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
-        }
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
     /* ปรับขนาดตัวเลขยืดหยุ่นตามหน้าจอ */
     .stat-value {
-        font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+        font-size: clamp(1.4rem, 2.2vw, 1.9rem);
         font-weight: 700;
         line-height: 1.2;
+    }
+
+    @media (max-width: 575.98px) {
+        .dashboard-header-title {
+            font-size: 1.25rem !important;
+        }
     }
 </style>
 
@@ -82,7 +93,7 @@
      class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2" 
      data-role="{{ role or session.get('role', 'admin') }}">
     <div>
-        <h3 class="fw-bold mb-1 d-flex align-items-center gap-2 text-slate-900">
+        <h3 class="fw-bold mb-1 d-flex align-items-center gap-2 text-slate-900 dashboard-header-title">
             <i class="fas fa-chart-pie text-primary"></i> แผงควบคุมระบบ (Dashboard)
             <span class="badge bg-primary fs-6 fw-normal rounded-pill px-3">{{ role or session.get('role', 'admin') }}</span>
         </h3>
@@ -99,7 +110,7 @@
 <div class="row g-3 mb-4">
     <!-- ยอดขายวันนี้ -->
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card shadow-sm bg-white p-3 h-100 border-start border-4 border-success">
+        <div class="card stat-card shadow-sm p-3 h-100 border-start border-4 border-success">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <span class="text-muted small fw-semibold">ยอดขายวันนี้</span>
@@ -112,16 +123,16 @@
         </div>
     </div>
 
-    <!-- ลูกค้าวันนี้ -->
+    <!-- จำนวนออเดอร์วันนี้ -->
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card shadow-sm bg-white p-3 h-100 border-start border-4 border-info">
+        <div class="card stat-card shadow-sm p-3 h-100 border-start border-4 border-info">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <span class="text-muted small fw-semibold">จำนวนลูกค้าวันนี้</span>
-                    <div class="stat-value text-info mt-1" id="customers-today">0 คน</div>
+                    <span class="text-muted small fw-semibold">จำนวนออเดอร์วันนี้</span>
+                    <div class="stat-value text-info mt-1" id="orders-today">0 ออเดอร์</div>
                 </div>
                 <div class="stat-icon bg-info bg-opacity-10 text-info">
-                    <i class="fas fa-users"></i>
+                    <i class="fas fa-receipt"></i>
                 </div>
             </div>
         </div>
@@ -129,7 +140,7 @@
 
     <!-- ยอดขายสัปดาห์นี้ -->
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card shadow-sm bg-white p-3 h-100 border-start border-4 border-primary">
+        <div class="card stat-card shadow-sm p-3 h-100 border-start border-4 border-primary">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <span class="text-muted small fw-semibold">ยอดรวมสัปดาห์นี้</span>
@@ -144,7 +155,7 @@
 
     <!-- พนักงานปฏิบัติงาน -->
     <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card shadow-sm bg-white p-3 h-100 border-start border-4 border-warning">
+        <div class="card stat-card shadow-sm p-3 h-100 border-start border-4 border-warning">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <span class="text-muted small fw-semibold">พนักงานที่ปฏิบัติงาน</span>
@@ -160,8 +171,8 @@
 
 <!-- 2. เมนูลัดการจัดการระบบ (Quick Management Shortcuts) -->
 <div class="mb-4">
-    <h6 class="fw-bold text-secondary mb-2 small text-uppercase">เมนูลัดสำหรับผู้ดูแลระบบ</h6>
-    <div class="row g-2">
+    <h6 class="fw-bold text-secondary mb-2.5 small text-uppercase" style="letter-spacing: 0.5px;">เมนูลัดสำหรับผู้ดูแลระบบ</h6>
+    <div class="row g-2 g-md-3">
         <div class="col-6 col-md-3">
             <a href="{{ url_for('admin.admin_menu_list') }}" class="quick-action-btn shadow-sm">
                 <i class="fas fa-utensils text-primary fs-5"></i>
@@ -193,14 +204,14 @@
 <div class="row g-3">
     <!-- กราฟแท่งยอดขายรายวัน -->
     <div class="col-12 col-lg-8">
-        <div class="card border-0 shadow-sm rounded-3 h-100">
-            <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white border-0 pt-3.5 px-3.5 pb-0 d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                     <i class="fas fa-chart-bar text-primary"></i> ยอดขายรายวันในสัปดาห์นี้
                 </h5>
                 <span class="badge bg-light text-dark border font-monospace">หน่วย: บาท (฿)</span>
             </div>
-            <div class="card-body">
+            <div class="card-body p-3.5">
                 <div style="position: relative; height: 320px; width: 100%;">
                     <canvas id="salesChart"></canvas>
                 </div>
@@ -210,20 +221,20 @@
 
     <!-- การ์ดวิเคราะห์ข้อมูลสัปดาห์นี้ (Insights) -->
     <div class="col-12 col-lg-4">
-        <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
-            <div class="card-header bg-white border-0 pt-3 pb-0">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white border-0 pt-3.5 px-3.5 pb-0">
                 <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                     <i class="fas fa-lightbulb text-warning"></i> สรุปแนวโน้มสัปดาห์นี้
                 </h5>
             </div>
-            <div class="card-body d-flex flex-column justify-content-around">
-                <div class="p-3 bg-light rounded-3 mb-2">
+            <div class="card-body p-3.5 d-flex flex-column justify-content-between gap-2">
+                <div class="p-3 bg-light rounded-3">
                     <div class="text-muted small mb-1">วันที่ขายดีที่สุด</div>
                     <div class="fw-bold fs-5 text-success" id="peak-sales-day">-</div>
                     <small class="text-muted" id="peak-sales-amount">ยอดขาย ฿0.00</small>
                 </div>
 
-                <div class="p-3 bg-light rounded-3 mb-2">
+                <div class="p-3 bg-light rounded-3">
                     <div class="text-muted small mb-1">ยอดขายเฉลี่ยต่อวัน</div>
                     <div class="fw-bold fs-5 text-primary" id="avg-daily-sales">฿0.00</div>
                     <small class="text-muted">(คำนวณจาก 7 วันในสัปดาห์นี้)</small>
@@ -245,6 +256,9 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- นำเข้า Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const headerElem = document.getElementById('dashboard-header');
@@ -252,14 +266,14 @@
         const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
         let salesChart = null;
 
-        // 1. สร้างวัตถุกราฟแท่ง (Bar Chart)
+        // 1. สร้างกราฟแท่ง (Bar Chart)
         const canvasElem = document.getElementById('salesChart');
         if (canvasElem) {
             const ctx = canvasElem.getContext('2d');
             
             const gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
-            gradientFill.addColorStop(0, 'rgba(13, 110, 253, 0.95)');
-            gradientFill.addColorStop(1, 'rgba(13, 110, 253, 0.35)');
+            gradientFill.addColorStop(0, 'rgba(37, 99, 235, 0.95)');
+            gradientFill.addColorStop(1, 'rgba(37, 99, 235, 0.35)');
 
             salesChart = new Chart(ctx, {
                 type: 'bar',
@@ -269,8 +283,8 @@
                         label: 'ยอดขาย (บาท)',
                         data: [0, 0, 0, 0, 0, 0, 0],
                         backgroundColor: gradientFill,
-                        hoverBackgroundColor: '#0b5ed7',
-                        borderColor: '#0d6efd',
+                        hoverBackgroundColor: '#1d4ed8',
+                        borderColor: '#2563eb',
                         borderWidth: 1,
                         borderRadius: 8,
                         borderSkipped: false,
@@ -283,7 +297,7 @@
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(33, 37, 41, 0.9)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
                             titleFont: { size: 14, weight: 'bold' },
                             bodyFont: { size: 13 },
                             padding: 10,
@@ -330,16 +344,16 @@
 
                     // แปลงค่าตัวเลขอย่างปลอดภัย
                     const salesToday = parseFloat(data.sales_today || 0);
-                    const customersToday = parseInt(data.customers_today || 0);
+                    const ordersToday = parseInt(data.orders_today !== undefined ? data.orders_today : (data.customers_today || 0));
                     const activeStaff = parseInt(data.active_staff || 0);
 
                     // อัปเดตการ์ดสรุปสถิติ 4 ช่อง
                     const salesTodayElem = document.getElementById('sales-today');
-                    const customersTodayElem = document.getElementById('customers-today');
+                    const ordersTodayElem = document.getElementById('orders-today');
                     const activeStaffElem = document.getElementById('active-staff');
 
                     if (salesTodayElem) salesTodayElem.innerText = '฿' + salesToday.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    if (customersTodayElem) customersTodayElem.innerText = customersToday.toLocaleString('th-TH') + ' คน';
+                    if (ordersTodayElem) ordersTodayElem.innerText = ordersToday.toLocaleString('th-TH') + ' ออเดอร์';
                     if (activeStaffElem) activeStaffElem.innerText = activeStaff.toLocaleString('th-TH') + ' คน';
 
                     // อัปเดตกราฟแท่งและคำนวณยอดขายรายสัปดาห์
@@ -384,11 +398,9 @@
                 .catch(err => console.error('Dashboard Stats Fetch Error:', err));
         }
 
-        // เริ่มต้นการดึงข้อมูลเฉพาะสิทธิ์ admin หรือผ่อนปรนให้ดึงข้อมูลเสมอหากอยู่ในหน้านี้
-        if (userRole === 'admin' || userRole === 'staff' || userRole === 'administrator') {
-            fetchDashboardStats();
-            setInterval(fetchDashboardStats, 10000);
-        }
+        // ดึงข้อมูลเมื่อโหลดหน้าเว็บ และตั้งเวลาอัปเดตอัตโนมัติทุกๆ 10 วินาที
+        fetchDashboardStats();
+        setInterval(fetchDashboardStats, 10000);
     });
 </script>
 {% endblock %}
