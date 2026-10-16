@@ -17,26 +17,44 @@ SUPABASE_BUCKET = os.environ.get('NEXT_PUBLIC_SUPABASE_BUCKET', 'restaurant-imag
 SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY', '')
 
 # ----------------------------------------------------
-# Firebase Admin SDK Setup (สำหรับ Realtime Database)
+# Firebase Admin SDK Setup (รองรับทั้ง Localhost และ Vercel)
 # ----------------------------------------------------
-FIREBASE_URL = os.environ.get('FIREBASE_URL', "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app")
+FIREBASE_URL = os.environ.get('FIREBASE_DATABASE_URL') or os.environ.get(
+    'FIREBASE_URL',
+    "https://restaurant-management-startup-default-rtdb.asia-southeast1.firebasedatabase.app"
+)
 
 if not firebase_admin._apps:
     cred = None
     service_account_env = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+    
+    # 1. อ่านค่าจาก Environment Variable
     if service_account_env:
         try:
-            cred_dict = json.loads(service_account_env)
-            if 'private_key' in cred_dict:
-                cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
-            cred = credentials.Certificate(cred_dict)
+            val_str = service_account_env.strip()
+            if val_str.startswith('{'):
+                # กรณีเป็น JSON String (Vercel)
+                cred_dict = json.loads(val_str)
+                if 'private_key' in cred_dict:
+                    cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
+                cred = credentials.Certificate(cred_dict)
+            elif os.path.exists(val_str):
+                # กรณีเป็น Path ไฟล์ตรงๆ ในเครื่อง
+                cred = credentials.Certificate(val_str)
         except Exception as e:
             print(f"Error parsing FIREBASE_SERVICE_ACCOUNT: {e}")
 
+    # 2. Fallback: หาไฟล์ Key JSON ในเครื่องอัตโนมัติ
     if not cred:
-        cred_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-        if os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
+        possible_keys = [
+            "restaurant-management-startup-firebase-adminsdk-fbsvc-acf373906a.json",
+            "serviceAccountKey.json"
+        ]
+        for key_file in possible_keys:
+            key_path = os.path.join(os.path.dirname(__file__), key_file)
+            if os.path.exists(key_path):
+                cred = credentials.Certificate(key_path)
+                break
 
     options = {
         'databaseURL': FIREBASE_URL
@@ -131,7 +149,7 @@ upload_to_firebase_storage = upload_to_supabase_storage
 delete_from_firebase_storage = delete_from_supabase_storage
 
 # ==========================================
-# Firebase RTDB Helper Functions (Firebase Admin SDK)
+# Firebase RTDB Helper Functions
 # ==========================================
 def get_firebase_data(path):
     """ดึงข้อมูลจาก Firebase Realtime Database ตาม path ที่กำหนด"""

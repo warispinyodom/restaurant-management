@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+# โหลดค่า Environment Variables จากไฟล์ .env (สำหรับ Localhost)
+load_dotenv()
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash
 
@@ -13,8 +19,9 @@ from admin_routes import admin_bp
 from customer_routes import customer_bp
 
 app = Flask(__name__)
-app.secret_key = 'restaurant_super_secret'
+app.secret_key = os.environ.get('SECRET_KEY', 'restaurant_super_secret')
 
+# ลงทะเบียน Blueprint
 app.register_blueprint(admin_bp)
 app.register_blueprint(staff_bp)
 app.register_blueprint(customer_bp)
