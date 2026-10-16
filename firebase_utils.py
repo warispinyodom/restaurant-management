@@ -2,17 +2,24 @@ import os
 import urllib.parse
 import json
 import uuid
+import requests
 from functools import wraps
 from datetime import datetime
 from flask import session, flash, redirect, url_for
 import firebase_admin
-from firebase_admin import credentials, storage, db
+from firebase_admin import credentials, db
 
 # ----------------------------------------------------
-# Firebase Admin SDK Setup (สำหรับ Realtime Database & Storage)
+# Supabase Storage Configuration
 # ----------------------------------------------------
-FIREBASE_BUCKET = "webapplication-e7922.firebasestorage.app"
-FIREBASE_URL = "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app"
+SUPABASE_URL = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', 'https://ihwacywjyvucosrygmbz.supabase.co').rstrip('/')
+SUPABASE_BUCKET = os.environ.get('NEXT_PUBLIC_SUPABASE_BUCKET', 'restaurant-images')
+SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY', '')
+
+# ----------------------------------------------------
+# Firebase Admin SDK Setup (สำหรับ Realtime Database)
+# ----------------------------------------------------
+FIREBASE_URL = os.environ.get('FIREBASE_URL', "https://webapplication-e7922-default-rtdb.asia-southeast1.firebasedatabase.app")
 
 if not firebase_admin._apps:
     cred = None
@@ -32,7 +39,6 @@ if not firebase_admin._apps:
             cred = credentials.Certificate(cred_path)
 
     options = {
-        'storageBucket': FIREBASE_BUCKET,
         'databaseURL': FIREBASE_URL
     }
 
@@ -57,57 +63,72 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==========================================
-# Firebase Storage Helper Functions
+# Supabase Storage Helper Functions
 # ==========================================
-def upload_to_firebase_storage(file, folder="uploads"):
-    """อัปโหลดไฟล์รูปภาพไปยัง Firebase Storage ผ่าน Firebase Admin SDK"""
+def upload_to_supabase_storage(file, folder="uploads"):
+    """อัปโหลดไฟล์รูปภาพไปยัง Supabase Storage Bucket"""
     try:
         if not file or not file.filename:
             return None
             
-        file.seek(0)  # รีเซ็ตตำแหน่งการอ่านไฟล์ใน Flask
+        file.seek(0)
+        file_data = file.read()
+        
         extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
         unique_filename = f"{folder}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.{extension}"
-        storage_path = f"{folder}/{unique_filename}"
+        storage_path = f"{folder}/{unique_filename}" if folder else unique_filename
         
-        bucket = storage.bucket()
-        blob = bucket.blob(storage_path)
+        upload_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{storage_path}"
         
-        content_type = file.content_type or 'image/jpeg'
-        blob.upload_from_string(file.read(), content_type=content_type)
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_SECRET_KEY}",
+            "apiKey": SUPABASE_SECRET_KEY,
+            "Content-Type": file.content_type or 'image/jpeg',
+            "x-upsert": "true"
+        }
         
-        try:
-            blob.make_public()
-            return blob.public_url
-        except Exception:
-            encoded_path = urllib.parse.quote(storage_path, safe='')
-            return f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
+        res = requests.post(upload_url, data=file_data, headers=headers)
+        
+        if res.status_code in [200, 201]:
+            public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{storage_path}"
+            return public_url
+        else:
+            print(f"Supabase Storage Upload Error [{res.status_code}]: {res.text}")
+            return None
     except Exception as e:
-        print(f"Firebase Storage Upload Error: {e}")
+        print(f"Supabase Storage Upload Exception: {e}")
         return None
 
-def delete_from_firebase_storage(image_url):
-    """ลบไฟล์ออกจาก Firebase Storage ตาม URL ที่กำหนด"""
+def delete_from_supabase_storage(image_url):
+    """ลบไฟล์ออกจาก Supabase Storage ตาม Public URL"""
     try:
         if not image_url or not isinstance(image_url, str):
             return False
             
-        bucket = storage.bucket()
+        if f"/storage/v1/object/public/{SUPABASE_BUCKET}/" in image_url:
+            storage_path = image_url.split(f"/storage/v1/object/public/{SUPABASE_BUCKET}/")[1]
+        elif f"/storage/v1/object/{SUPABASE_BUCKET}/" in image_url:
+            storage_path = image_url.split(f"/storage/v1/object/{SUPABASE_BUCKET}/")[1]
+        else:
+            return False
+
+        storage_path = urllib.parse.unquote(storage_path)
+        delete_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{storage_path}"
         
-        if "firebasestorage.googleapis.com" in image_url or "storage.googleapis.com" in image_url:
-            if "/o/" in image_url:
-                path_part = image_url.split("/o/")[1].split("?")[0]
-                storage_path = urllib.parse.unquote(path_part)
-            else:
-                storage_path = urllib.parse.unquote(image_url.split(f"{bucket.name}/")[-1])
-            
-            blob = bucket.blob(storage_path)
-            if blob.exists():
-                blob.delete()
-                return True
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_SECRET_KEY}",
+            "apiKey": SUPABASE_SECRET_KEY
+        }
+        
+        res = requests.delete(delete_url, headers=headers)
+        return res.status_code in [200, 204]
     except Exception as e:
-        print(f"Firebase Storage Delete Error: {e}")
-    return False
+        print(f"Supabase Storage Delete Exception: {e}")
+        return False
+
+# Alias เพื่อความเข้ากันได้ย้อนหลัง (Backward Compatibility)
+upload_to_firebase_storage = upload_to_supabase_storage
+delete_from_firebase_storage = delete_from_supabase_storage
 
 # ==========================================
 # Firebase RTDB Helper Functions (Firebase Admin SDK)

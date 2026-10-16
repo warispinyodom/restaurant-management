@@ -6,3 +6,5 @@ restaurant.db
 database_mockup.json
 database
 .env
+restaurant-management-startup-firebase-adminsdk-fbsvc-acf373906a.json
+seed_db.py

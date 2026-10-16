@@ -11,8 +11,8 @@ from firebase_utils import (
     patch_firebase_data, 
     delete_firebase_data, 
     parse_firebase_data,
-    upload_to_firebase_storage,
-    delete_from_firebase_storage,
+    upload_to_supabase_storage,
+    delete_from_supabase_storage,
     allowed_file,
     admin_required,
     staff_required,
@@ -30,10 +30,8 @@ RESET_TABLE_PAYLOAD = {
 
 
 def _get_user_by_id(user_id):
-    """อ่านข้อมูลผู้ใช้เป้าหมายจาก Firebase อย่างปลอดภัย"""
     if not user_id:
         return None
-
     try:
         user = get_firebase_data(f'users/{user_id}')
         return user if isinstance(user, dict) else None
@@ -43,54 +41,41 @@ def _get_user_by_id(user_id):
 
 
 def _is_admin_account(user_id, user_data=None):
-    """ตรวจว่าบัญชีเป้าหมายเป็น Admin หรือไม่"""
     if user_data is None:
         user_data = _get_user_by_id(user_id)
-
     if not isinstance(user_data, dict):
         return False
-
     return str(user_data.get('role', '')).strip().lower() == 'admin'
 
 
 def _is_current_user(user_id):
-    """ตรวจว่าบัญชีเป้าหมายคือบัญชีที่กำลัง Login อยู่หรือไม่"""
     current_user_id = str(session.get('user_id', '')).strip()
     target_user_id = str(user_id or '').strip()
     return bool(current_user_id and target_user_id and current_user_id == target_user_id)
 
 
 def _admin_protected_response(message):
-    """ตอบกลับเมื่อพยายามแก้ไข/ลบ/ปิดใช้งานบัญชี Admin"""
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
         return jsonify({'status': 'error', 'message': message}), 403
-
     flash(message, 'error')
     return redirect(url_for('admin.admin_staff_list'))
 
 def _get_request_ids(request):
-    """ฟังก์ชันช่วยดึงรายการ IDs จาก Request รองรับทั้ง JSON, Form Data และคีย์หลายรูปแบบ"""
     data = request.get_json(silent=True) or {}
-    
     ids = data.get('ids') or data.get('table_ids') or data.get('menu_ids') or data.get('ids[]') or data.get('table_ids[]')
-    
     if not ids:
         ids = (request.form.getlist('ids[]') or 
                request.form.getlist('table_ids[]') or 
                request.form.getlist('menu_ids[]') or 
                request.form.getlist('ids') or 
                request.form.getlist('table_ids'))
-        
     if isinstance(ids, str):
         ids = [x.strip() for x in ids.split(',') if x.strip()]
-        
     return ids or []
 
 def _extract_order_items(order):
-    """ดึงรายการสินค้าจากออเดอร์ไม่ว่าจะเก็บในคีย์ items, order_items, cart, ฯลฯ และแปลงเป็น List เสมอ"""
     if not isinstance(order, dict):
         return []
-
     raw_items = order.get('items')
     if raw_items is None:
         raw_items = (order.get('order_items') or 
@@ -115,7 +100,6 @@ def _extract_order_items(order):
     for item in items_list:
         if isinstance(item, dict):
             name = item.get('name') or item.get('title') or item.get('menu_name') or 'ไม่ระบุชื่อ'
-            
             try:
                 price = float(item.get('price') if item.get('price') is not None else item.get('unit_price', 0))
             except (ValueError, TypeError):
@@ -231,7 +215,7 @@ def dashboard_stats():
     })
 
 # ==========================================
-# MENU MANAGEMENT
+# MENU MANAGEMENT (Supabase Storage)
 # ==========================================
 @admin_bp.route('/admin/menu')
 @admin_required
@@ -273,7 +257,7 @@ def admin_menu_add():
 
         file = request.files.get('image')
         if file and allowed_file(file.filename):
-            payload['image_file'] = upload_to_firebase_storage(file, folder="menus")
+            payload['image_file'] = upload_to_supabase_storage(file, folder="menus")
 
         if post_firebase_data('menus', payload):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -327,7 +311,7 @@ def admin_menu_bulk_add():
             }
 
             if i < len(images) and images[i] and allowed_file(images[i].filename):
-                payload['image_file'] = upload_to_firebase_storage(images[i], folder="menus")
+                payload['image_file'] = upload_to_supabase_storage(images[i], folder="menus")
 
             if post_firebase_data('menus', payload):
                 success_count += 1
@@ -364,9 +348,9 @@ def admin_menu_edit(id):
         if file and allowed_file(file.filename):
             old_menu = get_firebase_data(f'menus/{id}')
             if old_menu and isinstance(old_menu, dict) and old_menu.get('image_file'):
-                delete_from_firebase_storage(old_menu['image_file'])
+                delete_from_supabase_storage(old_menu['image_file'])
 
-            payload['image_file'] = upload_to_firebase_storage(file, folder="menus")
+            payload['image_file'] = upload_to_supabase_storage(file, folder="menus")
 
         if patch_firebase_data('menus', id, payload):
             flash("อัปเดตรายการอาหารสำเร็จ", "success")
@@ -441,7 +425,7 @@ def admin_menu_delete(id):
     try:
         menu = get_firebase_data(f'menus/{id}')
         if menu and isinstance(menu, dict) and menu.get('image_file'):
-            delete_from_firebase_storage(menu['image_file'])
+            delete_from_supabase_storage(menu['image_file'])
 
         if delete_firebase_data('menus', id):
             return jsonify({'status': 'success', 'message': 'ลบเมนูเรียบร้อยแล้ว'})
@@ -462,7 +446,7 @@ def admin_menu_batch_delete():
         for menu_id in ids:
             menu = get_firebase_data(f'menus/{menu_id}')
             if menu and isinstance(menu, dict) and menu.get('image_file'):
-                delete_from_firebase_storage(menu['image_file'])
+                delete_from_supabase_storage(menu['image_file'])
             delete_firebase_data('menus', menu_id)
 
         return jsonify({'status': 'success', 'message': f'ลบรายการอาหารสำเร็จ {len(ids)} รายการ'})
@@ -521,7 +505,6 @@ def admin_staff_add():
 @admin_bp.route('/admin/staff/batch-add', methods=['POST'])
 @admin_required
 def admin_staff_batch_add():
-    """เพิ่มพนักงานหลายบัญชีในคำขอเดียว พร้อมตรวจข้อมูลซ้ำก่อนเขียน Firebase"""
     try:
         data = request.get_json(silent=True) or {}
         users = data.get('users')
@@ -614,7 +597,6 @@ def admin_staff_batch_add():
 @admin_bp.route('/admin/staff/batch-edit', methods=['POST'])
 @admin_required
 def admin_staff_batch_edit():
-    """แก้ไข Staff หลายบัญชีพร้อมกัน โดยป้องกันการลดสิทธิ์/ปิดใช้งาน Admin"""
     try:
         ids = _get_request_ids(request)
         data = request.get_json(silent=True) or {}
@@ -624,7 +606,6 @@ def admin_staff_batch_edit():
         if not ids:
             return jsonify({'status': 'error', 'message': 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ'}), 400
 
-        # ทำให้ IDs ไม่ซ้ำและตัดค่าที่ว่างออก เพื่อไม่ให้เขียน Firebase ซ้ำ
         unique_ids = []
         seen_ids = set()
         for raw_id in ids:
@@ -661,13 +642,11 @@ def admin_staff_batch_edit():
             is_admin = _is_admin_account(user_id, target_user)
             is_current = _is_current_user(user_id)
 
-            # Admin ต้องคงสิทธิ์ admin และเปิดใช้งานเสมอ
             if is_admin:
                 if role == 'staff' or requested_active is False:
                     reason = 'บัญชี Admin ห้ามลดสิทธิ์หรือปิดใช้งาน'
                     skipped.append(f'{target_user.get("username", user_id)} ({reason})')
                     continue
-                # หากไม่ได้สั่งเปลี่ยน role/status หรือสั่งเป็นค่าที่ปลอดภัย ให้คงค่าเดิมของ Admin
                 update_data = {}
                 if role == 'admin':
                     update_data['role'] = 'admin'
@@ -683,7 +662,6 @@ def admin_staff_batch_edit():
                 if requested_active is not None:
                     update_data['is_active'] = requested_active
 
-                # ป้องกัน Admin ที่กำลัง Login อยู่ถูกทำให้เข้าใช้งานต่อไม่ได้จากคำขอแบบกลุ่ม
                 if is_current and current_role == 'admin':
                     if update_data.get('role') == 'staff' or update_data.get('is_active') is False:
                         skipped.append(f'{target_user.get("username", user_id)} (เป็นบัญชี Admin ที่กำลังใช้งานอยู่)')
@@ -732,7 +710,6 @@ def admin_staff_batch_edit():
 @admin_bp.route('/admin/staff/batch-delete', methods=['POST'])
 @admin_required
 def admin_staff_batch_delete():
-    """ลบ Staff หลายบัญชีพร้อมกัน โดยไม่อนุญาตให้ลบ Admin หรือบัญชีที่กำลัง Login"""
     try:
         ids = _get_request_ids(request)
         if not ids:
@@ -819,11 +796,6 @@ def admin_staff_edit(user_id):
             flash("สิทธิ์ผู้ใช้ไม่ถูกต้อง", "error")
             return redirect(url_for('admin.admin_staff_list'))
 
-        # บัญชี Admin เป็นบัญชีที่ได้รับการป้องกัน:
-        # - ห้ามลด role จาก admin เป็น staff
-        # - ห้ามเปลี่ยน username ผ่านหน้าแก้ไข
-        # - ห้ามปิดใช้งาน
-        # - อนุญาตให้เปลี่ยน password ได้
         if _is_admin_account(user_id, target_user):
             if requested_role != 'admin':
                 return _admin_protected_response("ไม่สามารถลดสิทธิ์บัญชี Admin เป็น Staff ได้")
@@ -841,13 +813,12 @@ def admin_staff_edit(user_id):
                 update_data['password'] = generate_password_hash(password)
 
             if patch_firebase_data('users', user_id, update_data):
-                flash("อัปเดตข้อมูลบัญชี Admin สำเร็จ (บัญชี Admin ยังคงเปิดใช้งานและสิทธิ์เดิม)", "success")
+                flash("อัปเดตข้อมูลบัญชี Admin สำเร็จ", "success")
             else:
                 flash("ไม่สามารถอัปเดตข้อมูลไปยัง Firebase ได้", "error")
 
             return redirect(url_for('admin.admin_staff_list'))
 
-        # บัญชี Staff/ผู้ใช้ทั่วไปสามารถแก้ไขข้อมูลได้ตามปกติ
         users = get_all_users() or {}
         if isinstance(users, dict) and username:
             is_duplicate = any(
@@ -936,7 +907,7 @@ def admin_staff_delete(id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ==========================================
-# PAYMENT CHANNELS MANAGEMENT
+# PAYMENT CHANNELS MANAGEMENT (Supabase Storage)
 # ==========================================
 @admin_bp.route('/admin/payments')
 @admin_required
@@ -962,7 +933,7 @@ def admin_payments_add():
             flash("กรุณาอัปโหลดรูปภาพ QR Code ที่ถูกต้อง", "error")
             return redirect(url_for('admin.admin_payments_list'))
 
-        payload['qr_image'] = upload_to_firebase_storage(file, folder="payments")
+        payload['qr_image'] = upload_to_supabase_storage(file, folder="payments")
 
         if post_firebase_data('payment_channels', payload):
             flash("เพิ่มช่องทางชำระเงินสำเร็จ", "success")
@@ -1011,7 +982,7 @@ def admin_payments_batch_add():
 
             qr_image_url = None
             if file and hasattr(file, 'filename') and file.filename and allowed_file(file.filename):
-                qr_image_url = upload_to_firebase_storage(file, folder="payments")
+                qr_image_url = upload_to_supabase_storage(file, folder="payments")
 
             payload = {
                 'bank_name': bank_name,
@@ -1043,9 +1014,9 @@ def admin_payments_edit(id):
         if file and allowed_file(file.filename):
             old_payment = get_firebase_data(f'payment_channels/{id}')
             if old_payment and isinstance(old_payment, dict) and old_payment.get('qr_image'):
-                delete_from_firebase_storage(old_payment['qr_image'])
+                delete_from_supabase_storage(old_payment['qr_image'])
 
-            payload['qr_image'] = upload_to_firebase_storage(file, folder="payments")
+            payload['qr_image'] = upload_to_supabase_storage(file, folder="payments")
 
         if patch_firebase_data('payment_channels', id, payload):
             flash("อัปเดตช่องทางชำระเงินสำเร็จ", "success")
@@ -1080,7 +1051,7 @@ def admin_payments_delete(id):
     try:
         payment = get_firebase_data(f'payment_channels/{id}')
         if payment and isinstance(payment, dict) and payment.get('qr_image'):
-            delete_from_firebase_storage(payment['qr_image'])
+            delete_from_supabase_storage(payment['qr_image'])
 
         if delete_firebase_data('payment_channels', id):
             return jsonify({'status': 'success', 'message': 'ลบช่องทางชำระเงินเรียบร้อยแล้ว'})
@@ -1100,7 +1071,7 @@ def admin_payments_batch_delete():
         for pay_id in ids:
             payment = get_firebase_data(f'payment_channels/{pay_id}')
             if payment and isinstance(payment, dict) and payment.get('qr_image'):
-                delete_from_firebase_storage(payment['qr_image'])
+                delete_from_supabase_storage(payment['qr_image'])
             delete_firebase_data('payment_channels', pay_id)
 
         return jsonify({'status': 'success', 'message': 'ลบช่องทางชำระเงินเรียบร้อยแล้ว'})

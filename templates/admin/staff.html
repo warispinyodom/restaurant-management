@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% block title %}จัดการพนักงาน - Admin{% endblock %}
+
 {% block content %}
 <style>
     :root {
@@ -19,7 +21,6 @@
         color: var(--ledger-text);
     }
 
-    /* Ledger Book Container Header */
     .ledger-header {
         background: linear-gradient(135deg, #3d2314 0%, #5c3a21 100%);
         color: #fceecb;
@@ -29,7 +30,6 @@
         border-bottom: 4px solid var(--ledger-gold);
     }
 
-    /* Card Styling */
     .ledger-card {
         background: var(--ledger-paper);
         border: 1px solid var(--ledger-border);
@@ -37,7 +37,6 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     }
 
-    /* Inputs & Selects Alignment */
     .ledger-input, .ledger-select {
         border: 1px solid var(--ledger-border);
         border-radius: 8px;
@@ -63,7 +62,6 @@
         border-bottom-left-radius: 8px;
     }
 
-    /* Batch Bar */
     .batch-bar {
         background: #fff9ed;
         border: 1px solid #ebd9b0;
@@ -75,7 +73,6 @@
         display: flex;
     }
 
-    /* Custom Checkbox */
     .form-check-input {
         cursor: pointer;
         width: 1.25em;
@@ -87,7 +84,6 @@
         border-color: var(--ledger-gold);
     }
 
-    /* Guestbook Ruled Table */
     .ledger-table-container {
         border-radius: 14px;
         overflow: hidden;
@@ -128,7 +124,6 @@
         font-size: 0.95rem;
     }
 
-    /* Badges */
     .badge-admin {
         background-color: #3d2314;
         color: #fceecb;
@@ -153,7 +148,6 @@
         border: 1px solid #f5c6cb;
     }
 
-    /* Buttons */
     .btn-ledger-gold {
         background-color: var(--ledger-gold);
         color: #ffffff;
@@ -176,58 +170,15 @@
         color: #ffffff;
     }
 
-    /* Dynamic Form Rows in Modal */
     .dynamic-staff-row {
         background: #faf6f0;
         border-radius: 10px;
         padding: 16px;
         border: 1px solid #e8dec8;
     }
-
-    /* Responsive Improvements for Mobile */
-    @media (max-width: 768px) {
-        .ledger-header {
-            padding: 1.25rem;
-            text-align: center;
-        }
-        
-        .ledger-header button {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .filter-btn-container {
-            margin-top: 0.25rem;
-        }
-
-        .action-btns {
-            display: flex;
-            gap: 6px !important;
-            justify-content: flex-end;
-        }
-
-        .action-btns .btn {
-            padding: 0.35rem 0.6rem;
-            font-size: 0.825rem;
-        }
-
-        .table-responsive {
-            border: 0;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .ledger-table th, .ledger-table td {
-            padding: 0.75rem 0.5rem;
-        }
-        
-        .user-avatar-box {
-            display: none !important;
-        }
-    }
 </style>
 
-<!-- Ledger Title & Top Action Header -->
+<!-- Header -->
 <div class="ledger-header d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
         <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
@@ -266,17 +217,17 @@
                     <option value="suspended">ระงับ</option>
                 </select>
             </div>
-            <div class="col-12 col-md-1 filter-btn-container">
+            <div class="col-12 col-md-1">
                 <button class="btn btn-outline-secondary ledger-input w-100 d-flex align-items-center justify-content-center" 
                         onclick="resetFilters()" title="ล้างการกรอง">
-                    <i class="fas fa-redo-alt me-md-0 me-1"></i> <span class="d-md-none small">รีเซ็ต</span>
+                    <i class="fas fa-redo-alt"></i>
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Batch Operation Toolbar -->
+<!-- Batch Action Toolbar -->
 <div id="batchBar" class="batch-bar p-3 mb-3 align-items-center justify-content-between flex-wrap gap-2 shadow-sm">
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-warning text-dark rounded-pill fs-6 px-3 py-2 fw-bold" id="selectedCount">เลือกแล้ว 0 รายการ</span>
@@ -292,7 +243,7 @@
     </div>
 </div>
 
-<!-- Ledger Staff List Table -->
+<!-- Table -->
 <div class="ledger-table-container shadow-sm mb-4">
     <div class="table-responsive">
         <table class="table ledger-table align-middle" id="staffTable">
@@ -398,23 +349,22 @@
     </div>
 </div>
 
-<!-- Modal: เพิ่มพนักงานหลายคนพร้อมกัน (Batch Add) -->
+<!-- Modal: เพิ่มพนักงานหลายคน (Batch Add) -->
 <div class="modal fade" id="addBatchStaffModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg style-modal">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
                 <div>
                     <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                        <i class="fas fa-user-plus text-warning"></i> ลงทะเบียนพนักงานใหม่ (เพิ่มหลายรายการ)
+                        <i class="fas fa-user-plus text-warning"></i> ลงทะเบียนพนักงานใหม่ (หลายรายการ)
                     </h5>
-                    <p class="text-muted small mb-0">กรอกข้อมูลพนักงานที่ต้องการบันทึกลงในสมุดรายชื่อ สามารถกดปุ่ม + เพื่อเพิ่มแถวได้</p>
+                    <p class="text-muted small mb-0">กรอกข้อมูลพนักงานที่ต้องการบันทึก กดปุ่ม + เพื่อเพิ่มแถวใหม่ได้</p>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <form id="batchAddForm">
                     <div id="staffRowsContainer" class="d-flex flex-column gap-3">
-                        <!-- Default Row 1 -->
                         <div class="dynamic-staff-row position-relative">
                             <div class="row g-3 align-items-end">
                                 <div class="col-12 col-md-4">
@@ -434,7 +384,7 @@
                                 </div>
                                 <div class="col-3 col-md-1 text-end">
                                     <button type="button" class="btn btn-outline-danger w-100 ledger-input d-flex align-items-center justify-content-center" 
-                                            onclick="removeStaffRow(this)" title="ลบแถว">
+                                            onclick="removeStaffRow(this)">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
@@ -450,7 +400,7 @@
             </div>
             <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
                 <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
-                <button type="button" class="btn btn-ledger-primary rounded-pill px-4" onclick="submitBatchAdd()">บันทึกพนักงานทั้งหมด</button>
+                <button type="button" class="btn btn-ledger-primary rounded-pill px-4" onclick="submitBatchAdd()">บันทึกข้อมูลทั้งหมด</button>
             </div>
         </div>
     </div>
@@ -464,10 +414,9 @@
                 <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
                     <i class="fas fa-edit text-warning"></i> แก้ไขรายการที่เลือก
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-muted small">เลือกฟิลด์ที่ต้องการเปลี่ยนให้รายการที่เลือกทั้งหมด (หากไม่ต้องการเปลี่ยนฟิลด์ไหนให้เว้นไว้)</p>
                 <div class="mb-3">
                     <label class="form-label small fw-bold">ตำแหน่งใหม่</label>
                     <select id="batchRoleInput" class="form-select ledger-select">
@@ -493,7 +442,7 @@
     </div>
 </div>
 
-<!-- Individual Edit Staff Modals -->
+<!-- Modal: แก้ไขรายคน -->
 {% for staff in staff_members %}
 <div class="modal fade" id="editStaffModal{{ staff.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -502,7 +451,7 @@
                 <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
                     <i class="fas fa-user-edit text-warning"></i> แก้ไขข้อมูล: {{ staff.username }}
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="mb-3">
@@ -545,7 +494,6 @@
 
 {% block scripts %}
 <script>
-    // 1. ระบบค้นหาและกรองข้อมูลแบบ Real-time
     function filterStaffTable() {
         const search = document.getElementById('searchInput').value.toLowerCase().trim();
         const role = document.getElementById('roleFilter').value;
@@ -573,11 +521,7 @@
 
         const noSearchRow = document.getElementById('noSearchDataRow');
         if (noSearchRow) {
-            if (visibleCount === 0 && rows.length > 0) {
-                noSearchRow.classList.remove('d-none');
-            } else {
-                noSearchRow.classList.add('d-none');
-            }
+            noSearchRow.classList.toggle('d-none', visibleCount !== 0 || rows.length === 0);
         }
         updateBatchBar();
     }
@@ -589,10 +533,8 @@
         filterStaffTable();
     }
 
-    // 2. ระบบเลือกหลายรายการ (Batch Select)
     function toggleSelectAll(master) {
-        const checkboxes = document.querySelectorAll('.staff-checkbox');
-        checkboxes.forEach(cb => {
+        document.querySelectorAll('.staff-checkbox').forEach(cb => {
             const row = cb.closest('tr');
             if (row && row.style.display !== 'none') {
                 cb.checked = master.checked;
@@ -602,38 +544,24 @@
     }
 
     function getSelectedIds() {
-        const selected = [];
-        document.querySelectorAll('.staff-checkbox:checked').forEach(cb => {
-            selected.push(cb.value);
-        });
-        return selected;
+        return Array.from(document.querySelectorAll('.staff-checkbox:checked')).map(cb => cb.value);
     }
 
     function updateBatchBar() {
         const selected = getSelectedIds();
         const batchBar = document.getElementById('batchBar');
         const countSpan = document.getElementById('selectedCount');
-        const selectAllCb = document.getElementById('selectAll');
-        const visibleCheckboxes = Array.from(document.querySelectorAll('.staff-checkbox')).filter(function (cb) {
-            const row = cb.closest('tr');
-            return row && row.style.display !== 'none';
-        });
-        const visibleSelected = visibleCheckboxes.filter(function (cb) { return cb.checked; });
-
-        if (selected.length > 0) {
-            batchBar.classList.add('active');
-            countSpan.textContent = `เลือกแล้ว ${selected.length} รายการ`;
-        } else {
-            batchBar.classList.remove('active');
-        }
-
-        if (selectAllCb) {
-            selectAllCb.checked = visibleCheckboxes.length > 0 && visibleSelected.length === visibleCheckboxes.length;
-            selectAllCb.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visibleCheckboxes.length;
+        
+        if (batchBar && countSpan) {
+            if (selected.length > 0) {
+                batchBar.classList.add('active');
+                countSpan.textContent = `เลือกแล้ว ${selected.length} รายการ`;
+            } else {
+                batchBar.classList.remove('active');
+            }
         }
     }
 
-    // 3. เพิ่มพนักงานหลายคนแบบไดนามิก (Batch Add UI)
     function addStaffRow() {
         const container = document.getElementById('staffRowsContainer');
         const div = document.createElement('div');
@@ -657,7 +585,7 @@
                 </div>
                 <div class="col-3 col-md-1 text-end">
                     <button type="button" class="btn btn-outline-danger w-100 ledger-input d-flex align-items-center justify-content-center" 
-                            onclick="removeStaffRow(this)" title="ลบแถว">
+                            onclick="removeStaffRow(this)">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -671,18 +599,13 @@
         if (container.children.length > 1) {
             btn.closest('.dynamic-staff-row').remove();
         } else {
-            if(typeof showNotification === 'function') {
-                showNotification('error', 'ข้อผิดพลาด', 'ต้องมีข้อมูลพนักงานอย่างน้อย 1 รายการ');
-            } else {
-                alert('ต้องมีข้อมูลพนักงานอย่างน้อย 1 รายการ');
-            }
+            showNotification('error', 'ข้อผิดพลาด', 'ต้องมีข้อมูลพนักงานอย่างน้อย 1 รายการ');
         }
     }
 
     async function submitBatchAdd() {
         const rows = Array.from(document.querySelectorAll('.dynamic-staff-row'));
         const users = [];
-        const seenUsernames = new Set();
 
         for (let i = 0; i < rows.length; i++) {
             const username = rows[i].querySelector('.staff-input-username').value.trim();
@@ -690,242 +613,99 @@
             const role = rows[i].querySelector('.staff-input-role').value;
 
             if (!username || !password) {
-                if (typeof showNotification === 'function') {
-                    showNotification('error', 'ข้อมูลไม่ครบถ้วน', `กรุณากรอกชื่อผู้ใช้และรหัสผ่านในแถวที่ ${i + 1}`);
-                } else {
-                    alert(`กรุณากรอกชื่อผู้ใช้และรหัสผ่านในแถวที่ ${i + 1}`);
-                }
+                showNotification('error', 'ข้อมูลไม่ครบถ้วน', `กรุณากรอกชื่อผู้ใช้และรหัสผ่านในแถวที่ ${i + 1}`);
                 return;
             }
-
-            const normalizedUsername = username.toLowerCase();
-            if (seenUsernames.has(normalizedUsername)) {
-                if (typeof showNotification === 'function') {
-                    showNotification('error', 'ข้อมูลซ้ำ', `ชื่อผู้ใช้ "${username}" ซ้ำกันในรายการที่กำลังเพิ่ม`);
-                } else {
-                    alert(`ชื่อผู้ใช้ "${username}" ซ้ำกันในรายการที่กำลังเพิ่ม`);
-                }
-                return;
-            }
-
-            seenUsernames.add(normalizedUsername);
             users.push({ username, password, role });
         }
 
         try {
             const response = await fetch('/admin/staff/batch-add', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ users })
             });
             const data = await response.json();
-
             if (data.status === 'success' || data.status === 'partial') {
-                const level = data.status === 'success' ? 'success' : 'warning';
-                if (typeof showNotification === 'function') {
-                    await showNotification(level, data.status === 'success' ? 'บันทึกสำเร็จ' : 'บันทึกบางส่วน', data.message);
-                    location.reload();
-                } else {
-                    alert(data.message);
-                    location.reload();
-                }
+                showNotification('success', 'บันทึกสำเร็จ', data.message).then(() => location.reload());
             } else {
-                if (typeof showNotification === 'function') {
-                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถเพิ่มพนักงานได้');
-                } else {
-                    alert(data.message || 'ไม่สามารถเพิ่มพนักงานได้');
-                }
+                showNotification('error', 'เกิดข้อผิดพลาด', data.message);
             }
         } catch (err) {
-            if (typeof showNotification === 'function') {
-                showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-            } else {
-                alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-            }
+            showNotification('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         }
     }
 
-    // 4. บันทึกการแก้ไขแบบกลุ่ม (Batch Edit Submit)
     async function submitBatchEdit() {
         const ids = getSelectedIds();
         const role = document.getElementById('batchRoleInput').value;
         const is_active = document.getElementById('batchStatusInput').value;
 
-        if (ids.length === 0) {
-            if (typeof showNotification === 'function') {
-                showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
-            } else {
-                alert('กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
-            }
-            return;
-        }
-
-        if (!role && !is_active) {
-            if (typeof showNotification === 'function') {
-                showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกฟิลด์ที่ต้องการอัปเดต');
-            } else {
-                alert('กรุณาเลือกฟิลด์ที่ต้องการอัปเดต');
-            }
-            return;
-        }
+        if (ids.length === 0) return showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
+        if (!role && !is_active) return showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกฟิลด์ที่ต้องการอัปเดต');
 
         try {
             const response = await fetch('/admin/staff/batch-edit', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({
-                    ids,
-                    role: role || null,
-                    is_active: is_active || null
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids, role: role || null, is_active: is_active || null })
             });
             const data = await response.json();
-
             if (data.status === 'success' || data.status === 'partial') {
-                const level = data.status === 'success' ? 'success' : 'warning';
-                if (typeof showNotification === 'function') {
-                    await showNotification(level, data.status === 'success' ? 'แก้ไขสำเร็จ' : 'แก้ไขบางส่วน', data.message);
-                    location.reload();
-                } else {
-                    alert(data.message);
-                    location.reload();
-                }
+                showNotification('success', 'แก้ไขสำเร็จ', data.message).then(() => location.reload());
             } else {
-                if (typeof showNotification === 'function') {
-                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถแก้ไขข้อมูลได้');
-                } else {
-                    alert(data.message || 'ไม่สามารถแก้ไขข้อมูลได้');
-                }
+                showNotification('error', 'เกิดข้อผิดพลาด', data.message);
             }
         } catch (err) {
-            if (typeof showNotification === 'function') {
-                showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-            } else {
-                alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-            }
+            showNotification('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         }
     }
 
-    // 5. ลบพนักงานแบบกลุ่ม (Batch Delete Confirmation)
     function confirmBatchDelete() {
         const ids = getSelectedIds();
-        if (ids.length === 0) {
-            if (typeof showNotification === 'function') {
-                showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
-            } else {
-                alert('กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
-            }
-            return;
-        }
+        if (ids.length === 0) return showNotification('error', 'แจ้งเตือน', 'กรุณาเลือกพนักงานอย่างน้อย 1 รายการ');
 
-        const executeDelete = async function() {
+        confirmAction('ยืนยันการลบที่เลือก?', `ต้องการลบพนักงานจำนวน ${ids.length} รายการใช่หรือไม่?`, async () => {
             try {
                 const response = await fetch('/admin/staff/batch-delete', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ids })
                 });
                 const data = await response.json();
-
                 if (data.status === 'success' || data.status === 'partial') {
-                    const level = data.status === 'success' ? 'success' : 'warning';
-                    if (typeof showNotification === 'function') {
-                        await showNotification(level, data.status === 'success' ? 'ลบข้อมูลสำเร็จ' : 'ลบข้อมูลบางส่วน', data.message);
-                        location.reload();
-                    } else {
-                        alert(data.message);
-                        location.reload();
-                    }
+                    showNotification('success', 'ลบข้อมูลสำเร็จ', data.message).then(() => location.reload());
                 } else {
-                    if (typeof showNotification === 'function') {
-                        showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถลบข้อมูลได้');
-                    } else {
-                        alert(data.message || 'ไม่สามารถลบข้อมูลได้');
-                    }
+                    showNotification('error', 'เกิดข้อผิดพลาด', data.message);
                 }
             } catch (err) {
-                if (typeof showNotification === 'function') {
-                    showNotification('error', 'เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-                } else {
-                    alert(err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-                }
+                showNotification('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
             }
-        };
-
-        if (typeof confirmAction === 'function') {
-            confirmAction(
-                'ยืนยันการลบที่เลือก?',
-                `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก? บัญชี Admin และบัญชีที่กำลังใช้งานอยู่จะไม่ถูกลบ`,
-                executeDelete,
-                'warning',
-                'ลบข้อมูล',
-                'ยกเลิก'
-            );
-        } else if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานจำนวน ${ids.length} รายการออก?`)) {
-            executeDelete();
-        }
+        });
     }
 
-    // 6. ลบพนักงานรายบุคคล
     function deleteStaff(userId, role, username) {
-        if (role === 'admin') {
-            if(typeof showNotification === 'function') {
-                showNotification('error', 'ไม่สามารถดำเนินการได้', 'ไม่สามารถลบบัญชีผู้ดูแลระบบ (Admin) ได้');
-            } else {
-                alert('ไม่สามารถลบบัญชีผู้ดูแลระบบ (Admin) ได้');
-            }
-            return;
-        }
+        if (role === 'admin') return showNotification('error', 'ไม่สามารถดำเนินการได้', 'ไม่สามารถลบบัญชีผู้ดูแลระบบ (Admin) ได้');
 
-        const executeDeleteOne = function() {
+        confirmAction('ยืนยันการลบพนักงาน?', `ต้องการลบพนักงาน "${username}" ออกจากระบบใช่หรือไม่?`, () => {
             fetch(`/admin/staff/delete/${userId}`, { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        if(typeof showNotification === 'function') {
-                            showNotification('success', 'ลบข้อมูลสำเร็จ', data.message).then(() => location.reload());
-                        } else {
-                            alert(data.message);
-                            location.reload();
-                        }
+                        showNotification('success', 'ลบข้อมูลสำเร็จ', data.message).then(() => location.reload());
                     } else {
-                        if(typeof showNotification === 'function') {
-                            showNotification('error', 'เกิดข้อผิดพลาด', data.message);
-                        } else {
-                            alert(data.message);
-                        }
+                        showNotification('error', 'เกิดข้อผิดพลาด', data.message);
                     }
                 });
-        };
-
-        if (typeof confirmAction === 'function') {
-            confirmAction(
-                'ยืนยันการลบพนักงาน?',
-                `คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน "${username}" ออกจากระบบ?`,
-                executeDeleteOne,
-                'warning',
-                'ลบข้อมูล',
-                'ยกเลิก'
-            );
-        } else {
-            if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน "${username}" ออกจากระบบ?`)) {
-                executeDeleteOne();
-            }
-        }
+        });
     }
 </script>
 
+<!-- Request Guard System -->
 <script>
-/* ============================================================
-   ADMIN REQUEST GUARD
-   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
-   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
-   - ป้องกัน double-submit ของ form POST
-   ============================================================ */
 (function () {
     if (window.__adminRequestGuardInstalled) return;
     window.__adminRequestGuardInstalled = true;
-
     let requestBusy = false;
     const originalFetch = window.fetch.bind(window);
 
@@ -933,107 +713,30 @@
         return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || 'GET').toUpperCase());
     }
 
-    function getActionButtons() {
-        return Array.from(document.querySelectorAll(
-            'button[type="submit"], button[onclick], input[type="submit"], button[data-bs-toggle="modal"]'
-        ));
-    }
-
-    function setBusy(busy, sourceButton) {
+    function setBusy(busy) {
         requestBusy = busy;
         document.documentElement.classList.toggle('admin-request-busy', busy);
-
-        getActionButtons().forEach(function (btn) {
-            if (!btn) return;
-            if (busy) {
-                if (!btn.dataset.adminOriginalDisabled) {
-                    btn.dataset.adminOriginalDisabled = btn.disabled ? '1' : '0';
-                }
-                btn.disabled = true;
-                btn.classList.add('admin-request-disabled');
-                if (btn.tagName === 'BUTTON' && !btn.dataset.adminOriginalHtml) {
-                    btn.dataset.adminOriginalHtml = btn.innerHTML;
-                }
-            } else {
-                if (btn.dataset.adminOriginalDisabled === '0') btn.disabled = false;
-                delete btn.dataset.adminOriginalDisabled;
-                btn.classList.remove('admin-request-disabled');
-            }
+        document.querySelectorAll('button[type="submit"], button[onclick], input[type="submit"]').forEach(btn => {
+            btn.disabled = busy;
+            btn.classList.toggle('admin-request-disabled', busy);
         });
-
-        if (sourceButton && busy) {
-            sourceButton.dataset.adminRequestSource = '1';
-        }
     }
-
-    window.__adminSetRequestBusy = setBusy;
 
     window.fetch = function (input, init) {
         const method = (init && init.method) || (input && input.method) || 'GET';
-        if (!isMutation(method)) {
-            return originalFetch(input, init);
-        }
-
-        if (requestBusy) {
-            return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า กรุณารอให้เสร็จสิ้น'));
-        }
-
+        if (!isMutation(method)) return originalFetch(input, init);
+        if (requestBusy) return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า'));
         setBusy(true);
-        return originalFetch(input, init).finally(function () {
-            setBusy(false);
-        });
+        return originalFetch(input, init).finally(() => setBusy(false));
     };
 
     document.addEventListener('submit', function (event) {
         const form = event.target;
         if (!(form instanceof HTMLFormElement)) return;
-        if (form.dataset.adminSubmitting === '1') {
-            event.preventDefault();
-            return;
-        }
-
-        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
-        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
-        if (form.getAttribute('onsubmit')) return;
-
         const method = String(form.getAttribute('method') || 'GET').toUpperCase();
-        if (!isMutation(method)) return;
-
-        if (requestBusy) {
-            event.preventDefault();
-            return;
-        }
-
-        form.dataset.adminSubmitting = '1';
-        setBusy(true, event.submitter || form.querySelector('[type="submit"]'));
-
-        const submitter = event.submitter || form.querySelector('[type="submit"]');
-        if (submitter) {
-            submitter.dataset.adminSubmitOriginalHtml = submitter.innerHTML;
-            submitter.disabled = true;
-            submitter.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
-        }
+        if (!isMutation(method) || requestBusy) return;
+        setBusy(true);
     }, true);
-
-    document.addEventListener('click', function (event) {
-        const button = event.target.closest('button');
-        if (!button) return;
-        if (button.type === 'button' && button.dataset.bsDismiss === 'modal') return;
-        if (button.disabled) return;
-        if (requestBusy && button.dataset.adminRequestSource !== '1') {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-        }
-    }, true);
-
-    const style = document.createElement('style');
-    style.textContent = `
-        .admin-request-disabled { opacity: .65 !important; cursor: wait !important; }
-        .admin-request-busy { cursor: wait; }
-        .admin-request-busy .admin-request-disabled { pointer-events: none !important; }
-    `;
-    document.head.appendChild(style);
 })();
 </script>
-
 {% endblock %}

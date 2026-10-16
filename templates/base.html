@@ -275,7 +275,6 @@
                 {% elif session.get('role') == 'staff' %}
                 <div class="menu-section-label">พนักงาน (Staff Operations)</div>
 
-                <!-- ปรับแต่งป้าย Red Badge สำหรับรายการออเดอร์ -->
                 <a href="{{ url_for('staff.staff_orders') }}"
                     class="nav-link-custom d-flex align-items-center justify-content-between {{ 'active' if request.endpoint == 'staff.staff_orders' }}">
                     <div class="d-flex align-items-center gap-2">
@@ -331,12 +330,12 @@
                 <div class="menu-section-label">เข้าสู่ระบบ</div>
 
                 <a href="{{ url_for('signin') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint in ['signin', 'auth.signin'] }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'signin' }}">
                     <i class="fas fa-right-to-bracket text-primary"></i> <span>เข้าสู่ระบบ</span>
                 </a>
 
                 <a href="{{ url_for('signup') }}"
-                    class="nav-link-custom {{ 'active' if request.endpoint in ['signup', 'auth.signup'] }}">
+                    class="nav-link-custom {{ 'active' if request.endpoint == 'signup' }}">
                     <i class="fas fa-user-plus text-success"></i> <span>สมัครสมาชิก</span>
                 </a>
                 {% endif %}
@@ -404,13 +403,11 @@
             });
         }
 
-        // ดึงค่า role จาก session
         const userRole = "{{ session.get('role', '') }}";
 
         if (['staff', 'admin'].includes(userRole)) {
             let previousStaffStatus = document.getElementById('staffStatusSelect')?.value || 'ready';
 
-            // ฟังก์ชันอัปเดตสถานะการทำงานของพนักงาน
             window.updateStaffStatus = function(statusValue) {
                 const selectElem = document.getElementById('staffStatusSelect');
 
@@ -421,12 +418,7 @@
                     },
                     body: JSON.stringify({ status: statusValue })
                 })
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error(`HTTP Error Status: ${res.status}`);
-                    }
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         previousStaffStatus = statusValue;
@@ -453,9 +445,8 @@
                 });
             };
 
-            // ระบบ Polling เช็คทั้งรายการเรียกพนักงาน และ ออเดอร์ใหม่ Real-time
             function checkStaffNotifications() {
-                // 1. เช็ครายการเรียกพนักงาน
+                // เช็ครายการเรียกพนักงาน
                 fetch("{{ url_for('staff.api_staff_check_notifications') }}")
                 .then(res => res.json())
                 .then(data => {
@@ -473,7 +464,7 @@
                 })
                 .catch(err => console.error('Error checking service notifications:', err));
 
-                // 2. เช็คจำนวนออเดอร์ใหม่รอดำเนินการ (Pending Orders)
+                // เช็คจำนวนออเดอร์ใหม่
                 fetch("{{ url_for('staff.api_staff_orders') }}")
                 .then(res => res.json())
                 .then(data => {
@@ -493,7 +484,6 @@
                 .catch(err => console.error('Error checking order notifications:', err));
             }
 
-            // เริ่ม Polling เช็คทุกๆ 4 วินาที
             function initStaffPolling() {
                 checkStaffNotifications();
                 setInterval(checkStaffNotifications, 4000);

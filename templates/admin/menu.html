@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
+{% block title %}จัดการเมนูอาหาร - Admin POS{% endblock %}
+
 {% block content %}
 <style>
     .fs-7 { font-size: 0.78rem !important; }
     .fs-8 { font-size: 0.70rem !important; }
 
-    /* ป้องกันแถบลอยบดบังการ์ดอาหารแถวสุดท้าย */
     .menu-page-wrapper {
         padding-bottom: 100px !important;
     }
 
-    /* สไตล์การ์ดอาหาร Responsive */
     .menu-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
         border: 1px solid rgba(0, 0, 0, 0.08);
@@ -27,12 +27,11 @@
     }
     
     .menu-card.selected-card {
-        border: 2px solid #0d6efd !important;
+        border: 2px solid #2563eb !important;
         background-color: #f0f7ff !important;
-        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
     }
 
-    /* ภาพประกอบเมนู */
     .menu-img-wrapper {
         position: relative;
         width: 100%;
@@ -54,7 +53,6 @@
         transform: scale(1.05);
     }
 
-    /* Checkbox & Badge Layers ป้องกันการซ้อนทับ */
     .card-checkbox-wrapper {
         position: absolute;
         top: 6px;
@@ -74,7 +72,7 @@
         height: 1.15rem;
         cursor: pointer;
         margin: 0 !important;
-        accent-color: #0d6efd;
+        accent-color: #2563eb;
     }
 
     .status-badge-overlay {
@@ -119,7 +117,6 @@
         filter: grayscale(80%);
     }
 
-    /* ชื่อรายการอาหาร */
     .menu-title-text {
         font-size: 0.85rem;
         font-weight: 700;
@@ -140,7 +137,6 @@
         }
     }
 
-    /* แถบเลือกหมวดหมู่แนวนอน */
     .category-scroll-wrapper {
         display: flex;
         align-items: center;
@@ -154,7 +150,6 @@
         display: none;
     }
 
-    /* ปุ่มจัดการการ์ดอาหาร */
     .btn-card-action {
         font-size: 0.72rem;
         padding: 5px 6px;
@@ -167,7 +162,6 @@
         }
     }
 
-    /* แถบจัดการแบบกลุ่ม Floating Capsule Bar */
     .bulk-toolbar {
         position: fixed;
         bottom: 16px;
@@ -548,7 +542,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const searchInput = document.getElementById('searchMenuInput');
@@ -703,51 +696,33 @@
         const ids = getSelectedIds();
         if (ids.length === 0) return;
 
-        Swal.fire({
-            title: `ยืนยันการลบ ${ids.length} รายการ?`,
-            text: 'คุณต้องการลบรายการเมนูที่เลือกทั้งหมดใช่หรือไม่?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: `ใช่, ลบทั้ง ${ids.length} รายการ!`,
-            cancelButtonText: 'ยกเลิก',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'กำลังลบข้อมูล...',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
+        confirmAction(`ยืนยันการลบ ${ids.length} รายการ?`, 'คุณต้องการลบรายการเมนูที่เลือกทั้งหมดใช่หรือไม่?', () => {
+            Swal.fire({
+                title: 'กำลังลบข้อมูล...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-                fetch("{{ url_for('admin.admin_menu_batch_delete') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ ids: ids })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        Swal.fire({
-                            title: 'ลบสำเร็จ!',
-                            text: data.message || `ลบรายการเรียบร้อยแล้ว ${ids.length} รายการ`,
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => location.reload());
-                    } else {
-                        Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบรายการได้', 'error');
-                    }
-                })
-                .catch(err => {
-                    Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                });
-            }
-        });
+            fetch("{{ url_for('admin.admin_menu_batch_delete') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ ids: ids })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('success', 'ลบสำเร็จ!', data.message || `ลบรายการเรียบร้อยแล้ว ${ids.length} รายการ`).then(() => location.reload());
+                } else {
+                    showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบรายการได้');
+                }
+            })
+            .catch(err => {
+                showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+            });
+        }, 'warning', `ใช่, ลบทั้ง ${ids.length} รายการ!`, 'ยกเลิก');
     }
 
     function submitBatchEdit(event) {
@@ -761,7 +736,7 @@
         const price = form.price.value;
 
         if (!category && !status && !price) {
-            Swal.fire('แจ้งเตือน', 'กรุณาเลือกหรือระบุอย่างน้อย 1 หัวข้อที่ต้องการแก้ไข', 'info');
+            showNotification('info', 'แจ้งเตือน', 'กรุณาเลือกหรือระบุอย่างน้อย 1 หัวข้อที่ต้องการแก้ไข');
             return;
         }
 
@@ -787,19 +762,13 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
-                Swal.fire({
-                    title: 'แก้ไขสำเร็จ!',
-                    text: data.message || 'อัปเดตรายการที่เลือกเรียบร้อยแล้ว',
-                    icon: 'success',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => location.reload());
+                showNotification('success', 'แก้ไขสำเร็จ!', data.message || 'อัปเดตรายการที่เลือกเรียบร้อยแล้ว').then(() => location.reload());
             } else {
-                Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถอัปเดตข้อมูลได้', 'error');
+                showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถอัปเดตข้อมูลได้');
             }
         })
         .catch(err => {
-            Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+            showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
         });
     }
 
@@ -944,65 +913,33 @@
         btnSubmit.disabled = false;
 
         if (failCount === 0) {
-            Swal.fire({
-                title: 'บันทึกสำเร็จ!',
-                text: `เพิ่มรายการอาหารเรียบร้อยแล้วทั้งหมด ${successCount} รายการ`,
-                icon: 'success',
-                timer: 1800,
-                showConfirmButton: false
-            }).then(() => location.reload());
+            showNotification('success', 'บันทึกสำเร็จ!', `เพิ่มรายการอาหารเรียบร้อยแล้วทั้งหมด ${successCount} รายการ`).then(() => location.reload());
         } else {
-            Swal.fire({
-                title: 'เสร็จสิ้น',
-                text: `สำเร็จ ${successCount} รายการ, ไม่สำเร็จ ${failCount} รายการ`,
-                icon: failCount > 0 && successCount > 0 ? 'warning' : 'error',
-                confirmButtonText: 'ตกลง'
-            }).then(() => location.reload());
+            showNotification(failCount > 0 && successCount > 0 ? 'warning' : 'error', 'เสร็จสิ้น', `สำเร็จ ${successCount} รายการ, ไม่สำเร็จ ${failCount} รายการ`).then(() => location.reload());
         }
     }
 
     function deleteItem(url) {
-        Swal.fire({
-            title: 'ยืนยันการลบ?',
-            text: 'คุณต้องการลบรายการเมนูนี้ใช่หรือไม่?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'ใช่, ลบเลย!',
-            cancelButtonText: 'ยกเลิก',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(url, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            Swal.fire({
-                                title: 'ลบสำเร็จ!',
-                                text: data.message || 'ลบรายการเรียบร้อยแล้ว',
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบรายการได้', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                    });
-            }
-        });
+        confirmAction('ยืนยันการลบ?', 'คุณต้องการลบรายการเมนูนี้ใช่หรือไม่?', () => {
+            fetch(url, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('success', 'ลบสำเร็จ!', data.message || 'ลบรายการเรียบร้อยแล้ว').then(() => location.reload());
+                    } else {
+                        showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบรายการได้');
+                    }
+                })
+                .catch(err => {
+                    showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+                });
+        }, 'warning', 'ใช่, ลบเลย!', 'ยกเลิก');
     }
 </script>
 
 <script>
 /* ============================================================
    ADMIN REQUEST GUARD
-   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
-   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
-   - ป้องกัน double-submit ของ form POST
    ============================================================ */
 (function () {
     if (window.__adminRequestGuardInstalled) return;
@@ -1074,8 +1011,6 @@
             return;
         }
 
-        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
-        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
         if (form.getAttribute('onsubmit')) return;
 
         const method = String(form.getAttribute('method') || 'GET').toUpperCase();
@@ -1117,5 +1052,4 @@
     document.head.appendChild(style);
 })();
 </script>
-
 {% endblock %}

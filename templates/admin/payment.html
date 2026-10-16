@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% block title %}จัดการช่องทางชำระเงิน - Admin POS{% endblock %}
+
 {% block content %}
 <style>
     .payment-card-wrapper {
@@ -33,7 +35,6 @@
         object-fit: contain;
     }
 
-    /* Fixed floating batch bar on mobile */
     .batch-bar {
         position: fixed;
         bottom: 16px;
@@ -41,7 +42,7 @@
         transform: translateX(-50%);
         z-index: 1050;
         background: #ffffff;
-        border: 1px solid #0d6efd;
+        border: 1px solid #2563eb;
         border-radius: 50px;
         padding: 8px 16px;
         display: none;
@@ -412,7 +413,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     let rowCounter = 1;
 
@@ -534,7 +534,7 @@
         if (container.children.length > 1) {
             btn.closest('.dynamic-row').remove();
         } else {
-            Swal.fire('ไม่สามารถลบได้', 'ต้องมีรายการอย่างน้อย 1 รายการ', 'warning');
+            showNotification('warning', 'ไม่สามารถลบได้', 'ต้องมีรายการอย่างน้อย 1 รายการ');
         }
     }
 
@@ -549,20 +549,14 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'บันทึกสำเร็จ!',
-                        text: data.message || 'เพิ่มช่องทางชำระเงินเรียบร้อย',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
+                    showNotification('success', 'บันทึกสำเร็จ!', data.message || 'เพิ่มช่องทางชำระเงินเรียบร้อย').then(() => location.reload());
                 } else {
-                    Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถเพิ่มข้อมูลได้', 'error');
+                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถเพิ่มข้อมูลได้');
                 }
             })
             .catch(err => {
                 console.error(err);
-                Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+                showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
             });
     }
 
@@ -580,20 +574,14 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'อัปเดตสำเร็จ!',
-                        text: data.message || 'เปลี่ยนสถานะเรียบร้อย',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
+                    showNotification('success', 'อัปเดตสำเร็จ!', data.message || 'เปลี่ยนสถานะเรียบร้อย').then(() => location.reload());
                 } else {
-                    Swal.fire('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถอัปเดตได้', 'error');
+                    showNotification('error', 'เกิดข้อผิดพลาด', data.message || 'ไม่สามารถอัปเดตได้');
                 }
             })
             .catch(err => {
                 console.error(err);
-                Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+                showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
             });
     }
 
@@ -601,88 +589,49 @@
         const ids = getSelectedIds();
         if (ids.length === 0) return;
 
-        Swal.fire({
-            title: 'ยืนยันการลบที่เลือก?',
-            text: `คุณต้องการลบช่องทางชำระเงินจำนวน ${ids.length} รายการใช่หรือไม่?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'ใช่, ลบทั้งหมด!',
-            cancelButtonText: 'ยกเลิก',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch("{{ url_for('admin.admin_payments_batch_delete') }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids })
+        confirmAction('ยืนยันการลบที่เลือก?', `คุณต้องการลบช่องทางชำระเงินจำนวน ${ids.length} รายการใช่หรือไม่?`, () => {
+            fetch("{{ url_for('admin.admin_payments_batch_delete') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('success', 'ลบเรียบร้อย!', data.message || 'ลบช่องทางชำระเงินสำเร็จ').then(() => location.reload());
+                    } else {
+                        showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบข้อมูลได้');
+                    }
                 })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'ลบเรียบร้อย!',
-                                text: data.message || 'ลบช่องทางชำระเงินสำเร็จ',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบข้อมูลได้', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                    });
-            }
-        });
+                .catch(err => {
+                    console.error(err);
+                    showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+                });
+        }, 'warning', 'ใช่, ลบทั้งหมด!', 'ยกเลิก');
     }
 
     function deleteItem(url) {
-        Swal.fire({
-            title: 'ยืนยันการลบ?',
-            text: 'คุณต้องการลบช่องทางชำระเงินนี้ใช่หรือไม่?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'ใช่, ลบเลย!',
-            cancelButtonText: 'ยกเลิก',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(url, { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            Swal.fire({
-                                title: 'ลบเรียบร้อย!',
-                                text: data.message || 'ลบช่องทางชำระเงินสำเร็จ',
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบช่องทางชำระเงินได้', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                    });
-            }
-        });
+        confirmAction('ยืนยันการลบ?', 'คุณต้องการลบช่องทางชำระเงินนี้ใช่หรือไม่?', () => {
+            fetch(url, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('success', 'ลบเรียบร้อย!', data.message || 'ลบช่องทางชำระเงินสำเร็จ').then(() => location.reload());
+                    } else {
+                        showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถลบช่องทางชำระเงินได้');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+                });
+        }, 'warning', 'ใช่, ลบเลย!', 'ยกเลิก');
     }
 </script>
 
 <script>
 /* ============================================================
    ADMIN REQUEST GUARD
-   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
-   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
-   - ป้องกัน double-submit ของ form POST
    ============================================================ */
 (function () {
     if (window.__adminRequestGuardInstalled) return;
@@ -754,8 +703,6 @@
             return;
         }
 
-        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
-        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
         if (form.getAttribute('onsubmit')) return;
 
         const method = String(form.getAttribute('method') || 'GET').toUpperCase();
@@ -797,5 +744,4 @@
     document.head.appendChild(style);
 })();
 </script>
-
 {% endblock %}

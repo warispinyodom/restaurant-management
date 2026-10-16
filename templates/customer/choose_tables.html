@@ -10,7 +10,6 @@
         --text-muted: #64748b;
     }
 
-    /* CSS สำหรับหน้าเลือกโต๊ะแบบ Responsive & Modern UI */
     .table-card {
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         border: 2px solid transparent !important;
@@ -24,7 +23,6 @@
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* สไตล์โต๊ะที่ถูกเลือก */
     .table-card.selected {
         border-color: var(--primary-color) !important;
         background-color: #eff6ff !important;
@@ -34,7 +32,6 @@
         display: flex !important;
     }
 
-    /* โต๊ะที่ไม่ว่าง */
     .table-card.disabled-card {
         cursor: not-allowed;
         opacity: 0.65;
@@ -63,7 +60,6 @@
         z-index: 2;
     }
 
-    /* Segmented Control สำหรับปุ่มตัวกรองสถานะ */
     .segmented-control {
         background-color: #f1f5f9;
         padding: 4px;
@@ -106,7 +102,6 @@
         color: #dc2626;
     }
 
-    /* แถบควบคุม Input & Spinner */
     .control-pill {
         background-color: #f1f5f9;
         min-height: 46px;
@@ -131,7 +126,6 @@
         background-color: #e2e8f0;
     }
 
-    /* Sticky Bottom Bar */
     .sticky-bottom-summary {
         position: fixed;
         bottom: 0;
@@ -149,6 +143,12 @@
         .sticky-bottom-summary {
             left: var(--sidebar-width, 0px);
         }
+    }
+
+    .customer-request-busy {
+        pointer-events: none !important;
+        opacity: 0.65 !important;
+        cursor: wait !important;
     }
 </style>
 
@@ -179,6 +179,7 @@
                 </a>
                 <form action="{{ url_for('customer.customer_choose_table') }}" method="POST" class="d-inline" id="cancelTableForm">
                     <input type="hidden" name="action" value="cancel">
+                    <input type="hidden" name="client_request_id" id="cancelTableRequestId" value="">
                     <button type="button" onclick="confirmCancelTable()" data-customer-mutation class="btn btn-outline-light rounded-pill px-3">
                         <i class="fas fa-times me-1"></i> ยกเลิกเลือกโต๊ะ
                     </button>
@@ -256,12 +257,10 @@
                          data-available="{{ 'true' if is_available else 'false' }}"
                          onclick="toggleTableSelection(this)">
 
-                        <!-- Check Badge -->
                         <div class="check-badge">
                             <i class="fas fa-check"></i>
                         </div>
 
-                        <!-- ซ่อน Checkbox สำหรับส่งฟอร์ม -->
                         <input type="checkbox" name="table_ids" value="{{ table.id }}" class="d-none table-checkbox" {{ 'checked' if is_selected else '' }} {{ '' if is_available else 'disabled' }}>
 
                         <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
@@ -332,7 +331,6 @@
     let currentFilter = 'all';
 
     document.addEventListener('DOMContentLoaded', function() {
-        // ดึง order_ids ที่บันทึกไว้ใน localStorage มาใส่ใน Hidden Form เพื่อเชื่อมโยงการสลับโต๊ะ
         try {
             const savedOrders = localStorage.getItem('customer_order_ids');
             if (savedOrders) {
@@ -354,10 +352,8 @@
 
         updateSummaryUI();
 
-        // 1. ค้นหา Real-time
         document.getElementById('searchInput').addEventListener('input', filterTables);
 
-        // 2. สลับตัวกรองสถานะ (Segmented Control)
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -538,7 +534,7 @@
     function confirmCancelTable() {
         Swal.fire({
             title: 'ยืนยันยกเลิกเลือกโต๊ะ?',
-            text: 'ระบบจะ คืนสถานะโต๊ะให้ว่างเพื่อให้ผู้อื่นสามารถเลือกได้',
+            text: 'ระบบจะคืนสถานะโต๊ะให้ว่างเพื่อให้ผู้อื่นสามารถเลือกได้',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
@@ -557,13 +553,6 @@
         });
     }
 </script>
-<style>
-    .customer-request-busy {
-        pointer-events: none !important;
-        opacity: 0.65 !important;
-        cursor: wait !important;
-    }
-</style>
 <script>
 (function installCustomerTableRequestGuard() {
     if (window.__customerTableRequestGuardInstalled) return;

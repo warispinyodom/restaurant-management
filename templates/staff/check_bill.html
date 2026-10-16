@@ -2,7 +2,6 @@
 
 {% block content %}
 <style>
-    /* Print Receipt Thermal Style (80mm Thermal Printer) */
     @media print {
         body * {
             visibility: hidden !important;
@@ -148,14 +147,11 @@
             </div>
             <div class="modal-body p-4">
                 <div class="row g-4">
-                    <!-- ฝั่งซ้าย: รายการอาหาร และการตั้งค่าส่วนลด/ภาษี/บริการ -->
                     <div class="col-lg-7 border-end">
                         <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-utensils me-1"></i> รายการอาหารที่สั่ง</h6>
                         <div id="modalOrderItems" class="mb-3 p-3 bg-light rounded-3 border" style="max-height: 200px; overflow-y: auto;">
-                            <!-- Dynamic Content -->
                         </div>
 
-                        <!-- ตัวตั้งค่า ส่วนลด / ค่าบริการ / ภาษี -->
                         <div class="bg-white p-3 border rounded-3 mb-3 shadow-sm">
                             <h6 class="fw-bold text-primary mb-3"><i class="fas fa-sliders-h me-1"></i> ส่วนลด / ค่าบริการ / ภาษี</h6>
                             <div class="row g-2">
@@ -180,7 +176,6 @@
                             </div>
                         </div>
 
-                        <!-- ตารางสรุปยอดเงิน -->
                         <div class="p-3 bg-light rounded-3 border">
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted">ยอดรวมอาหาร (Subtotal)</span>
@@ -206,7 +201,6 @@
                         </div>
                     </div>
 
-                    <!-- ฝั่งขวา: ช่องทางการชำระเงิน และคำนวณเงินทอน -->
                     <div class="col-lg-5">
                         <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-wallet me-1"></i> เลือกวิธีชำระเงิน</h6>
                         <div class="btn-group w-100 mb-3" role="group">
@@ -217,7 +211,6 @@
                             <label class="btn btn-outline-primary py-2 fw-bold" for="payQR"><i class="fas fa-qrcode me-1"></i> QR Code</label>
                         </div>
 
-                        <!-- คำนวณเงินสด -->
                         <div id="cashCalcArea">
                             <div class="mb-3">
                                 <label class="form-label text-muted small fw-bold">รับเงินมา (บาท)</label>
@@ -235,7 +228,6 @@
                             </div>
                         </div>
 
-                        <!-- แสดง QR Code ชำระเงิน -->
                         <div id="qrCodeArea" class="d-none text-center py-2">
                             {% if payments %}
                             {% for p in payments %}
@@ -258,7 +250,7 @@
             </div>
             <div class="modal-footer border-top-0 p-3 bg-light">
                 <button type="button" class="btn btn-secondary rounded-3 px-3" data-bs-dismiss="modal">ยกเลิก</button>
-                <button type="button" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm" onclick="submitCheckBill()">
+                <button type="button" id="btnConfirmPayment" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm" onclick="submitCheckBill()">
                     <i class="fas fa-check-circle me-1"></i> ยืนยันการชำระเงิน
                 </button>
             </div>
@@ -275,7 +267,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4" id="receiptContent">
-                <!-- Receipt Dynamic Output -->
             </div>
             <div class="modal-footer border-top-0 p-3 bg-light no-print">
                 <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
@@ -297,6 +288,13 @@
     let currentServiceChargeAmount = 0;
     let currentTaxAmount = 0;
     let currentNetTotal = 0;
+    let isSubmitting = false;
+
+    function formatOrderId(rawId) {
+        if (!rawId) return '';
+        const strId = String(rawId).trim().replace(/^[-#]+/, '');
+        return strId.length > 8 ? strId.slice(-8).toUpperCase() : strId.toUpperCase();
+    }
 
     function formatMoney(amount) {
         return (parseFloat(amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -486,13 +484,13 @@
             `;
         });
 
-        const orderIdStr = String(orderData.id || orderData.order_id || '');
+        const rawOrderId = orderData.id || orderData.order_id || '';
 
         receiptContainer.innerHTML = `
             <div class="text-center mb-3">
                 <h4 class="fw-bold mb-1">ใบเสร็จรับเงิน / Receipt</h4>
                 <div class="small text-muted">โต๊ะ ${orderData.table_no || orderData.table || '-'} | วันที่: ${now}</div>
-                <div class="small text-muted">รหัสออเดอร์: #${orderIdStr.slice(-8)}</div>
+                <div class="small text-muted">รหัสออเดอร์: #${formatOrderId(rawOrderId)}</div>
             </div>
             <hr style="border-top: 1px dashed #000;">
             <div class="mb-3">
@@ -518,7 +516,7 @@
     }
 
     function submitCheckBill() {
-        if (!currentOrder) return;
+        if (!currentOrder || isSubmitting) return;
 
         const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
         const rawReceived = document.getElementById('receivedInput').value;
@@ -545,7 +543,8 @@
             tax_amount: currentTaxAmount,
             total_amount: currentNetTotal,
             received_amount: receivedAmount,
-            change_amount: changeAmount > 0 ? changeAmount : 0
+            change_amount: changeAmount > 0 ? changeAmount : 0,
+            client_request_id: (crypto.randomUUID ? crypto.randomUUID() : ('bill_' + Date.now() + '_' + Math.random().toString(16).slice(2)))
         };
 
         Swal.fire({
@@ -559,6 +558,10 @@
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
+                isSubmitting = true;
+                const btn = document.getElementById('btnConfirmPayment');
+                if (btn) btn.disabled = true;
+
                 fetch('/staff/check-bill/process', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -587,6 +590,10 @@
                 })
                 .catch(err => {
                     Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้', 'error');
+                })
+                .finally(() => {
+                    isSubmitting = false;
+                    if (btn) btn.disabled = false;
                 });
             }
         });

@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% block title %}ประวัติการขาย - Admin POS{% endblock %}
+
 {% block content %}
 <style>
     .sales-card {
@@ -442,7 +444,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function filterSales() {
         const searchVal = (document.getElementById('searchInput').value || '').trim().toLowerCase();
@@ -489,51 +490,33 @@
     }
 
     function confirmVoidOrder(orderId) {
-        Swal.fire({
-            title: 'ยืนยันการยกเลิกรายการ (Void)?',
-            text: `คุณต้องการยกเลิกออเดอร์ #${orderId.substring(0, 8)} ใช่หรือไม่?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'ใช่, ยกเลิกออเดอร์!',
-            cancelButtonText: 'ยกเลิก',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'กำลังดำเนินการ...',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
+        confirmAction('ยืนยันการยกเลิกรายการ (Void)?', `คุณต้องการยกเลิกออเดอร์ #${orderId.substring(0, 8)} ใช่หรือไม่?`, () => {
+            Swal.fire({
+                title: 'กำลังดำเนินการ...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-                fetch(`/admin/sales/void/${orderId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        Swal.fire({
-                            title: 'ยกเลิกออเดอร์สำเร็จ!',
-                            text: data.message || 'รายการสั่งซื้อถูกยกเลิกเรียบร้อยแล้ว',
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => location.reload());
-                    } else {
-                        Swal.fire('เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถยกเลิกออเดอร์ได้', 'error');
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
-                });
-            }
-        });
+            fetch(`/admin/sales/void/${orderId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('success', 'ยกเลิกออเดอร์สำเร็จ!', data.message || 'รายการสั่งซื้อถูกยกเลิกเรียบร้อยแล้ว').then(() => location.reload());
+                } else {
+                    showNotification('error', 'เกิดข้อผิดพลาด!', data.message || 'ไม่สามารถยกเลิกออเดอร์ได้');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showNotification('error', 'เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+            });
+        }, 'warning', 'ใช่, ยกเลิกออเดอร์!', 'ยกเลิก');
     }
 
     function printReceipt(divId) {
@@ -554,9 +537,6 @@
 <script>
 /* ============================================================
    ADMIN REQUEST GUARD
-   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
-   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
-   - ป้องกัน double-submit ของ form POST
    ============================================================ */
 (function () {
     if (window.__adminRequestGuardInstalled) return;
@@ -628,8 +608,6 @@
             return;
         }
 
-        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
-        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
         if (form.getAttribute('onsubmit')) return;
 
         const method = String(form.getAttribute('method') || 'GET').toUpperCase();
@@ -671,5 +649,4 @@
     document.head.appendChild(style);
 })();
 </script>
-
 {% endblock %}

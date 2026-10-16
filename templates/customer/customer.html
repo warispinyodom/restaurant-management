@@ -29,7 +29,6 @@
         font-family: 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Fallback Utility Classes */
     .bg-slate-50 { background-color: #f8fafc !important; }
     .bg-slate-100 { background-color: var(--slate-100) !important; }
     .border-slate-100 { border-color: var(--slate-100) !important; }
@@ -44,7 +43,6 @@
     .text-amber-500 { color: var(--amber-500) !important; }
     .text-amber-600 { color: var(--amber-600) !important; }
 
-    /* ป้องกัน Floating Bar ทับเนื้อหาด้านล่างบนมือถือ */
     .customer-page-wrapper {
         padding-bottom: 110px;
     }
@@ -55,7 +53,6 @@
         }
     }
 
-    /* Header Banner โต๊ะอาหาร */
     .table-info-banner {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         color: #ffffff;
@@ -64,7 +61,6 @@
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
     }
 
-    /* กล่องค้นหาและตัวกรอง Responsive */
     .search-filter-capsule {
         background: #ffffff;
         border: 1px solid var(--border-color);
@@ -95,7 +91,6 @@
         background: transparent !important;
     }
 
-    /* แถบหมวดหมู่แบบ Pill เลื่อนแนวนอน */
     .category-pills-wrapper {
         display: flex;
         gap: 8px;
@@ -127,7 +122,6 @@
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
     }
 
-    /* Menu Cards UI */
     .menu-card {
         border: 1px solid var(--border-color) !important;
         background-color: var(--menu-card-bg) !important;
@@ -214,7 +208,6 @@
         transform: scale(1.08);
     }
 
-    /* ตะกร้าสินค้า Desktop Sticky Cart */
     .cart-sticky-container {
         position: sticky;
         top: 20px;
@@ -254,7 +247,6 @@
         color: #94a3b8 !important;
     }
 
-    /* Mobile Floating Cart Bar */
     .mobile-cart-bar {
         position: fixed;
         bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -291,7 +283,7 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- Flash Messages (กรองให้แสดงอันเดียว และปิดตัวเองอัตโนมัติ) -->
+    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% set seen_messages = [] %}
@@ -307,7 +299,7 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Header Banner สำหรับแสดงสถานะโต๊ะและเมนูลัด -->
+    <!-- Header Banner -->
     <div class="table-info-banner mb-3 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
             <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 48px; height: 48px;">
@@ -345,7 +337,7 @@
         </div>
     </div>
 
-    <!-- กล่องแจ้งเตือนเลือกโต๊ะอาหาร -->
+    <!-- Warning Banner -->
     {% if not selected_table_no %}
     <div class="alert alert-warning rounded-4 shadow-sm mb-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 border-0 bg-white p-3" role="alert">
         <div class="d-flex align-items-center gap-3">
@@ -363,7 +355,7 @@
     </div>
     {% endif %}
 
-    <!-- Banner แสดงสถานะการเรียกพนักงานแบบ Real-time -->
+    <!-- Service Call Banner -->
     <div id="serviceCallBanner" class="alert alert-warning rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
             <div id="serviceCallIconBox" class="flex-shrink-0">
@@ -377,7 +369,7 @@
         <span class="badge rounded-pill px-3 py-2 fw-bold flex-shrink-0 text-nowrap" id="serviceCallStatusBadge">รอดำเนินการ</span>
     </div>
 
-    <!-- Banner แสดงสถานะออเดอร์ล่าสุดแบบ Real-time บนหน้าหลัก -->
+    <!-- Order Status Banner -->
     <div id="orderStatusBanner" class="alert alert-primary rounded-4 shadow-sm mb-3 d-none align-items-center justify-content-between gap-3 border-0 bg-white p-3">
         <div class="d-flex align-items-center gap-3 overflow-hidden flex-grow-1" style="min-width: 0;">
             <div id="orderStatusIconBox" class="flex-shrink-0">
@@ -394,7 +386,7 @@
     </div>
 
     <div class="row g-3 g-md-4">
-        <!-- ฝั่งซ้าย: แถบค้นหา หมวดหมู่ และการ์ดรายการเมนู -->
+        <!-- Menu list section -->
         <div class="col-12 col-lg-7 col-xl-8">
             <div class="bg-white p-3 p-md-4 rounded-4 shadow-sm border border-slate-100 mb-3 mb-md-4">
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-3 mb-3">
@@ -434,7 +426,7 @@
                 {% endif %}
             </div>
 
-            <!-- เมนูอาหาร Responsive Grid -->
+            <!-- Menu Cards Grid -->
             <div class="row g-2 g-sm-3 g-md-4" id="menu-container">
                 {% if menus %}
                 {% for menu in menus %}
@@ -499,7 +491,7 @@
             </div>
         </div>
 
-        <!-- ฝั่งขวา: ตะกร้าสินค้าและการสั่งซื้อ (Desktop Layout - ตัดส่วนการเลือกวิธีชำระเงิน/QR ออก) -->
+        <!-- Desktop Cart Section -->
         <div class="col-12 col-lg-5 col-xl-4 d-none d-lg-block">
             <div class="card border-0 shadow-sm rounded-4 cart-sticky-container">
                 <div class="cart-box-header p-3 d-flex justify-content-between align-items-center">
@@ -544,7 +536,7 @@
     </div>
 </div>
 
-<!-- Mobile Floating Cart Summary Bar -->
+<!-- Mobile Floating Cart -->
 <div class="mobile-cart-bar d-lg-none" id="mobileCartBar" style="display: none;">
     <div class="d-flex align-items-center gap-2">
         <div class="badge bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" id="mobileCartBadge">0</div>
@@ -680,7 +672,6 @@
         setInterval(fetchLiveOrders, 5000);
         setInterval(fetchLiveServiceCalls, 4000);
 
-        // ซ่อน Flash Alert การเลือกโต๊ะ/แจ้งเตือนอัตโนมัติภายใน 3.5 วินาที
         setTimeout(function() {
             const alerts = document.querySelectorAll('.alert-dismissible');
             alerts.forEach(alert => {
@@ -796,11 +787,7 @@
 
         const noResults = document.getElementById('no-results-msg');
         if (noResults) {
-            if (visibleCount === 0) {
-                noResults.classList.remove('d-none');
-            } else {
-                noResults.classList.add('d-none');
-            }
+            noResults.classList.toggle('d-none', visibleCount !== 0);
         }
     }
 
@@ -818,13 +805,8 @@
     }
 
     function updateActivePill(catName) {
-        const pills = document.querySelectorAll('.btn-cat-pill');
-        pills.forEach(p => {
-            if (p.getAttribute('data-cat') === catName) {
-                p.classList.add('active');
-            } else {
-                p.classList.remove('active');
-            }
+        document.querySelectorAll('.btn-cat-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-cat') === catName);
         });
     }
 
@@ -866,13 +848,7 @@
         if (existingItem) {
             existingItem.qty += 1;
         } else {
-            cart.push({
-                id: id,
-                name: name,
-                price: cleanPrice,
-                qty: 1,
-                note: note
-            });
+            cart.push({ id: id, name: name, price: cleanPrice, qty: 1, note: note });
         }
 
         syncCartUI();
@@ -980,7 +956,6 @@
         if (cart.length === 0) return;
 
         const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        
         let itemListHTML = cart.map(i => `<li class="text-start mb-1"><b>${i.name}</b> x ${i.qty} = ฿${(i.price*i.qty).toFixed(2)} ${i.note ? `<i class="text-amber-600">(${i.note})</i>` : ''}</li>`).join('');
 
         Swal.fire({
@@ -1088,16 +1063,10 @@
         const localOrderIds = getSavedOrderIds();
         const queryParams = new URLSearchParams();
 
-        if (currentTableNo) {
-            queryParams.append('table_no', currentTableNo);
-        }
-        if (localOrderIds.length > 0) {
-            queryParams.append('order_ids', localOrderIds.join(','));
-        }
+        if (currentTableNo) queryParams.append('table_no', currentTableNo);
+        if (localOrderIds.length > 0) queryParams.append('order_ids', localOrderIds.join(','));
 
-        const fetchUrl = '/customer/api/orders?' + queryParams.toString();
-
-        fetch(fetchUrl)
+        fetch('/customer/api/orders?' + queryParams.toString())
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -1124,9 +1093,7 @@
             const formattedId = formatOrderId(rawOid);
 
             if (oldStatus && oldStatus !== newStatus) {
-                let title = '';
-                let text = `ออเดอร์ #${formattedId}: `;
-                let icon = 'info';
+                let title = '', text = `ออเดอร์ #${formattedId}: `, icon = 'info';
 
                 if (newStatus === 'cooking' || newStatus === 'in_progress') {
                     title = '👨‍🍳 ห้องครัวกำลังปรุงอาหาร!';
@@ -1177,13 +1144,7 @@
             return st === 'pending' || st === 'cooking' || st === 'in_progress' || st === 'served';
         });
 
-        if (activeBadge) {
-            if (activeOrders.length > 0) {
-                activeBadge.classList.remove('d-none');
-            } else {
-                activeBadge.classList.add('d-none');
-            }
-        }
+        if (activeBadge) activeBadge.classList.toggle('d-none', activeOrders.length === 0);
 
         if (activeOrders.length > 0) {
             banner.classList.remove('d-none');
@@ -1194,23 +1155,17 @@
             const formattedId = formatOrderId(latestOrder.id || latestOrder.order_id);
 
             if (st === 'served') {
-                if (iconBox) {
-                    iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;"><i class="fas fa-check fs-5"></i></div>';
-                }
+                if (iconBox) iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;"><i class="fas fa-check fs-5"></i></div>';
                 banner.className = 'alert alert-success rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
                 titleElem.innerText = `เสิร์ฟสำเร็จแล้ว (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'อาหารเสิร์ฟถึงโต๊ะของคุณเรียบร้อยแล้ว ขอให้มีความสุขกับการรับประทานอาหารครับ';
             } else if (st === 'cooking' || st === 'in_progress') {
-                if (iconBox) {
-                    iconBox.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
-                }
+                if (iconBox) iconBox.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
                 banner.className = 'alert alert-primary rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
                 titleElem.innerText = `กำลังปรุงอาหาร (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ห้องครัวกำลังรับและปรุงอาหารของคุณ กรุณารอสักครู่...';
             } else {
-                if (iconBox) {
-                    iconBox.innerHTML = '<div class="spinner-border text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
-                }
+                if (iconBox) iconBox.innerHTML = '<div class="spinner-border text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
                 banner.className = 'alert alert-warning rounded-4 shadow-sm mb-3 d-flex align-items-center justify-content-between gap-3 border-0 bg-white p-3';
                 titleElem.innerText = `รอดำเนินการ (ออเดอร์ #${formattedId})`;
                 descElem.innerText = 'ส่งออเดอร์เข้าครัวแล้ว กำลังรอห้องครัวเริ่มปรุงอาหาร...';
@@ -1298,12 +1253,8 @@
         }
 
         const queryParams = new URLSearchParams();
-        if (currentTableNo) {
-            queryParams.append('table_no', currentTableNo);
-        }
-        if (localCallIds.length > 0) {
-            queryParams.append('request_ids', localCallIds.join(','));
-        }
+        if (currentTableNo) queryParams.append('table_no', currentTableNo);
+        if (localCallIds.length > 0) queryParams.append('request_ids', localCallIds.join(','));
 
         fetch('/customer/api/service_requests?' + queryParams.toString())
             .then(res => res.json())
@@ -1320,9 +1271,7 @@
     function processCallStatusChanges(requests, localCallIds) {
         const currentReqMap = {};
         requests.forEach(req => {
-            if (req.id) {
-                currentReqMap[String(req.id)] = req;
-            }
+            if (req.id) currentReqMap[String(req.id)] = req;
         });
 
         localCallIds.forEach(id => {
@@ -1379,9 +1328,7 @@
                 const st = strToLowerCase(req.status);
                 if (st !== 'completed') {
                     saveCallId(req.id);
-                    if (!lastCallStatuses[req.id]) {
-                        lastCallStatuses[req.id] = st;
-                    }
+                    if (!lastCallStatuses[req.id]) lastCallStatuses[req.id] = st;
                 }
             }
         });
@@ -1411,9 +1358,7 @@
                 const st = strToLowerCase(latest.status);
 
                 if (st === 'in_progress' || st === 'accepted') {
-                    if (iconBox) {
-                        iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;"><i class="fas fa-check fs-5"></i></div>';
-                    }
+                    if (iconBox) iconBox.innerHTML = '<div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;"><i class="fas fa-check fs-5"></i></div>';
                     if (titleElem) titleElem.innerText = `พนักงานรับเรื่องแล้ว: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'พนักงานกำลังเดินทางมาให้บริการที่โต๊ะของคุณ';
                     if (badgeElem) {
@@ -1421,9 +1366,7 @@
                         badgeElem.innerHTML = '<i class="fas fa-check me-1"></i>พนักงานกำลังมา';
                     }
                 } else {
-                    if (iconBox) {
-                        iconBox.innerHTML = '<div class="spinner-grow text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
-                    }
+                    if (iconBox) iconBox.innerHTML = '<div class="spinner-grow text-warning" role="status" style="width: 1.5rem; height: 1.5rem;"></div>';
                     if (titleElem) titleElem.innerText = `กำลังเรียกพนักงาน: ${latest.request_type || 'บริการ'}`;
                     if (descElem) descElem.innerText = 'ระบบแจ้งพนักงานเรียบร้อยแล้ว กรุณารอสักครู่...';
                     if (badgeElem) {

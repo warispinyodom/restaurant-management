@@ -9,7 +9,6 @@
         --text-muted: #64748b;
     }
 
-    /* สไลด์บาร์ตัวกรองแบบแนวนอนสำหรับมือถือ */
     .filter-scroll-container {
         display: flex;
         gap: 8px;
@@ -42,7 +41,6 @@
         box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
     }
 
-    /* โครงสร้างการ์ดออเดอร์ */
     .order-card {
         border-radius: 16px;
         border: 1px solid var(--border-color);
@@ -55,14 +53,12 @@
         box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* แถบสีแยกตามสถานะออเดอร์ */
     .order-card.status-pending { border-left: 5px solid #f59e0b; }
     .order-card.status-cooking, .order-card.status-in_progress, .order-card.status-preparing { border-left: 5px solid #2563eb; }
     .order-card.status-served, .order-card.status-cooked, .order-card.status-ready { border-left: 5px solid #06b6d4; }
     .order-card.status-completed, .order-card.status-paid, .order-card.status-success { border-left: 5px solid #10b981; }
     .order-card.status-voided, .order-card.status-cancelled { border-left: 5px solid #ef4444; opacity: 0.75; }
 
-    /* Animation กระพริบเรียกลูกตาสำหรับออเดอร์ใหม่ */
     @keyframes pulse-border {
         0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
         70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
@@ -72,7 +68,6 @@
         animation: pulse-border 2s infinite;
     }
 
-    /* รองรับขนาดหน้าจอมือถือ */
     @media (max-width: 575.98px) {
         .orders-page-container {
             padding-left: 8px !important;
@@ -107,14 +102,11 @@
             <p class="text-muted small mb-0">จัดการสถานะรายการสั่งซื้อ รับออเดอร์จากลูกค้า และเตรียมเสิร์ฟแบบ Real-time</p>
         </div>
 
-        <!-- Controls Toolbar -->
         <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto justify-content-start justify-content-lg-end">
-            <!-- Toggle Sound Button -->
             <button id="soundToggleBtn" class="btn btn-outline-warning text-dark btn-sm rounded-pill px-3 shadow-sm fw-medium" onclick="toggleSound()">
                 <i class="fas fa-volume-up me-1" id="soundIcon"></i><span id="soundText">เปิดเสียงเตือน</span>
             </button>
 
-            <!-- Staff Status Selector -->
             <div class="d-flex align-items-center bg-white border rounded-pill px-2 py-1 shadow-sm">
                 <label class="small text-muted fw-bold me-2 ms-1 d-none d-sm-inline" style="font-size: 0.75rem;">พนักงาน:</label>
                 <select id="staffStatusSelect" class="form-select form-select-sm fw-bold border-0 bg-transparent p-0 pe-4" style="outline: none; box-shadow: none; font-size: 0.85rem; cursor: pointer;" onchange="changeStaffStatus(this.value)">
@@ -124,14 +116,13 @@
                 </select>
             </div>
 
-            <!-- Refresh Button -->
             <button type="button" class="btn btn-light border btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" onclick="fetchOrdersRealtime(true)" title="รีเฟรชออเดอร์">
                 <i class="fas fa-sync-alt text-secondary" id="refreshIcon"></i>
             </button>
         </div>
     </div>
 
-    <!-- Filter Pills (Scrollable on mobile) -->
+    <!-- Filter Pills -->
     <div class="filter-scroll-container mb-3 mb-md-4">
         <button type="button" class="filter-btn active" data-filter="all" onclick="filterOrders('all', this)">
             <i class="fas fa-th-large me-1"></i>ทั้งหมด (<span id="cntAll">0</span>)
@@ -163,7 +154,6 @@
 
         <div class="col-12 col-sm-6 col-lg-4 col-xl-3 order-item-col" data-status="{{ st }}" id="order-card-{{ order_id_str }}">
             <div class="card order-card shadow-sm h-100 bg-white status-{{ st }} {% if st == 'pending' %}new-order-pulse{% endif %}">
-                <!-- Card Header -->
                 <div class="order-card-header bg-transparent border-bottom pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
                     <div>
                         <span class="badge bg-dark text-white rounded-pill px-2.5 py-1 font-monospace">#{{ order_id_str[:8] }}</span>
@@ -186,7 +176,6 @@
                     </div>
                 </div>
 
-                <!-- Card Body -->
                 <div class="order-card-body px-3 py-2 d-flex flex-column">
                     <div class="small text-muted mb-2"><i class="far fa-clock me-1"></i>สั่งเมื่อ: {{ created_str.replace('T', ' ')[:16] }}</div>
                     
@@ -200,8 +189,8 @@
                                     {% if item.spice_level and item.spice_level != 'ไม่เผ็ด' %}
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">{{ item.spice_level }}</span>
                                     {% endif %}
-                                    {% if item.notes %}
-                                        <small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>{{ item.notes }}</small>
+                                    {% if item.notes or item.note %}
+                                        <small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>{{ item.notes or item.note }}</small>
                                     {% endif %}
                                 </div>
                                 <span class="badge bg-secondary rounded-pill fs-6 fw-bold">x{{ item.quantity if item.quantity is defined else (item.qty if item.qty is defined else 1) }}</span>
@@ -212,7 +201,6 @@
                         {% endif %}
                     </ul>
 
-                    <!-- Card Footer Inside Body -->
                     <div class="pt-2 border-top d-flex justify-content-between align-items-center mt-auto">
                         <div>
                             <span class="small text-muted d-block" style="font-size: 0.75rem;">ราคารวม:</span>
@@ -269,6 +257,12 @@
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
+    }
+
+    function formatOrderId(rawId) {
+        if (!rawId) return '';
+        const strId = String(rawId).trim().replace(/^[-#]+/, '');
+        return strId.length > 8 ? strId.slice(-8).toUpperCase() : strId.toUpperCase();
     }
 
     document.addEventListener('click', initAudioContext, { once: true });
@@ -394,10 +388,10 @@
         let html = '';
         orders.forEach(order => {
             const st = (order.status || 'pending').toLowerCase();
-            const orderId = String(order.id || '');
+            const orderId = String(order.id || order.order_id || '');
             const tableNo = order.table_no || order.table || '-';
             const createdAt = String(order.created_at || '-').replace('T', ' ').substring(0, 16);
-            const items = Array.isArray(order.items) ? order.items : [];
+            const items = Array.isArray(order.items || order.order_items) ? (order.items || order.order_items) : [];
             const totalAmt = parseFloat(order.total_price || order.total_amount || 0).toFixed(2);
 
             let statusBadge = '';
@@ -413,7 +407,7 @@
                     const name = item.name || item.title || 'รายการอาหาร';
                     const qty = item.quantity || item.qty || 1;
                     const spice = (item.spice_level && item.spice_level !== 'ไม่เผ็ด') ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1" style="font-size: 0.65rem;">${item.spice_level}</span>` : '';
-                    const notes = item.notes ? `<small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>${item.notes}</small>` : '';
+                    const notes = (item.notes || item.note) ? `<small class="d-block text-muted"><i class="far fa-comment-dots me-1"></i>${item.notes || item.note}</small>` : '';
                     
                     itemsHtml += `
                         <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center border-0">
@@ -455,7 +449,7 @@
                 <div class="card order-card shadow-sm h-100 bg-white status-${st} ${pulseClass}">
                     <div class="order-card-header bg-transparent border-bottom pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="badge bg-dark text-white rounded-pill px-2.5 py-1 font-monospace">#${orderId.substring(0, 8)}</span>
+                            <span class="badge bg-dark text-white rounded-pill px-2.5 py-1 font-monospace">#${formatOrderId(orderId)}</span>
                             <span class="badge bg-warning-subtle text-dark border border-warning rounded-pill px-2 py-1 ms-1 fw-bold">
                                 <i class="fas fa-chair me-1"></i>โต๊ะ ${tableNo}
                             </span>
@@ -488,7 +482,11 @@
         fetch('/staff/order/update-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_id: orderId, status: newStatus })
+            body: JSON.stringify({ 
+                order_id: orderId, 
+                status: newStatus,
+                client_request_id: (crypto.randomUUID ? crypto.randomUUID() : ('status_' + Date.now() + '_' + Math.random().toString(16).slice(2)))
+            })
         })
         .then(res => res.json())
         .then(data => {

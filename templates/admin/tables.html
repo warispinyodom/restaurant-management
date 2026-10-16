@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}จัดการโต๊ะอาหาร - Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-2 px-md-4 py-3">
@@ -20,7 +21,7 @@
         </div>
     </div>
 
-    <!-- Quick Stats Cards & Status Filters -->
+    <!-- Quick Stats Cards -->
     {% set total_count = tables | length %}
     {% set available_count = tables | selectattr('status', 'equalto', 'available') | list | length %}
     {% set occupied_count = tables | selectattr('status', 'equalto', 'occupied') | list | length %}
@@ -32,7 +33,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-muted small fw-semibold mb-1">โต๊ะทั้งหมด</div>
-                        <h2 class="fw-bold mb-0 text-dark" id="stat-total">{{ total_count }}</h2>
+                        <h2 class="fw-bold mb-0 text-dark">{{ total_count }}</h2>
                     </div>
                     <div class="stat-icon bg-light text-secondary rounded-4 p-3">
                         <i class="fas fa-border-all fs-3"></i>
@@ -45,7 +46,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-success small fw-semibold mb-1">โต๊ะว่าง</div>
-                        <h2 class="fw-bold mb-0 text-success" id="stat-available">{{ available_count }}</h2>
+                        <h2 class="fw-bold mb-0 text-success">{{ available_count }}</h2>
                     </div>
                     <div class="stat-icon bg-success-subtle text-success rounded-4 p-3">
                         <i class="fas fa-chair fs-3"></i>
@@ -58,7 +59,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-danger small fw-semibold mb-1">มีลูกค้า</div>
-                        <h2 class="fw-bold mb-0 text-danger" id="stat-occupied">{{ occupied_count }}</h2>
+                        <h2 class="fw-bold mb-0 text-danger">{{ occupied_count }}</h2>
                     </div>
                     <div class="stat-icon bg-danger-subtle text-danger rounded-4 p-3">
                         <i class="fas fa-user-friends fs-3"></i>
@@ -71,7 +72,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div class="text-warning small fw-semibold mb-1">รอเช็คบิล</div>
-                        <h2 class="fw-bold mb-0 text-warning" id="stat-billing">{{ billing_count }}</h2>
+                        <h2 class="fw-bold mb-0 text-warning">{{ billing_count }}</h2>
                     </div>
                     <div class="stat-icon bg-warning-subtle text-warning rounded-4 p-3">
                         <i class="fas fa-receipt fs-3"></i>
@@ -81,7 +82,7 @@
         </div>
     </div>
 
-    <!-- Toolbar: Search & Quick Filter Buttons -->
+    <!-- Search Toolbar -->
     <div class="card border-0 shadow-sm rounded-4 p-3 mb-4">
         <div class="row g-2 align-items-center">
             <div class="col-12 col-md-5 col-lg-4">
@@ -101,7 +102,7 @@
         </div>
     </div>
 
-    <!-- Table Cards Grid Responsive Layout -->
+    <!-- Table Cards Grid -->
     <div class="row g-2 g-md-3" id="tablesContainer">
         {% if tables %}
             {% for table in tables %}
@@ -110,12 +111,10 @@
                  data-table-no="{{ table.table_no }}" 
                  data-status="{{ table.status }}">
                 
-                <!-- เพิ่ม onclick ให้คลิกที่การ์ดเพื่อเลือกได้เลย -->
                 <div class="card h-100 border-0 shadow-sm rounded-4 card-table position-relative transition-all status-card-{{ table.status }} cursor-pointer" 
                      id="table-card-{{ table.id }}"
                      onclick="toggleCardSelect(event, '{{ table.id }}')">
                     
-                    <!-- Checkbox Indicator -->
                     <div class="position-absolute top-0 start-0 p-2 z-2" onclick="event.stopPropagation()">
                         <div class="form-check custom-checkbox-wrapper m-0">
                             <input type="checkbox" class="form-check-input custom-table-checkbox cursor-pointer rounded-2" value="{{ table.id }}" onchange="handleCheckboxChange('{{ table.id }}')">
@@ -123,9 +122,8 @@
                     </div>
 
                     <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <!-- Top Header: Table Number & Seats -->
                         <div class="text-center pt-2 mb-2">
-                            <div class="d-inline-flex align-items-center justify-content-center bg-light border shadow-sm rounded-circle mb-2 table-icon-badge" style="width: 52px; height: 52px;">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-light border shadow-sm rounded-circle mb-2" style="width: 52px; height: 52px;">
                                 <i class="fas fa-utensils fs-4 text-secondary"></i>
                             </div>
                             <h5 class="fw-bold mb-0 text-dark">โต๊ะ {{ table.table_no }}</h5>
@@ -134,7 +132,6 @@
                             </span>
                         </div>
 
-                        <!-- Current Status Indicator Badge -->
                         <div class="text-center mb-3">
                             {% if table.status == 'occupied' %}
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-2 w-100 fw-bold">
@@ -151,10 +148,9 @@
                             {% endif %}
                         </div>
 
-                        <!-- Actions: Dropdown Status Switcher & Single Delete (ใส่ stopPropagation เพื่อไม่ให้ติดการเลือกการ์ด) -->
                         <div class="d-flex gap-1 pt-2 border-top" onclick="event.stopPropagation()">
                             <div class="dropdown flex-grow-1">
-                                <button class="btn btn-light btn-sm w-100 rounded-3 border dropdown-toggle fw-semibold text-secondary d-flex align-items-center justify-content-between px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button class="btn btn-light btn-sm w-100 rounded-3 border dropdown-toggle fw-semibold text-secondary d-flex align-items-center justify-content-between px-2" type="button" data-bs-toggle="dropdown">
                                     <span class="small">สถานะ</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 fs-7">
@@ -168,7 +164,6 @@
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -182,44 +177,38 @@
         {% endif %}
     </div>
 
-    <!-- No Search Results Found Message -->
     <div id="noResultsMsg" class="text-center py-5 d-none">
         <i class="fas fa-search text-muted fa-3x mb-3"></i>
         <h5 class="text-muted">ไม่พบข้อมูลโต๊ะที่ค้นหา</h5>
-        <p class="text-muted small">ลองค้นหาด้วยหมายเลขโต๊ะอื่น หรือปรับเปลี่ยนตัวกรองสถานะ</p>
     </div>
 </div>
 
-<!-- Modern Glassmorphic Bulk Action Bar -->
+<!-- Floating Bulk Bar -->
 <div id="bulkActionBar" class="bulk-floating-bar d-none">
     <div class="d-flex align-items-center justify-content-between w-100 gap-2">
-        <!-- Left Side: Badge & Cancel -->
         <div class="d-flex align-items-center gap-2">
             <span class="badge bg-primary px-3 py-2 rounded-pill fs-6 shadow-sm d-flex align-items-center gap-1 text-nowrap" id="selectedCountBadge">
                 <i class="fas fa-check-circle"></i> เลือก 0 โต๊ะ
             </span>
-            <button type="button" class="btn btn-link text-white-50 text-decoration-none p-0 small fw-semibold text-nowrap opacity-75 hover-opacity-100" onclick="deselectAllCheckboxes()">
+            <button type="button" class="btn btn-link text-white-50 text-decoration-none p-0 small fw-semibold text-nowrap" onclick="deselectAllCheckboxes()">
                 ยกเลิก
             </button>
         </div>
 
-        <!-- Right Side: Bulk Actions Dropdown & Delete Button -->
         <div class="d-flex align-items-center gap-2 ms-auto">
             <div class="dropdown">
-                <button class="btn btn-outline-light btn-sm rounded-3 dropdown-toggle fw-semibold px-2 px-sm-3 py-2 d-flex align-items-center gap-1 shadow-sm fs-7" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-sync-alt text-warning"></i>
-                    <span class="d-none d-sm-inline">เปลี่ยนสถานะ</span>
+                <button class="btn btn-outline-light btn-sm rounded-3 dropdown-toggle fw-semibold px-3 py-2" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-sync-alt text-warning me-1"></i> เปลี่ยนสถานะ
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2 fs-7 overflow-hidden">
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 fs-7">
                     <li><button class="dropdown-item py-2 text-success fw-semibold" onclick="bulkUpdateStatus('available')"><i class="fas fa-check me-2"></i> ตั้งเป็น "ว่าง"</button></li>
                     <li><button class="dropdown-item py-2 text-danger fw-semibold" onclick="bulkUpdateStatus('occupied')"><i class="fas fa-user-friends me-2"></i> ตั้งเป็น "มีลูกค้า"</button></li>
                     <li><button class="dropdown-item py-2 text-warning-emphasis fw-semibold" onclick="bulkUpdateStatus('billing')"><i class="fas fa-receipt me-2"></i> ตั้งเป็น "รอเช็คบิล"</button></li>
                 </ul>
             </div>
 
-            <button type="button" class="btn btn-danger btn-sm rounded-3 fw-semibold px-2 px-sm-3 py-2 d-flex align-items-center gap-1 shadow-sm fs-7" onclick="confirmBulkDelete()">
-                <i class="fas fa-trash-alt"></i>
-                <span class="d-none d-sm-inline">ลบที่เลือก</span>
+            <button type="button" class="btn btn-danger btn-sm rounded-3 fw-semibold px-3 py-2" onclick="confirmBulkDelete()">
+                <i class="fas fa-trash-alt me-1"></i> ลบที่เลือก
             </button>
         </div>
     </div>
@@ -236,7 +225,7 @@
             
             <form action="{{ url_for('admin.admin_table_add') }}" method="POST">
                 <div class="modal-body pt-3">
-                    <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3 mb-3" id="addModeTab" role="tablist">
+                    <ul class="nav nav-pills nav-fill bg-light p-1 rounded-3 mb-3" id="addModeTab">
                         <li class="nav-item">
                             <button class="nav-link active rounded-3 py-2 fw-semibold" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-pane" type="button" onclick="setAddType('single')">
                                 เพิ่มทีละ 1 โต๊ะ
@@ -252,7 +241,6 @@
                     <input type="hidden" name="add_type" id="add_type" value="single">
 
                     <div class="tab-content">
-                        <!-- Single Form -->
                         <div class="tab-pane fade show active" id="single-pane">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">หมายเลข/ชื่อโต๊ะ <span class="text-danger">*</span></label>
@@ -264,7 +252,6 @@
                             </div>
                         </div>
 
-                        <!-- Bulk Form -->
                         <div class="tab-pane fade" id="bulk-pane">
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
@@ -298,85 +285,21 @@
         </div>
     </div>
 </div>
-
-<!-- Modal: Confirm Delete Modal -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg rounded-4 text-center p-3">
-            <div class="modal-body">
-                <div class="text-danger mb-3">
-                    <i class="fas fa-exclamation-circle fa-3x"></i>
-                </div>
-                <h5 class="fw-bold mb-2" id="deleteModalTitle">ยืนยันการลบ</h5>
-                <p class="text-muted small mb-4" id="deleteModalBody">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?</p>
-                <div class="d-flex justify-content-center gap-2">
-                    <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">ยกเลิก</button>
-                    <button type="button" class="btn btn-danger rounded-3 px-3" id="confirmDeleteBtn">ยืนยันลบ</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <style>
-/* CSS Styles for Modern POS Table Cards & Floating Action Bar */
 .cursor-pointer { cursor: pointer; }
+.filter-card { transition: all 0.2s ease-in-out; }
+.filter-card:hover { transform: translateY(-3px); }
+.filter-card.active { border: 2px solid #0d6efd !important; }
+.card-table { border: 2px solid #e9ecef !important; transition: all 0.25s ease-in-out; }
+.card-table.card-selected { border-color: #0d6efd !important; background-color: #f0f6ff !important; }
+.status-card-available { border-top: 5px solid #198754 !important; }
+.status-card-occupied { border-top: 5px solid #dc3545 !important; }
+.status-card-billing { border-top: 5px solid #ffc107 !important; }
+.custom-table-checkbox { width: 22px; height: 22px; cursor: pointer; }
 
-/* Quick Filter Cards */
-.filter-card {
-    transition: all 0.2s ease-in-out;
-}
-.filter-card:hover {
-    transform: translateY(-3px);
-}
-.filter-card.active {
-    box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15) !important;
-    border: 2px solid #0d6efd !important;
-}
-
-/* POS Table Cards Styling */
-.card-table {
-    border: 2px solid #e9ecef !important;
-    transition: all 0.25s ease-in-out;
-    background-color: #ffffff;
-    user-select: none;
-}
-.card-table:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08) !important;
-}
-.card-table.card-selected {
-    border-color: #0d6efd !important;
-    background-color: #f0f6ff !important;
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
-}
-
-/* Status Accents */
-.status-card-available {
-    border-top: 5px solid #198754 !important;
-}
-.status-card-occupied {
-    border-top: 5px solid #dc3545 !important;
-}
-.status-card-billing {
-    border-top: 5px solid #ffc107 !important;
-}
-
-/* Custom Checkbox Styling */
-.custom-table-checkbox {
-    width: 22px;
-    height: 22px;
-    border-color: #adb5bd;
-    cursor: pointer;
-}
-.custom-table-checkbox:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-/* Floating Bulk Action Bar */
 .bulk-floating-bar {
     position: fixed;
     bottom: 24px;
@@ -387,38 +310,15 @@
     z-index: 1080;
     background: rgba(24, 28, 36, 0.94);
     backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 18px;
     padding: 12px 18px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    animation: slideUpFloating 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
 }
-
-@keyframes slideUpFloating {
-    from {
-        opacity: 0;
-        transform: translate(-50%, 30px);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
-}
-
-.hover-opacity-100:hover {
-    opacity: 1 !important;
-}
-
-.fs-7 { font-size: 0.85rem; }
-.transition-all { transition: all 0.25s ease; }
 </style>
 
 <script>
 let currentStatusFilter = 'all';
-let pendingDeleteAction = null;
 
-// สลับ required ของ input ตามโหมด เพื่อไม่ให้ HTML5 Validation ทำงานค้างใน Tab ที่ถูกซ่อน
 function setAddType(type) {
     document.getElementById('add_type').value = type;
     const singleTableNo = document.getElementById('single_table_no');
@@ -436,30 +336,11 @@ function setAddType(type) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    setAddType('single');
-});
+document.addEventListener('DOMContentLoaded', () => setAddType('single'));
 
-// -------------------------------------------------------------
-// Filter & Search Functions
-// -------------------------------------------------------------
 function filterByStatus(status, element) {
     currentStatusFilter = status;
-    
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.getAttribute('data-status') === status) {
-            btn.classList.add('active', 'btn-primary');
-            btn.classList.remove('btn-outline-success', 'btn-outline-danger', 'btn-outline-warning');
-        } else {
-            btn.classList.remove('active', 'btn-primary');
-        }
-    });
-
-    document.querySelectorAll('.filter-card').forEach(card => card.classList.remove('active'));
-    if (element && element.classList.contains('filter-card')) {
-        element.classList.add('active');
-    }
-
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-status') === status));
     filterTables();
 }
 
@@ -471,38 +352,18 @@ function filterTables() {
     items.forEach(item => {
         const tableNo = (item.getAttribute('data-table-no') || '').toLowerCase();
         const status = item.getAttribute('data-status') || '';
-
-        const matchesSearch = tableNo.includes(searchText);
-        const matchesStatus = (currentStatusFilter === 'all') || (status === currentStatusFilter);
-
-        if (matchesSearch && matchesStatus) {
-            item.classList.remove('d-none');
-            visibleCount++;
-        } else {
-            item.classList.add('d-none');
-        }
+        const match = tableNo.includes(searchText) && (currentStatusFilter === 'all' || status === currentStatusFilter);
+        item.classList.toggle('d-none', !match);
+        if (match) visibleCount++;
     });
 
-    const noResults = document.getElementById('noResultsMsg');
-    if (visibleCount === 0 && items.length > 0) {
-        noResults.classList.remove('d-none');
-    } else {
-        noResults.classList.add('d-none');
-    }
+    document.getElementById('noResultsMsg').classList.toggle('d-none', visibleCount !== 0 || items.length === 0);
 }
 
-// -------------------------------------------------------------
-// Card Click & Selection Logic
-// -------------------------------------------------------------
 function toggleCardSelect(event, tableId) {
-    // หากกดปุ่มหรือดรอปดาวน์ภายใน ให้ข้ามการสลับสถานะการเลือก
-    if (event.target.closest('.dropdown') || event.target.closest('button') || event.target.closest('input')) {
-        return;
-    }
-
+    if (event.target.closest('.dropdown') || event.target.closest('button') || event.target.closest('input')) return;
     const card = document.getElementById(`table-card-${tableId}`);
     if (!card) return;
-
     const cb = card.querySelector('.custom-table-checkbox');
     if (cb) {
         cb.checked = !cb.checked;
@@ -511,21 +372,14 @@ function toggleCardSelect(event, tableId) {
 }
 
 function getSelectedTableIds() {
-    const checkboxes = document.querySelectorAll('.custom-table-checkbox:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
+    return Array.from(document.querySelectorAll('.custom-table-checkbox:checked')).map(cb => cb.value);
 }
 
 function handleCheckboxChange(tableId) {
     if (tableId) {
         const card = document.getElementById(`table-card-${tableId}`);
         const cb = card ? card.querySelector('.custom-table-checkbox') : null;
-        if (card && cb) {
-            if (cb.checked) {
-                card.classList.add('card-selected');
-            } else {
-                card.classList.remove('card-selected');
-            }
-        }
+        if (card && cb) card.classList.toggle('card-selected', cb.checked);
     }
 
     const selectedIds = getSelectedTableIds();
@@ -541,12 +395,8 @@ function handleCheckboxChange(tableId) {
 }
 
 function deselectAllCheckboxes() {
-    document.querySelectorAll('.custom-table-checkbox').forEach(cb => {
-        cb.checked = false;
-    });
-    document.querySelectorAll('.card-table').forEach(card => {
-        card.classList.remove('card-selected');
-    });
+    document.querySelectorAll('.custom-table-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.card-table').forEach(card => card.classList.remove('card-selected'));
     handleCheckboxChange();
 }
 
@@ -557,17 +407,11 @@ function toggleSelectAllModal() {
     visibleCheckboxes.forEach(cb => {
         cb.checked = !allChecked;
         const card = document.getElementById(`table-card-${cb.value}`);
-        if (card) {
-            if (!allChecked) card.classList.add('card-selected');
-            else card.classList.remove('card-selected');
-        }
+        if (card) card.classList.toggle('card-selected', !allChecked);
     });
     handleCheckboxChange();
 }
 
-// -------------------------------------------------------------
-// Single Table Actions
-// -------------------------------------------------------------
 function updateSingleStatus(tableId, newStatus) {
     fetch(`/admin/tables/status/${tableId}`, {
         method: 'POST',
@@ -575,39 +419,17 @@ function updateSingleStatus(tableId, newStatus) {
         body: JSON.stringify({ status: newStatus })
     })
     .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            location.reload();
-        } else {
-            alert(data.message || 'ไม่สามารถอัปเดตสถานะได้');
-        }
-    })
-    .catch(() => alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'));
+    .then(data => data.status === 'success' ? location.reload() : alert(data.message));
 }
 
 function confirmDeleteSingle(tableId, tableNo) {
-    document.getElementById('deleteModalTitle').innerText = 'ยืนยันการลบโต๊ะ';
-    document.getElementById('deleteModalBody').innerText = `คุณแน่ใจหรือไม่ว่าต้องการลบ โต๊ะ ${tableNo}?`;
-    
-    pendingDeleteAction = () => {
+    confirmAction('ยืนยันลบโต๊ะ', `คุณแน่ใจหรือไม่ว่าต้องการลบ โต๊ะ ${tableNo}?`, () => {
         fetch(`/admin/tables/delete/${tableId}`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                location.reload();
-            } else {
-                alert(data.message);
-            }
-        });
-    };
-
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    modal.show();
+            .then(res => res.json())
+            .then(data => location.reload());
+    });
 }
 
-// -------------------------------------------------------------
-// Bulk Actions (Mass Delete & Mass Status Change)
-// -------------------------------------------------------------
 function bulkUpdateStatus(newStatus) {
     const selectedIds = getSelectedTableIds();
     if (selectedIds.length === 0) return;
@@ -618,62 +440,30 @@ function bulkUpdateStatus(newStatus) {
         body: JSON.stringify({ table_ids: selectedIds, status: newStatus })
     })
     .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            location.reload();
-        } else {
-            alert(data.message || 'ไม่สามารถอัปเดตสถานะแบบกลุ่มได้');
-        }
-    })
-    .catch(() => alert('เกิดข้อผิดพลาดในการทำรายการกลุ่ม'));
+    .then(data => location.reload());
 }
 
 function confirmBulkDelete() {
     const selectedIds = getSelectedTableIds();
     if (selectedIds.length === 0) return;
 
-    document.getElementById('deleteModalTitle').innerText = 'ยืนยันลบหลายรายการ';
-    document.getElementById('deleteModalBody').innerText = `คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะที่เลือกทั้ง ${selectedIds.length} รายการ?`;
-
-    pendingDeleteAction = () => {
+    confirmAction('ยืนยันลบหลายรายการ', `คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะที่เลือก ${selectedIds.length} รายการ?`, () => {
         fetch('/admin/tables/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ table_ids: selectedIds })
         })
         .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                location.reload();
-            } else {
-                alert(data.message || 'ไม่สามารถลบโต๊ะที่เลือกได้');
-            }
-        });
-    };
-
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    modal.show();
+        .then(data => location.reload());
+    });
 }
-
-// Global Delete Event Listener
-document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
-    if (pendingDeleteAction) {
-        pendingDeleteAction();
-    }
-});
 </script>
 
+<!-- Request Guard System -->
 <script>
-/* ============================================================
-   ADMIN REQUEST GUARD
-   - ป้องกันการกดบันทึก/แก้ไข/ลบ/เปลี่ยนสถานะซ้ำ
-   - ทุก mutation request ต้องรอ response ก่อนปลดล็อก
-   - ป้องกัน double-submit ของ form POST
-   ============================================================ */
 (function () {
     if (window.__adminRequestGuardInstalled) return;
     window.__adminRequestGuardInstalled = true;
-
     let requestBusy = false;
     const originalFetch = window.fetch.bind(window);
 
@@ -681,107 +471,30 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
         return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || 'GET').toUpperCase());
     }
 
-    function getActionButtons() {
-        return Array.from(document.querySelectorAll(
-            'button[type="submit"], button[onclick], input[type="submit"], button[data-bs-toggle="modal"]'
-        ));
-    }
-
-    function setBusy(busy, sourceButton) {
+    function setBusy(busy) {
         requestBusy = busy;
         document.documentElement.classList.toggle('admin-request-busy', busy);
-
-        getActionButtons().forEach(function (btn) {
-            if (!btn) return;
-            if (busy) {
-                if (!btn.dataset.adminOriginalDisabled) {
-                    btn.dataset.adminOriginalDisabled = btn.disabled ? '1' : '0';
-                }
-                btn.disabled = true;
-                btn.classList.add('admin-request-disabled');
-                if (btn.tagName === 'BUTTON' && !btn.dataset.adminOriginalHtml) {
-                    btn.dataset.adminOriginalHtml = btn.innerHTML;
-                }
-            } else {
-                if (btn.dataset.adminOriginalDisabled === '0') btn.disabled = false;
-                delete btn.dataset.adminOriginalDisabled;
-                btn.classList.remove('admin-request-disabled');
-            }
+        document.querySelectorAll('button[type="submit"], button[onclick], input[type="submit"]').forEach(btn => {
+            btn.disabled = busy;
+            btn.classList.toggle('admin-request-disabled', busy);
         });
-
-        if (sourceButton && busy) {
-            sourceButton.dataset.adminRequestSource = '1';
-        }
     }
-
-    window.__adminSetRequestBusy = setBusy;
 
     window.fetch = function (input, init) {
         const method = (init && init.method) || (input && input.method) || 'GET';
-        if (!isMutation(method)) {
-            return originalFetch(input, init);
-        }
-
-        if (requestBusy) {
-            return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า กรุณารอให้เสร็จสิ้น'));
-        }
-
+        if (!isMutation(method)) return originalFetch(input, init);
+        if (requestBusy) return Promise.reject(new Error('ระบบกำลังดำเนินรายการก่อนหน้า'));
         setBusy(true);
-        return originalFetch(input, init).finally(function () {
-            setBusy(false);
-        });
+        return originalFetch(input, init).finally(() => setBusy(false));
     };
 
     document.addEventListener('submit', function (event) {
         const form = event.target;
         if (!(form instanceof HTMLFormElement)) return;
-        if (form.dataset.adminSubmitting === '1') {
-            event.preventDefault();
-            return;
-        }
-
-        // ฟอร์มที่มี onsubmit handler ของหน้าอยู่แล้ว จะถูก lock ตอน fetch เริ่มทำงาน
-        // เพื่อไม่ให้ global form guard ไปล็อกก่อน แล้วทำให้ fetch ภายใน handler ถูกปฏิเสธ
-        if (form.getAttribute('onsubmit')) return;
-
         const method = String(form.getAttribute('method') || 'GET').toUpperCase();
-        if (!isMutation(method)) return;
-
-        if (requestBusy) {
-            event.preventDefault();
-            return;
-        }
-
-        form.dataset.adminSubmitting = '1';
-        setBusy(true, event.submitter || form.querySelector('[type="submit"]'));
-
-        const submitter = event.submitter || form.querySelector('[type="submit"]');
-        if (submitter) {
-            submitter.dataset.adminSubmitOriginalHtml = submitter.innerHTML;
-            submitter.disabled = true;
-            submitter.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังบันทึก...';
-        }
+        if (!isMutation(method) || requestBusy) return;
+        setBusy(true);
     }, true);
-
-    document.addEventListener('click', function (event) {
-        const button = event.target.closest('button');
-        if (!button) return;
-        if (button.type === 'button' && button.dataset.bsDismiss === 'modal') return;
-        if (button.disabled) return;
-        if (requestBusy && button.dataset.adminRequestSource !== '1') {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-        }
-    }, true);
-
-    const style = document.createElement('style');
-    style.textContent = `
-        .admin-request-disabled { opacity: .65 !important; cursor: wait !important; }
-        .admin-request-busy { cursor: wait; }
-        .admin-request-busy .admin-request-disabled { pointer-events: none !important; }
-    `;
-    document.head.appendChild(style);
 })();
 </script>
-
 {% endblock %}

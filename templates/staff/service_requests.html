@@ -48,7 +48,6 @@
 
     <!-- Dynamic Service Requests Grid -->
     <div class="row g-3" id="requestsGrid">
-        <!-- Rendered via Realtime JS -->
     </div>
 </div>
 {% endblock %}
@@ -166,7 +165,7 @@
                     <button type="button" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" onclick="updateRequestStatus('${reqId}', 'resolved')">
                         <i class="fas fa-check me-1"></i>เสร็จสิ้น
                     </button>`;
-            } else if (st === 'in_progress') {
+            } else if (st === 'in_progress' || st === 'accepted') {
                 badgeHtml = '<span class="badge bg-warning text-dark rounded-pill"><i class="fas fa-spinner fa-spin me-1"></i>กำลังดำเนินการ</span>';
                 actionBtnHtml = `
                     <button type="button" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" onclick="updateRequestStatus('${reqId}', 'resolved')">
@@ -215,13 +214,17 @@
         fetch('/staff/service-request/update-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ request_id: reqId, status: status })
+            body: JSON.stringify({ 
+                request_id: reqId, 
+                status: status,
+                client_request_id: (crypto.randomUUID ? crypto.randomUUID() : ('serv_status_' + Date.now() + '_' + Math.random().toString(16).slice(2)))
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
                 Swal.fire({
-                    title: status === 'resolved' ? 'เสร็จสิ้นและลบรายการแล้ว!' : 'อัปเดตเรียบร้อย!',
+                    title: (status === 'resolved' || status === 'completed') ? 'เสร็จสิ้นและลบรายการแล้ว!' : 'อัปเดตเรียบร้อย!',
                     icon: 'success',
                     timer: 1000,
                     showConfirmButton: false
