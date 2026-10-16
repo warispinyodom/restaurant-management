@@ -21,7 +21,7 @@ from customer_routes import customer_bp
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'restaurant_super_secret')
 
-# ลงทะเบียน Blueprint
+# ลงทะเบียน Blueprints
 app.register_blueprint(admin_bp)
 app.register_blueprint(staff_bp)
 app.register_blueprint(customer_bp)
@@ -106,6 +106,14 @@ def signin():
 def signout():
     session.clear()
     return redirect(url_for('signin'))
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -236,6 +236,15 @@ def parse_firebase_data(data):
 # ==========================================
 # Guards / Decorators
 # ==========================================
+def login_required(func_route):
+    @wraps(func_route)
+    def wrapper(*args, **kwargs):
+        if 'username' not in session:
+            flash("กรุณาเข้าสู่ระบบก่อนใช้งาน", "error")
+            return redirect(url_for('signin'))
+        return func_route(*args, **kwargs)
+    return wrapper
+
 def admin_required(func_route):
     @wraps(func_route)
     def wrapper(*args, **kwargs):
