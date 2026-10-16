@@ -1,8 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-# โหลดค่า Environment Variables จากไฟล์ .env (สำหรับ Localhost)
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash
@@ -19,7 +22,7 @@ from admin_routes import admin_bp
 from customer_routes import customer_bp
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'restaurant_super_secret')
+app.secret_key = os.environ.get('SECRET_KEY', 'restaurant_super_secret_key_2026')
 
 # ลงทะเบียน Blueprints
 app.register_blueprint(admin_bp)
@@ -27,7 +30,7 @@ app.register_blueprint(staff_bp)
 app.register_blueprint(customer_bp)
 
 # ==========================================
-# AUTHENTICATION & HOME ROUTES
+# AUTHENTICATION & ROUTING PRINCIPALS
 # ==========================================
 @app.route('/')
 def home():
@@ -50,7 +53,11 @@ def signup():
             role = 'customer' 
 
             users = get_all_users() or {}
-            is_duplicate = any(info.get('username') == username for uid, info in users.items() if isinstance(info, dict))
+            is_duplicate = any(
+                info.get('username') == username 
+                for uid, info in users.items() 
+                if isinstance(info, dict)
+            )
             if is_duplicate:
                 flash("ชื่อผู้ใช้นี้มีในระบบแล้ว", "error")
                 return redirect(url_for('signup'))
@@ -65,7 +72,7 @@ def signup():
                 flash("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ", "success")
                 return redirect(url_for('signin'))
             else:
-                flash("ไม่สามารถเชื่อมต่อฐานข้อมูล Firebase ได้ กรุณาลองใหม่อีกครั้ง", "error")
+                flash("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่อีกครั้ง", "error")
                 return redirect(url_for('signup'))
                 
         except Exception as e:
@@ -116,4 +123,4 @@ def internal_server_error(e):
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
