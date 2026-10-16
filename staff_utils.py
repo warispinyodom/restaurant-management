@@ -129,21 +129,22 @@ def get_all_tables():
         return []
 
 def get_all_service_requests():
-    """ดึงการเรียกพนักงาน/การแจ้งเตือน โดยรวมจาก notifications, service_requests และ service_calls"""
+    """ดึงการเรียกพนักงาน/การแจ้งเตือน โดยรวมจาก notifications, service_requests และ service_calls รวมฟิลด์ไม่ให้ข้อมูลหาย"""
     try:
         combined_data = {}
 
-        notif_data = get_firebase_data('notifications')
-        if isinstance(notif_data, dict):
-            combined_data.update(notif_data)
-
-        sr_data = get_firebase_data('service_requests')
-        if isinstance(sr_data, dict):
-            combined_data.update(sr_data)
-
-        sc_data = get_firebase_data('service_calls')
-        if isinstance(sc_data, dict):
-            combined_data.update(sc_data)
+        for path in ['service_requests', 'notifications', 'service_calls']:
+            data = get_firebase_data(path)
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    if isinstance(v, dict):
+                        if k not in combined_data:
+                            combined_data[k] = dict(v)
+                        else:
+                            # รวมฟิลด์โดยคงข้อมูลที่มีอยู่เดิมเอาไว้ ไม่ให้คีย์ว่างไปเขียนทับ table_no เดิม
+                            for field, val in v.items():
+                                if val or field not in combined_data[k]:
+                                    combined_data[k][field] = val
 
         requests = parse_firebase_data(combined_data)
         requests.sort(key=lambda x: str(x.get('created_at') or x.get('timestamp') or x.get('id') or ''), reverse=True)
@@ -234,12 +235,22 @@ def staff_update_service_request_status():
             'updated_at': now_str
         }
 
-        res_notif = patch_firebase_data('notifications', request_id, patch_payload)
-        res_sr = patch_firebase_data('service_requests', request_id, patch_payload)
-        res_sc = patch_firebase_data('service_calls', request_id, patch_payload)
+        updated_any = False
+        for path in ['service_requests', 'notifications', 'service_calls']:
+            existing = get_firebase_data(f'{path}/{request_id}')
+            if existing and isinstance(existing, dict):
+                if patch_firebase_data(path, request_id, patch_payload):
+                    updated_any = True
 
-        if res_notif or res_sr or res_sc:
+        if updated_any:
             return jsonify({'status': 'success', 'message': 'อัปเดตสถานะเรียบร้อยแล้ว'})
+
+        # Fallback กรณีไม่พบใน path ย่อย
+        res_sr = patch_firebase_data('service_requests', request_id, patch_payload)
+        res_notif = patch_firebase_data('notifications', request_id, patch_payload)
+        if res_sr or res_notif:
+            return jsonify({'status': 'success', 'message': 'อัปเดตสถานะเรียบร้อยแล้ว'})
+
         return jsonify({'status': 'error', 'message': 'ไม่สามารถอัปเดตรายการในระบบได้'}), 500
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
