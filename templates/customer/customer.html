@@ -283,22 +283,6 @@
 
 <div class="container-fluid px-2 px-sm-3 px-md-4 py-3 customer-page-wrapper">
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% set seen_messages = [] %}
-            {% for category, message in messages %}
-                {% if message not in seen_messages %}
-                    {% set _ = seen_messages.append(message) %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else ('success' if category == 'success' else 'primary') }} alert-dismissible fade show rounded-4 shadow-sm mb-3" role="alert">
-                        <i class="fas {{ 'fa-check-circle' if category == 'success' else 'fa-info-circle' }} me-2"></i> {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
     <!-- Header Banner -->
     <div class="table-info-banner mb-3 d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
